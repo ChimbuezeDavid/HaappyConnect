@@ -1,56 +1,129 @@
-# Welcome to your Expo app 👋
+# HaappyConnect 👋
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+HaappyConnect is a professional consulting platform designed to connect **Seekers** (who want answers or guidance) with **Experts** (who offer professional advice). It consists of a universal mobile client application (built with Expo/React Native) and a robust backend API server (built with Node.js/Express).
 
-## Get started
+The application is fully verified against Human-Computer Interaction (HCI) usability standards, featuring high text contrast, keyboard-aware views, clear interactive states, and a persistent, system-integrated dark/light theme switch.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 🚀 Key Features
 
-2. Start the app
+* **Blended Discovery Feed**: Experts can browse other experts, ask questions, or book live calls, allowing a seamless dual role (seeker/expert) within a single account.
+* **1:1 Live Calls**: Seekers can schedule and book live consultation calls with pricing calculations based on hourly rates.
+* **Written/Memo Questions**: Seekers can submit questions to experts and receive replies (text, voice, or video advice memos) played back via a custom styled Media Player.
+* **Virtual Transaction Wallet**: Integrated wallet system allowing users to deposit virtual funds, pay for bookings, and view detailed ledger histories.
+* **Segmented Appearance Switcher**: A persistent theme switcher under the Profile screen supporting **System** (OS default), **Light**, and **Dark** color schemes.
+* **Profile Picture Editor**: Allows seekers and experts to edit their listing pictures using device camera/media library (`expo-image-picker`) and update their profile details.
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🛠️ Tech Stack & Architecture
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Client-Side (Mobile App)
+* **Framework**: React Native with **Expo (SDK 51)**
+* **Navigation**: File-based routing using **Expo Router**
+* **Styling**: Tailwind CSS integration using **NativeWind v4** (`react-native-css-interop`)
+* **State Management**: **Zustand** (with persistent middleware)
+* **Secure Storage**: **Expo SecureStore** (for tokens and theme preferences)
+* **Icons**: **Lucide React Native**
+* **Image Selection**: **Expo ImagePicker**
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Server-Side (Backend API)
+* **Runtime**: **Node.js** with **TypeScript**
+* **Framework**: **Express**
+* **Database**: **MongoDB** with **Mongoose ODM**
+* **Auth**: **JWT (JSON Web Tokens)**
+* **Seed Script**: Automated database seeding script for quick testing data
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## 📂 Project Directory Structure
 
-```bash
-npm run reset-project
+```text
+HaappyConnect/
+├── assets/                     # App icons and splash screen media assets
+├── server/                     # Backend API Express Server
+│   ├── src/
+│   │   ├── middleware/        # JWT Authentication verification
+│   │   ├── models/            # Mongoose Schemas (User, Profile, Booking, etc.)
+│   │   ├── routes/            # Express routes (auth, profile, wallet, bookings)
+│   │   └── index.ts           # Server entry point
+│   ├── package.json
+│   └── tsconfig.json
+├── src/                        # React Native Mobile Client
+│   ├── app/                    # Expo Router file-based screens
+│   │   ├── (auth)/             # Login, Register, Welcome screens
+│   │   ├── (onboarding)/       # Role-selection and setup wizards
+│   │   ├── (tabs)/             # Home, Search, Bookings, Wallet, Profile
+│   │   ├── bookings/           # Video/Audio response viewer
+│   │   ├── expert/             # Expert detail and edit profile
+│   │   └── seeker/             # Booking call and ask question sheets
+│   ├── components/
+│   │   └── ui/                 # Reusable themed widgets (ExpertCard, BottomSheet, etc.)
+│   ├── lib/
+│   │   └── api.ts              # Fetch configurations and global interceptors
+│   ├── store/                  # Zustand stores (Auth, Onboarding, Theme)
+│   ├── types/                  # Shared TypeScript interfaces
+│   └── global.css              # Global styling configurations
+├── package.json
+├── tailwind.config.js          # NativeWind/Tailwind styling layout config
+└── tsconfig.json
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## 💻 Setup & Installation
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### Prerequisites
+* [Node.js](https://nodejs.org/) (v18 or newer recommended)
+* [MongoDB](https://www.mongodb.com/) (running instance locally or via Atlas)
+* Expo Go app on your physical device, or an iOS Simulator / Android Emulator
 
-## Learn more
+### 1. Backend Server Setup
+Navigate into the server folder, install dependencies, configure your environment, and start the server:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+cd server
+npm install
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# Create a local environment config file:
+cp .env.example .env  # Or create a .env file and set PORT, MONGO_URI, and JWT_SECRET
+# e.g., MONGO_URI=mongodb://localhost:27017/haappyconnect
 
-## Join the community
+# Seed database with sample data:
+npm run seed
 
-Join our community of developers creating universal apps.
+# Run the backend in development mode:
+npm run dev
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### 2. Client Mobile App Setup
+In the project root folder, install client dependencies and run the Expo development engine:
+
+```bash
+# Return to the root folder
+cd ..
+npm install
+
+# Start the Expo development server:
+npx expo start
+```
+
+* Scan the QR code displayed in the terminal with your device camera (iOS) or the **Expo Go** app (Android) to open the application.
+* Or press **`a`** to open in Android Emulator, or **`i`** to open in iOS Simulator.
+
+---
+
+## 🧪 Verification & Linting
+
+Verify client and server compiler status before publishing:
+
+```bash
+# Verify client typescript compilation:
+npx tsc --noEmit
+
+# Verify server typescript compilation:
+cd server
+npx tsc --noEmit
+```
+Both typecheck steps compile cleanly without warning issues.

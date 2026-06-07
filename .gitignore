@@ -59,3 +59,6 @@ example
 # Directory
 server/.env
 server/node_modules
+.vscode
+scripts
+.claude

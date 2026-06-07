@@ -1,0 +1,233 @@
+import { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { api } from '@/lib/api';
+import { Profile } from '@/types';
+import { useAuthStore } from '@/store/authStore';
+import CustomHeader from '@/components/ui/CustomHeader';
+import PricingTierCard from '@/components/ui/PricingTierCard';
+import { Star, MessageSquare, Video, PhoneCall, AlertTriangle } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
+
+export default function ExpertProfileDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { isGuest } = useAuthStore();
+  const router = useRouter();
+  const [expert, setExpert] = useState<Profile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  useEffect(() => {
+    const fetchExpertDetail = async () => {
+      if (!id) return;
+      setIsLoading(true);
+      try {
+        const data = await api.get(`/expert/${id}`);
+        setExpert(data);
+      } catch (err) {
+        console.error('Error fetching expert details:', err);
+        Alert.alert('Error', 'Failed to load expert details');
+        router.back();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchExpertDetail();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-slate-50 dark:bg-slate-950 justify-center items-center">
+        <ActivityIndicator size="large" color="#8b5cf6" />
+      </View>
+    );
+  }
+
+  if (!expert) {
+    return (
+      <View className="flex-1 bg-slate-50 dark:bg-slate-950 justify-center items-center px-6">
+        <AlertTriangle size={36} color="#ef4444" />
+        <Text className="text-slate-900 dark:text-white text-base mt-2">Expert profile not found</Text>
+      </View>
+    );
+  }
+
+  // Extract expert's raw user account ID to route questions/bookings correctly
+  const expertUserId = typeof expert.user === 'string' ? expert.user : expert.user?.id || (expert.user as any)?._id || '';
+
+  // Mock Reviews since reviews schema is implemented but no reviews seeded yet
+  const mockReviews = [
+    {
+      id: 'rev1',
+      fullName: 'David K.',
+      rating: 5,
+      comment: 'Super fast response! Jane solved our product-market fit question in one video answer. Highly recommend.',
+      date: '2 days ago',
+    },
+    {
+      id: 'rev2',
+      fullName: 'Samantha W.',
+      rating: 4,
+      comment: 'Very helpful consultation on raising our seed capital. Will book again.',
+      date: '1 week ago',
+    },
+  ];
+
+  return (
+    <View className="flex-1 bg-slate-50 dark:bg-slate-955">
+      <CustomHeader title="Expert Details" showBackButton />
+
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 60 }}>
+        {/* Banner info */}
+        <View className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-6 items-center shadow-sm dark:shadow-none">
+          <Image
+            source={{ uri: expert.avatarUrl || 'https://via.placeholder.com/150' }}
+            className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 mb-4"
+          />
+          <Text className="text-2xl font-black text-slate-900 dark:text-white text-center tracking-tight">
+            {expert.fullName}
+          </Text>
+          <Text className="text-slate-600 dark:text-slate-400 text-sm mt-1 text-center font-medium px-4">
+            {expert.headline}
+          </Text>
+
+          <View className="flex-row items-center mt-3 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-4 py-1.5 rounded-full">
+            <Star size={14} color="#f59e0b" fill="#f59e0b" />
+            <Text className="text-slate-900 dark:text-white text-xs font-bold ml-1">
+              {expert.ratingAverage.toFixed(1)}
+            </Text>
+            <Text className="text-slate-500 dark:text-slate-500 text-xs ml-1">
+              ({expert.reviewsCount} consultations)
+            </Text>
+          </View>
+        </View>
+
+        {/* Bio Section */}
+        <View className="px-6 py-6 border-b border-slate-200 dark:border-slate-900">
+          <Text className="text-slate-500 dark:text-slate-350 text-xs font-semibold uppercase tracking-wider mb-3">About</Text>
+          <Text className="text-slate-700 dark:text-slate-400 text-sm leading-relaxed">
+            {expert.bio}
+          </Text>
+        </View>
+
+        {/* Pricing Tiers / Service Packages */}
+        <View className="px-6 py-6 border-b border-slate-200 dark:border-slate-900">
+          <Text className="text-slate-550 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">Choose Service Type</Text>
+
+          {/* Pricing Tier 1: Text Question */}
+          <PricingTierCard
+            title="Text Message Advice"
+            price={expert.textQuestionPrice.toString()}
+            description="Submit a text question and receive a detailed written answer from the expert within 72 hours."
+            icon={<MessageSquare size={20} color="#8b5cf6" />}
+            actionLabel="Ask Question"
+            onPress={() => {
+              if (isGuest) {
+                Alert.alert(
+                  'Sign In Required',
+                  'Please sign in or create an account to submit questions to experts.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Sign In', onPress: () => {
+                      router.replace('/(auth)/login');
+                    }}
+                  ]
+                );
+                return;
+              }
+              router.push({
+                pathname: '/seeker/ask-question',
+                params: { expertId: expertUserId, initialType: 'text' },
+              });
+            }}
+          />
+
+          {/* Pricing Tier 2: Video response */}
+          <PricingTierCard
+            title="Personalized Video Response"
+            price={expert.videoResponsePrice.toString()}
+            description="Submit a request and receive a custom, recorded video response answering your queries."
+            icon={<Video size={20} color="#8b5cf6" />}
+            actionLabel="Request Video"
+            onPress={() => {
+              if (isGuest) {
+                Alert.alert(
+                  'Sign In Required',
+                  'Please sign in or create an account to request custom video answers.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Sign In', onPress: () => {
+                      router.replace('/(auth)/login');
+                    }}
+                  ]
+                );
+                return;
+              }
+              router.push({
+                pathname: '/seeker/ask-question',
+                params: { expertId: expertUserId, initialType: 'video' },
+              });
+            }}
+          />
+
+          {/* Pricing Tier 3: Live Consultation */}
+          <PricingTierCard
+            title="Live scheduled Call"
+            price={expert.hourlyRate.toString()}
+            description="Book a live 1:1 face-to-face video consultation directly on their calendar slot."
+            icon={<PhoneCall size={20} color="#8b5cf6" />}
+            actionLabel="Book Video Call"
+            onPress={() => {
+              if (isGuest) {
+                Alert.alert(
+                  'Sign In Required',
+                  'Please sign in or create an account to schedule video call consultations.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Sign In', onPress: () => {
+                      router.replace('/(auth)/login');
+                    }}
+                  ]
+                );
+                return;
+              }
+              router.push({
+                pathname: '/seeker/book-call',
+                params: { expertId: expertUserId },
+              });
+            }}
+          />
+        </View>
+
+        {/* Reviews Section */}
+        <View className="px-6 py-6">
+          <Text className="text-slate-550 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">Seeker Reviews</Text>
+          
+          {mockReviews.map((rev) => (
+            <View key={rev.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-850 p-4 rounded-2xl mb-3 shadow-sm dark:shadow-none">
+              <View className="flex-row justify-between items-center mb-2">
+                <Text className="text-slate-900 dark:text-white font-bold text-sm">{rev.fullName}</Text>
+                <Text className="text-slate-455 dark:text-slate-500 text-[10px]">{rev.date}</Text>
+              </View>
+              
+              <View className="flex-row items-center mb-2">
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <Star
+                    key={idx}
+                    size={12}
+                    color="#f59e0b"
+                    fill={idx < rev.rating ? '#f59e0b' : 'transparent'}
+                    style={{ marginRight: 2 }}
+                  />
+                ))}
+              </View>
+
+              <Text className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{rev.comment}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}

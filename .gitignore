@@ -31,13 +31,31 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*
+server/.env
 
 # typescript
 *.tsbuildinfo
+
+# IDE / Editor settings
+.vscode/
+.idea/
+
+# AI Agent Workspaces
+.claude/
+.gemini/
 
 example
 
 # generated native folders
 /ios
 /android
+
+# Directory
+server/.env
+server/node_modules

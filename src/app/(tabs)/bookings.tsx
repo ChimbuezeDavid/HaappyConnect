@@ -222,7 +222,17 @@ export default function BookingsScreen() {
                     {/* Conference Jitsi Meeting Button */}
                     {booking.status === 'confirmed' && booking.meetingLink && (
                       <TouchableOpacity
-                        onPress={() => Linking.openURL(booking.meetingLink!)}
+                        onPress={() => {
+                          const partnerProfile = isCurrentUserExpert ? booking.seekerProfile : booking.expertProfile;
+                          router.push({
+                            pathname: '/bookings/call' as any,
+                            params: {
+                              meetingLink: booking.meetingLink,
+                              durationMinutes: booking.durationMinutes.toString(),
+                              partnerName: partnerProfile?.fullName || 'Consultation Session'
+                            }
+                          });
+                        }}
                         className="w-full bg-emerald-500 py-3.5 rounded-2xl flex-row justify-center items-center mb-3 shadow-lg shadow-emerald-500"
                       >
                         <Text className="text-white font-bold text-sm mr-2">Join Video Call</Text>

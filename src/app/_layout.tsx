@@ -147,6 +147,13 @@ export default function RootLayout() {
         <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
+          name="bookings/call"
+          options={{
+            presentation: 'fullScreenModal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="seeker/book-call"
           options={{
             presentation: 'modal',

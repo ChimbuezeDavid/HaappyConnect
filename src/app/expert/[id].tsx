@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '@/lib/api';
-import { Profile } from '@/types';
+import { Profile, Review } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import CustomHeader from '@/components/ui/CustomHeader';
 import PricingTierCard from '@/components/ui/PricingTierCard';
@@ -14,6 +14,7 @@ export default function ExpertProfileDetailScreen() {
   const { isGuest } = useAuthStore();
   const router = useRouter();
   const [expert, setExpert] = useState<Profile | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -25,6 +26,12 @@ export default function ExpertProfileDetailScreen() {
       try {
         const data = await api.get(`/expert/${id}`);
         setExpert(data);
+        
+        const expertUserId = typeof data.user === 'string' ? data.user : data.user?._id || data.user?.id || '';
+        if (expertUserId) {
+          const reviewData = await api.get(`/review/expert/${expertUserId}`);
+          setReviews(reviewData);
+        }
       } catch (err) {
         console.error('Error fetching expert details:', err);
         Alert.alert('Error', 'Failed to load expert details');
@@ -55,24 +62,6 @@ export default function ExpertProfileDetailScreen() {
 
   // Extract expert's raw user account ID to route questions/bookings correctly
   const expertUserId = typeof expert.user === 'string' ? expert.user : expert.user?.id || (expert.user as any)?._id || '';
-
-  // Mock Reviews since reviews schema is implemented but no reviews seeded yet
-  const mockReviews = [
-    {
-      id: 'rev1',
-      fullName: 'David K.',
-      rating: 5,
-      comment: 'Super fast response! Jane solved our product-market fit question in one video answer. Highly recommend.',
-      date: '2 days ago',
-    },
-    {
-      id: 'rev2',
-      fullName: 'Samantha W.',
-      rating: 4,
-      comment: 'Very helpful consultation on raising our seed capital. Will book again.',
-      date: '1 week ago',
-    },
-  ];
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-955">
@@ -202,30 +191,51 @@ export default function ExpertProfileDetailScreen() {
 
         {/* Reviews Section */}
         <View className="px-6 py-6">
-          <Text className="text-slate-550 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">Seeker Reviews</Text>
+          <Text className="text-slate-555 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">Seeker Reviews</Text>
           
-          {mockReviews.map((rev) => (
-            <View key={rev.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-850 p-4 rounded-2xl mb-3 shadow-sm dark:shadow-none">
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-slate-900 dark:text-white font-bold text-sm">{rev.fullName}</Text>
-                <Text className="text-slate-455 dark:text-slate-500 text-[10px]">{rev.date}</Text>
-              </View>
-              
-              <View className="flex-row items-center mb-2">
-                {Array.from({ length: 5 }).map((_, idx) => (
-                  <Star
-                    key={idx}
-                    size={12}
-                    color="#f59e0b"
-                    fill={idx < rev.rating ? '#f59e0b' : 'transparent'}
-                    style={{ marginRight: 2 }}
-                  />
-                ))}
-              </View>
-
-              <Text className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{rev.comment}</Text>
+          {reviews.length === 0 ? (
+            <View className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 border-dashed p-6 rounded-3xl items-center justify-center">
+              <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold">No reviews yet for this expert</Text>
             </View>
-          ))}
+          ) : (
+            reviews.map((rev) => {
+              const seekerName = rev.seekerProfile?.fullName || (rev.seeker as any)?.email?.split('@')[0] || 'Anonymous Seeker';
+              const formattedDate = new Date(rev.createdAt).toLocaleDateString(undefined, {
+                dateStyle: 'medium'
+              });
+              
+              return (
+                <View key={rev._id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-850 p-4 rounded-2xl mb-3 shadow-sm dark:shadow-none">
+                  <View className="flex-row items-center justify-between mb-2">
+                    <View className="flex-row items-center">
+                      {rev.seekerProfile?.avatarUrl ? (
+                        <Image
+                          source={{ uri: rev.seekerProfile.avatarUrl }}
+                          className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 mr-2 border border-slate-200/50 dark:border-slate-800"
+                        />
+                      ) : null}
+                      <Text className="text-slate-900 dark:text-white font-bold text-sm">{seekerName}</Text>
+                    </View>
+                    <Text className="text-slate-455 dark:text-slate-500 text-[10px]">{formattedDate}</Text>
+                  </View>
+                  
+                  <View className="flex-row items-center mb-2">
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <Star
+                        key={idx}
+                        size={12}
+                        color="#f59e0b"
+                        fill={idx < rev.rating ? '#f59e0b' : 'transparent'}
+                        style={{ marginRight: 2 }}
+                      />
+                    ))}
+                  </View>
+    
+                  <Text className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{rev.comment}</Text>
+                </View>
+              );
+            })
+          )}
         </View>
       </ScrollView>
     </View>

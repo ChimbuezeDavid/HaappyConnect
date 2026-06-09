@@ -4,9 +4,10 @@ import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'expo-router';
 import { api } from '@/lib/api';
 import { Booking, Question } from '@/types';
-import { Calendar, MessageSquare, ExternalLink } from 'lucide-react-native';
+import { Calendar, MessageSquare, ExternalLink, Star } from 'lucide-react-native';
 import SignInWall from '@/components/ui/SignInWall';
 import { useColorScheme } from 'nativewind';
+import SubmitReviewModal from '@/components/review/SubmitReviewModal';
 
 export default function BookingsScreen() {
   const { user, token, isGuest } = useAuthStore();
@@ -23,6 +24,12 @@ export default function BookingsScreen() {
   const [answeringQuestionId, setAnsweringQuestionId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState('');
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
+
+  // Review states
+  const [reviewVisible, setReviewVisible] = useState(false);
+  const [selectedExpertId, setSelectedExpertId] = useState('');
+  const [selectedBookingId, setSelectedBookingId] = useState<string | undefined>(undefined);
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | undefined>(undefined);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -255,8 +262,30 @@ export default function BookingsScreen() {
                         onPress={() => handleUpdateBookingStatus(booking._id, 'cancelled')}
                         className="w-full bg-red-500/10 border border-red-500/25 py-3.5 rounded-2xl items-center"
                       >
-                        <Text className="text-red-600 dark:text-red-400 font-semibold text-sm">Cancel Booking</Text>
+                        <Text className="text-red-655 dark:text-red-400 font-semibold text-sm">Cancel Booking</Text>
                       </TouchableOpacity>
+                    )}
+
+                    {isCurrentUserSeeker && booking.status === 'completed' && !booking.hasReview && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          const expertObj = booking.expert as any;
+                          setSelectedExpertId(expertObj._id || expertObj);
+                          setSelectedBookingId(booking._id);
+                          setSelectedQuestionId(undefined);
+                          setReviewVisible(true);
+                        }}
+                        className="w-full bg-primary-500 py-3.5 rounded-2xl items-center mb-1 shadow-lg shadow-primary-500"
+                      >
+                        <Text className="text-white font-bold text-sm">Leave a Review</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {isCurrentUserSeeker && booking.status === 'completed' && booking.hasReview && (
+                      <View className="w-full bg-slate-100 dark:bg-slate-800 py-3.5 rounded-2xl items-center flex-row justify-center border border-slate-250 dark:border-slate-800">
+                        <Star size={14} color="#f59e0b" fill="#f59e0b" className="mr-1.5" />
+                        <Text className="text-slate-500 dark:text-slate-400 font-bold text-xs ml-1">Feedback Submitted</Text>
+                      </View>
                     )}
                   </View>
                 );
@@ -361,6 +390,28 @@ export default function BookingsScreen() {
                       </View>
                     )}
 
+                    {isCurrentUserSeeker && question.status === 'answered' && !question.hasReview && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          const expertObj = question.expert as any;
+                          setSelectedExpertId(expertObj._id || expertObj);
+                          setSelectedBookingId(undefined);
+                          setSelectedQuestionId(question._id);
+                          setReviewVisible(true);
+                        }}
+                        className="w-full bg-primary-500 py-3.5 rounded-2xl items-center mb-1 shadow-lg shadow-primary-500"
+                      >
+                        <Text className="text-white font-bold text-sm">Leave a Review</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {isCurrentUserSeeker && question.status === 'answered' && question.hasReview && (
+                      <View className="w-full bg-slate-100 dark:bg-slate-800 py-3.5 rounded-2xl items-center flex-row justify-center border border-slate-250 dark:border-slate-850">
+                        <Star size={14} color="#f59e0b" fill="#f59e0b" className="mr-1.5" />
+                        <Text className="text-slate-500 dark:text-slate-400 font-bold text-xs ml-1">Feedback Submitted</Text>
+                      </View>
+                    )}
+
                     {/* Expert Action Panel */}
                     {isCurrentUserExpert && question.status === 'pending' && answeringQuestionId !== question._id && (
                       <View className="flex-row space-x-3">
@@ -424,6 +475,15 @@ export default function BookingsScreen() {
           )}
         </ScrollView>
       )}
+
+      <SubmitReviewModal
+        visible={reviewVisible}
+        onClose={() => setReviewVisible(false)}
+        expertId={selectedExpertId}
+        bookingId={selectedBookingId}
+        questionId={selectedQuestionId}
+        onSuccess={fetchData}
+      />
     </View>
   );
 }

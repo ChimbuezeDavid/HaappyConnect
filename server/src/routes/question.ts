@@ -3,6 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { Question } from '../models/Question';
 import { Profile } from '../models/Profile';
 import { Transaction } from '../models/Transaction';
+import { Review } from '../models/Review';
 
 const router = Router();
 
@@ -22,10 +23,12 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       questions.map(async question => {
         const seekerProfile = await Profile.findOne({ user: question.seeker });
         const expertProfile = await Profile.findOne({ user: question.expert });
+        const hasReview = await Review.exists({ question: question._id });
         return {
           ...question.toObject(),
           seekerProfile,
-          expertProfile
+          expertProfile,
+          hasReview: !!hasReview
         };
       })
     );

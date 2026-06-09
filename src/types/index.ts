@@ -58,6 +58,7 @@ export interface Question {
   answeredAt?: string;
   createdAt: string;
   updatedAt: string;
+  hasReview?: boolean;
 }
 
 export interface Booking {
@@ -73,6 +74,7 @@ export interface Booking {
   meetingLink?: string;
   createdAt: string;
   updatedAt: string;
+  hasReview?: boolean;
 }
 
 export interface Transaction {
@@ -94,5 +96,8 @@ export interface Review {
   expert: string | Partial<User>;
   rating: number;
   comment: string;
+  seekerProfile?: Profile;
+  booking?: string;
+  question?: string;
   createdAt: string;
 }

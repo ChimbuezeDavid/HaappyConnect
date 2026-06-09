@@ -10,6 +10,7 @@ import expertRoutes from './routes/expert';
 import bookingRoutes from './routes/booking';
 import questionRoutes from './routes/question';
 import walletRoutes from './routes/wallet';
+import reviewRoutes from './routes/review';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use('/api/expert', expertRoutes);
 app.use('/api/booking', bookingRoutes);
 app.use('/api/question', questionRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/review', reviewRoutes);
 
 // Connect to MongoDB & Start Server
 mongoose

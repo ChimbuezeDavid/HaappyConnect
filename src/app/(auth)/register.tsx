@@ -14,6 +14,11 @@ import { Link, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { Mail, Lock, AlertCircle, ArrowRight, Eye, EyeOff, Sparkles } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { API_URL } from '@/lib/api';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
@@ -28,6 +33,37 @@ export default function RegisterScreen() {
 
   const passwordRef = useRef<TextInput>(null);
   const isFormValid = !!email && !!password && password.length >= 6;
+
+  const handleOAuthLogin = async (provider: 'google' | 'x') => {
+    try {
+      clearError();
+      const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
+      const authUrl = `${baseUrl}/api/auth/${provider}`;
+      
+      const redirectUrl = Linking.createURL('auth-callback');
+      console.log(`Starting OAuth session. Provider: ${provider}, URL: ${authUrl}, Redirect: ${redirectUrl}`);
+      
+      const result = await WebBrowser.openAuthSessionAsync(
+        `${authUrl}?redirect_uri=${encodeURIComponent(redirectUrl)}`,
+        redirectUrl
+      );
+
+      if (result.type === 'success' && result.url) {
+        const parsed = Linking.parse(result.url);
+        const { token, id, email: oEmail, role, isOnboarded } = parsed.queryParams || {};
+        
+        if (token) {
+          await useAuthStore.getState().loginWithOAuth(
+            token as string, 
+            { id: id as string, email: oEmail as string, role: (role as 'seeker' | 'expert') || 'seeker', isOnboarded: isOnboarded === 'true' },
+            null
+          );
+        }
+      }
+    } catch (e: any) {
+      console.error(`OAuth login error with ${provider}:`, e);
+    }
+  };
 
   const handleRegister = useCallback(async () => {
     if (!isFormValid) return;
@@ -229,6 +265,56 @@ export default function RegisterScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          {/* Social logins */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 20 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: isDark ? '#1e293b' : '#e2e8f0' }} />
+            <Text style={{ color: isDark ? '#475569' : '#64748b', fontSize: 13, marginHorizontal: 16 }}>or</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: isDark ? '#1e293b' : '#e2e8f0' }} />
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 28 }}>
+            <TouchableOpacity
+              onPress={() => handleOAuthLogin('google')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Sign up with Google"
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                borderWidth: 1,
+                borderColor: isDark ? '#1e293b' : '#cbd5e1',
+                paddingVertical: 14,
+                borderRadius: 14,
+                minHeight: 52,
+              }}
+            >
+              <Text style={{ color: isDark ? '#e2e8f0' : '#475569', fontWeight: '600', fontSize: 15 }}>Google</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleOAuthLogin('x')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Sign up with X"
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                borderWidth: 1,
+                borderColor: isDark ? '#1e293b' : '#cbd5e1',
+                paddingVertical: 14,
+                borderRadius: 14,
+                minHeight: 52,
+              }}
+            >
+              <Text style={{ color: isDark ? '#e2e8f0' : '#475569', fontWeight: '600', fontSize: 15 }}>X (Twitter)</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Sign in link */}
           <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 16 }}>

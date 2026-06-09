@@ -14,6 +14,11 @@ import { Link, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { Mail, Lock, AlertCircle, ArrowRight, Eye, EyeOff, LogIn } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { API_URL } from '@/lib/api';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -28,6 +33,37 @@ export default function LoginScreen() {
 
   const passwordRef = useRef<TextInput>(null);
   const isFormValid = !!email && !!password;
+
+  const handleOAuthLogin = async (provider: 'google' | 'x') => {
+    try {
+      clearError();
+      const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
+      const authUrl = `${baseUrl}/api/auth/${provider}`;
+      
+      const redirectUrl = Linking.createURL('auth-callback');
+      console.log(`Starting OAuth session. Provider: ${provider}, URL: ${authUrl}, Redirect: ${redirectUrl}`);
+      
+      const result = await WebBrowser.openAuthSessionAsync(
+        `${authUrl}?redirect_uri=${encodeURIComponent(redirectUrl)}`,
+        redirectUrl
+      );
+
+      if (result.type === 'success' && result.url) {
+        const parsed = Linking.parse(result.url);
+        const { token, id, email: oEmail, role, isOnboarded } = parsed.queryParams || {};
+        
+        if (token) {
+          await useAuthStore.getState().loginWithOAuth(
+            token as string, 
+            { id: id as string, email: oEmail as string, role: (role as 'seeker' | 'expert') || 'seeker', isOnboarded: isOnboarded === 'true' },
+            null
+          );
+        }
+      }
+    } catch (e: any) {
+      console.error(`OAuth login error with ${provider}:`, e);
+    }
+  };
 
   const handleLogin = useCallback(async () => {
     if (!isFormValid) return;
@@ -231,6 +267,7 @@ export default function LoginScreen() {
 
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 28 }}>
             <TouchableOpacity
+              onPress={() => handleOAuthLogin('google')}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Sign in with Google"
@@ -250,9 +287,10 @@ export default function LoginScreen() {
               <Text style={{ color: isDark ? '#e2e8f0' : '#475569', fontWeight: '600', fontSize: 15 }}>Google</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              onPress={() => handleOAuthLogin('x')}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Sign in with Apple"
+              accessibilityLabel="Sign in with X"
               style={{
                 flex: 1,
                 flexDirection: 'row',
@@ -266,7 +304,7 @@ export default function LoginScreen() {
                 minHeight: 52,
               }}
             >
-              <Text style={{ color: isDark ? '#e2e8f0' : '#475569', fontWeight: '600', fontSize: 15 }}>Apple</Text>
+              <Text style={{ color: isDark ? '#e2e8f0' : '#475569', fontWeight: '600', fontSize: 15 }}>X (Twitter)</Text>
             </TouchableOpacity>
           </View>
 

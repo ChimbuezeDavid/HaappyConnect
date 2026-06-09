@@ -39,6 +39,7 @@ interface AuthState {
     categories?: string[];
     role?: 'seeker' | 'expert';
   }) => Promise<void>;
+  loginWithOAuth: (token: string, user: User, profile: Profile | null) => Promise<void>;
   clearError: () => void;
 }
 
@@ -83,6 +84,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (error: any) {
       set({ error: error.message || 'Login failed', isLoading: false });
+      throw error;
+    }
+  },
+
+  loginWithOAuth: async (token, user, profile = null) => {
+    set({ isLoading: true, error: null, isGuest: false });
+    try {
+      await setAuthToken(token);
+      set({
+        token,
+        user,
+        profile,
+        isLoading: false,
+      });
+    } catch (error: any) {
+      set({ error: error.message || 'OAuth login failed', isLoading: false });
       throw error;
     }
   },

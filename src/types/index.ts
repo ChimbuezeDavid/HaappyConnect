@@ -79,9 +79,13 @@ export interface Transaction {
   _id: string;
   user: string;
   amount: number;
-  type: 'charge' | 'payout' | 'refund';
+  type: 'deposit' | 'withdrawal' | 'charge' | 'payout' | 'refund';
+  status: 'pending' | 'success' | 'failed';
   description: string;
+  reference?: string;
+  metadata?: Record<string, any>;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Review {

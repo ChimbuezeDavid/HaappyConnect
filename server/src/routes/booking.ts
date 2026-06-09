@@ -51,6 +51,21 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     const price = (expertProfile.hourlyRate / 60) * durationMinutes;
 
+    // Calculate seeker's available balance
+    const userTransactions = await Transaction.find({ user: req.userId });
+    let availableBalance = 0;
+    for (const tx of userTransactions) {
+      if (tx.status === 'success') {
+        availableBalance += tx.amount;
+      } else if (tx.status === 'pending' && tx.amount < 0) {
+        availableBalance += tx.amount;
+      }
+    }
+
+    if (availableBalance < price) {
+      return res.status(400).json({ error: 'Insufficient wallet balance. Please deposit funds first.' });
+    }
+
     const booking = new Booking({
       seeker: req.userId,
       expert: expertId,
@@ -63,12 +78,14 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     await booking.save();
 
-    // Create a Seeker debit transaction placeholder
+    // Create a Seeker debit transaction placeholder as a pending escrow hold
     const transaction = new Transaction({
       user: req.userId,
       amount: -price,
       type: 'charge',
-      description: `Pending live call booking with expert ${expertProfile.fullName}`
+      status: 'pending',
+      description: `Pending live call hold with expert ${expertProfile.fullName}`,
+      metadata: { bookingId: booking._id }
     });
     await transaction.save();
 
@@ -99,29 +116,57 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
       return res.status(403).json({ error: 'Unauthorized to modify this booking' });
     }
 
+    // Prevent double processing
+    if (booking.status === 'completed' || booking.status === 'cancelled') {
+      return res.status(400).json({ error: `Booking has already been finalized as ${booking.status}` });
+    }
+
     booking.status = status;
     await booking.save();
 
-    // If completed, credit the expert (earnings)
+    // Find the original pending transaction
+    const escrowTx = await Transaction.findOne({
+      'metadata.bookingId': booking._id,
+      status: 'pending'
+    });
+
+    // If completed, finalize the hold and credit the expert (earnings)
     if (status === 'completed') {
+      if (escrowTx) {
+        escrowTx.status = 'success';
+        escrowTx.description = `Completed live call payment`;
+        await escrowTx.save();
+      }
+
+      const expertProfile = await Profile.findOne({ user: booking.expert });
       const transaction = new Transaction({
         user: booking.expert,
         amount: booking.price * 0.8, // 80% to expert, 20% platform fee
         type: 'charge',
-        description: `Completed live call booking with seeker`
+        status: 'success',
+        description: `Earnings: Completed live call booking`,
+        metadata: { bookingId: booking._id }
       });
       await transaction.save();
     }
 
-    // If cancelled, refund the seeker
+    // If cancelled, fail the hold to release funds back to the seeker
     if (status === 'cancelled') {
-      const transaction = new Transaction({
-        user: booking.seeker,
-        amount: booking.price,
-        type: 'refund',
-        description: `Cancelled live call booking refund`
-      });
-      await transaction.save();
+      if (escrowTx) {
+        escrowTx.status = 'failed';
+        escrowTx.description = `Cancelled live call hold release`;
+        await escrowTx.save();
+      } else {
+        // Fallback for legacy items: issue a refund transaction
+        const refundTx = new Transaction({
+          user: booking.seeker,
+          amount: booking.price,
+          type: 'refund',
+          status: 'success',
+          description: `Refund: Cancelled live call booking`
+        });
+        await refundTx.save();
+      }
     }
 
     res.json({

@@ -56,6 +56,21 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     // Determine price based on type
     const price = type === 'text' ? expertProfile.textQuestionPrice : (type === 'video' ? expertProfile.videoResponsePrice : expertProfile.textQuestionPrice * 1.5);
 
+    // Calculate seeker's available balance
+    const userTransactions = await Transaction.find({ user: req.userId });
+    let availableBalance = 0;
+    for (const tx of userTransactions) {
+      if (tx.status === 'success') {
+        availableBalance += tx.amount;
+      } else if (tx.status === 'pending' && tx.amount < 0) {
+        availableBalance += tx.amount;
+      }
+    }
+
+    if (availableBalance < price) {
+      return res.status(400).json({ error: 'Insufficient wallet balance. Please deposit funds first.' });
+    }
+
     // Expires in 72 hours
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 72);
@@ -72,12 +87,14 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     await question.save();
 
-    // Create a Seeker debit transaction placeholder
+    // Create a Seeker debit transaction placeholder as pending hold
     const transaction = new Transaction({
       user: req.userId,
       amount: -price,
       type: 'charge',
-      description: `Pending ${type} question to expert ${expertProfile.fullName}`
+      status: 'pending',
+      description: `Pending ${type} question to expert ${expertProfile.fullName}`,
+      metadata: { questionId: question._id }
     });
     await transaction.save();
 
@@ -117,12 +134,26 @@ router.patch('/:id/answer', authenticate, async (req: AuthRequest, res: Response
     question.answeredAt = new Date();
     await question.save();
 
+    // Find the original pending transaction
+    const escrowTx = await Transaction.findOne({
+      'metadata.questionId': question._id,
+      status: 'pending'
+    });
+
+    if (escrowTx) {
+      escrowTx.status = 'success';
+      escrowTx.description = `Completed ${question.type} question payment`;
+      await escrowTx.save();
+    }
+
     // Credit expert (earnings)
     const transaction = new Transaction({
       user: question.expert,
       amount: question.price * 0.8, // 80% to expert, 20% platform fee
       type: 'charge',
-      description: `Answered ${question.type} question from seeker`
+      status: 'success',
+      description: `Earnings: Answered ${question.type} question`,
+      metadata: { questionId: question._id }
     });
     await transaction.save();
 
@@ -155,14 +186,27 @@ router.patch('/:id/decline', authenticate, async (req: AuthRequest, res: Respons
     question.status = 'declined';
     await question.save();
 
-    // Refund Seeker
-    const transaction = new Transaction({
-      user: question.seeker,
-      amount: question.price,
-      type: 'refund',
-      description: `Declined question refund`
+    // Find the original pending transaction
+    const escrowTx = await Transaction.findOne({
+      'metadata.questionId': question._id,
+      status: 'pending'
     });
-    await transaction.save();
+
+    if (escrowTx) {
+      escrowTx.status = 'failed';
+      escrowTx.description = `Declined question hold release`;
+      await escrowTx.save();
+    } else {
+      // Fallback: Refund Seeker directly
+      const refundTx = new Transaction({
+        user: question.seeker,
+        amount: question.price,
+        type: 'refund',
+        status: 'success',
+        description: `Refund: Declined question`
+      });
+      await refundTx.save();
+    }
 
     res.json({
       message: 'Question declined and seeker refunded',

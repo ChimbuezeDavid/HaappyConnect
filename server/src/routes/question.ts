@@ -4,6 +4,8 @@ import { Question } from '../models/Question';
 import { Profile } from '../models/Profile';
 import { Transaction } from '../models/Transaction';
 import { Review } from '../models/Review';
+import { Conversation } from '../models/Conversation';
+import { Message } from '../models/Message';
 
 const router = Router();
 
@@ -89,6 +91,27 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     });
 
     await question.save();
+
+    // Auto-create conversation when a question is sent
+    const conv = new Conversation({
+      participants: [req.userId, expertId],
+      unreadCounts: [
+        { user: req.userId, count: 0 },
+        { user: expertId, count: 1 }
+      ],
+      relatedTo: { modelType: 'Question', id: question._id }
+    });
+    await conv.save();
+
+    const message = new Message({
+      conversationId: conv._id,
+      senderId: req.userId,
+      content: seekerContent
+    });
+    await message.save();
+
+    conv.lastMessage = message._id;
+    await conv.save();
 
     // Create a Seeker debit transaction placeholder as pending hold
     const transaction = new Transaction({

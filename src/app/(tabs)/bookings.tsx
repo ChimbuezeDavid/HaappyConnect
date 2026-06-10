@@ -8,11 +8,25 @@ import { Calendar, MessageSquare, ExternalLink, Star } from 'lucide-react-native
 import SignInWall from '@/components/ui/SignInWall';
 import { useColorScheme } from 'nativewind';
 import SubmitReviewModal from '@/components/review/SubmitReviewModal';
+import { useChatStore } from '@/store/chatStore';
 
 export default function BookingsScreen() {
   const { user, token, isGuest } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'calls' | 'questions'>('calls');
+
+  const handleStartChat = async (participantId: string, relatedToModel?: 'Booking' | 'Question', relatedToId?: string) => {
+    try {
+      const chatStore = useChatStore.getState();
+      const conversation = await chatStore.initiateConversation(participantId, relatedToModel, relatedToId);
+      router.push({
+        pathname: '/chat/[conversationId]' as any,
+        params: { conversationId: conversation._id }
+      });
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not start conversation');
+    }
+  };
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -240,6 +254,22 @@ export default function BookingsScreen() {
                       </TouchableOpacity>
                     )}
 
+                    {/* Messaging CTA */}
+                    {booking.status !== 'cancelled' && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          const partnerId = isCurrentUserExpert
+                            ? (typeof booking.seeker === 'string' ? booking.seeker : (booking.seeker as any)?._id || (booking.seeker as any)?.id)
+                            : (typeof booking.expert === 'string' ? booking.expert : (booking.expert as any)?._id || (booking.expert as any)?.id);
+                          handleStartChat(partnerId, 'Booking', booking._id);
+                        }}
+                        className="w-full bg-slate-100 dark:bg-slate-800 py-3 rounded-2xl flex-row justify-center items-center mb-3 border border-slate-200 dark:border-slate-700/50"
+                      >
+                        <Text className="text-slate-700 dark:text-slate-350 font-bold text-xs mr-2">Chat with Partner</Text>
+                        <MessageSquare size={14} color={isDark ? '#94a3b8' : '#475569'} />
+                      </TouchableOpacity>
+                    )}
+
                     {/* Action Triggers */}
                     {isCurrentUserExpert && booking.status === 'pending' && (
                       <View className="flex-row space-x-3">
@@ -399,6 +429,20 @@ export default function BookingsScreen() {
                         )}
                       </View>
                     )}
+
+                    {/* Chat button for Question */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        const partnerId = isCurrentUserExpert
+                          ? (typeof question.seeker === 'string' ? question.seeker : (question.seeker as any)?._id || (question.seeker as any)?.id)
+                          : (typeof question.expert === 'string' ? question.expert : (question.expert as any)?._id || (question.expert as any)?.id);
+                        handleStartChat(partnerId, 'Question', question._id);
+                      }}
+                      className="w-full bg-slate-100 dark:bg-slate-800 py-3 rounded-2xl flex-row justify-center items-center mb-3 border border-slate-200 dark:border-slate-700/50"
+                    >
+                      <Text className="text-slate-700 dark:text-slate-350 font-bold text-xs mr-2">Open Conversation</Text>
+                      <MessageSquare size={14} color={isDark ? '#94a3b8' : '#475569'} />
+                    </TouchableOpacity>
 
                     {isCurrentUserSeeker && question.status === 'answered' && !question.hasReview && (
                       <TouchableOpacity

@@ -4,6 +4,7 @@ import { Booking } from '../models/Booking';
 import { Profile } from '../models/Profile';
 import { Transaction } from '../models/Transaction';
 import { Review } from '../models/Review';
+import { Conversation } from '../models/Conversation';
 
 const router = Router();
 
@@ -126,6 +127,26 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
 
     booking.status = status;
     await booking.save();
+
+    // Auto-create conversation when booking is confirmed
+    if (status === 'confirmed') {
+      const existingConv = await Conversation.findOne({
+        participants: { $all: [booking.seeker, booking.expert] },
+        'relatedTo.modelType': 'Booking',
+        'relatedTo.id': booking._id
+      });
+      if (!existingConv) {
+        const conv = new Conversation({
+          participants: [booking.seeker, booking.expert],
+          unreadCounts: [
+            { user: booking.seeker, count: 0 },
+            { user: booking.expert, count: 0 }
+          ],
+          relatedTo: { modelType: 'Booking', id: booking._id }
+        });
+        await conv.save();
+      }
+    }
 
     // Find the original pending transaction
     const escrowTx = await Transaction.findOne({

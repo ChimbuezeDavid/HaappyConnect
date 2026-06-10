@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'nativewind';
 import { useThemeStore } from '@/store/themeStore';
+import { useChatStore } from '@/store/chatStore';
 import '../global.css';
 
 // Keep splash screen visible while we load auth state
@@ -80,6 +81,18 @@ export default function RootLayout() {
     };
   }, []);
 
+  // Sync socket connection with auth token
+  useEffect(() => {
+    if (token) {
+      useChatStore.getState().connectSocket(token);
+    } else {
+      useChatStore.getState().disconnectSocket();
+    }
+    return () => {
+      useChatStore.getState().disconnectSocket();
+    };
+  }, [token]);
+
   // Hide splash screen once auth state is resolved
   useEffect(() => {
     if (isReady && !isLoading) {
@@ -146,6 +159,13 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="chat/[conversationId]"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
         <Stack.Screen
           name="bookings/call"
           options={{

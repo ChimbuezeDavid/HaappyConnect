@@ -1,14 +1,26 @@
+import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import { Compass, Search, CalendarDays, Wallet, User } from 'lucide-react-native';
+import { Compass, Search, CalendarDays, Wallet, User, MessageSquare } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
+import { useChatStore } from '@/store/chatStore';
 
 export default function TabLayout() {
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  const conversations = useChatStore((state) => state.conversations);
+  const fetchConversations = useChatStore((state) => state.fetchConversations);
+  const totalUnread = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
+
+  useEffect(() => {
+    if (token) {
+      fetchConversations();
+    }
+  }, [token]);
 
   return (
     <Tabs
@@ -50,6 +62,16 @@ export default function TabLayout() {
           tabBarLabel: 'Search',
           tabBarIcon: ({ color, size }) => <Search size={size} color={color} />,
           headerTitle: 'Search',
+        }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Messages',
+          tabBarLabel: 'Messages',
+          tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
+          headerTitle: 'Inbox',
+          tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
         }}
       />
       <Tabs.Screen

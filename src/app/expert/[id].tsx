@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '@/lib/api';
 import { Profile, Review } from '@/types';
 import { useAuthStore } from '@/store/authStore';
+import { useChatStore } from '@/store/chatStore';
 import CustomHeader from '@/components/ui/CustomHeader';
 import PricingTierCard from '@/components/ui/PricingTierCard';
 import { Star, MessageSquare, Video, PhoneCall, AlertTriangle } from 'lucide-react-native';
@@ -11,7 +12,7 @@ import { useColorScheme } from 'nativewind';
 
 export default function ExpertProfileDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { isGuest } = useAuthStore();
+  const { isGuest, user } = useAuthStore();
   const router = useRouter();
   const [expert, setExpert] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -63,9 +64,36 @@ export default function ExpertProfileDetailScreen() {
   // Extract expert's raw user account ID to route questions/bookings correctly
   const expertUserId = typeof expert.user === 'string' ? expert.user : expert.user?.id || (expert.user as any)?._id || '';
 
+  const handleMessageExpert = async () => {
+    if (!expertUserId) return;
+    try {
+      const chatStore = useChatStore.getState();
+      const conversation = await chatStore.initiateConversation(expertUserId);
+      router.push({
+        pathname: '/chat/[conversationId]' as any,
+        params: { conversationId: conversation._id }
+      });
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not start conversation');
+    }
+  };
+
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-955">
-      <CustomHeader title="Expert Details" showBackButton />
+      <CustomHeader
+        title="Expert Details"
+        showBackButton
+        rightElement={
+          !isGuest && (user?.id || (user as any)?._id) !== expertUserId ? (
+            <TouchableOpacity
+              onPress={handleMessageExpert}
+              className="bg-violet-100 dark:bg-violet-950 p-2.5 rounded-2xl border border-violet-200 dark:border-violet-850"
+            >
+              <MessageSquare size={18} color="#8b5cf6" />
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
 
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 60 }}>
         {/* Banner info */}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Animated } from 'react-native';
 import {
   View,
   Text,
@@ -30,63 +31,78 @@ import {
   ShieldAlert,
   X
 } from 'lucide-react-native';
-import { Audio } from 'expo-av';
+import { useAudioPlayer, useAudioRecorder, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
+
+// Animated recording indicator components (replaces NativeWind animate-pulse / animate-ping)
+function RecordingPulse() {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.3, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return (
+    <Animated.Text style={{ opacity, color: '#ef4444', fontSize: 12, fontWeight: 'bold' }}>
+      Recording audio... Tap to finish & send
+    </Animated.Text>
+  );
+}
+
+function RecordingDot() {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.8, duration: 600, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0, duration: 600, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ]),
+      ])
+    ).start();
+  }, []);
+  return (
+    <Animated.View
+      style={{
+        width: 10, height: 10, borderRadius: 5,
+        backgroundColor: '#ef4444',
+        transform: [{ scale }],
+        opacity,
+      }}
+    />
+  );
+}
 
 // Voice Note Player Component
 function VoiceMessageBubble({ uri, isSender }: { uri: string; isSender: boolean }) {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const player = useAudioPlayer({ uri });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
-
-  useEffect(() => {
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, [sound]);
 
   const handlePlayPause = async () => {
     try {
-      if (sound) {
-        if (isPlaying) {
-          await sound.pauseAsync();
-        } else {
-          await sound.playAsync();
-        }
+      if (isPlaying) {
+        player.pause();
+        setIsPlaying(false);
       } else {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false
-        });
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri },
-          { shouldPlay: true },
-          (status) => {
-            if (status.isLoaded) {
-              setPosition(status.positionMillis);
-              setDuration(status.durationMillis || 0);
-              setIsPlaying(status.isPlaying);
-              if (status.didJustFinish) {
-                setIsPlaying(false);
-                setPosition(0);
-              }
-            }
-          }
-        );
-        setSound(newSound);
+        player.play();
+        setIsPlaying(true);
       }
     } catch (err) {
       console.warn('Audio playback error:', err);
     }
   };
 
-  const progress = duration > 0 ? position / duration : 0;
+  const progress = player.duration > 0 ? player.currentTime / player.duration : 0;
   const displayTime = () => {
-    const totalSecs = Math.floor((duration || position) / 1000);
+    const totalSecs = Math.floor((player.duration || player.currentTime) || 0);
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
@@ -159,8 +175,21 @@ export default function ChatRoomScreen() {
   const [imageViewerUri, setImageViewerUri] = useState<string | null>(null);
 
   // Audio Recording State
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [audioPermission, setAudioPermission] = useState<{ granted: boolean } | null>(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
+
+  useEffect(() => {
+    getRecordingPermissionsAsync().then((status) => {
+      setAudioPermission({ granted: status.granted });
+    });
+  }, []);
+
+  const requestAudioPermission = async () => {
+    const status = await requestRecordingPermissionsAsync();
+    setAudioPermission({ granted: status.granted });
+    return status;
+  };
 
   // Typing timer reference
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -226,16 +255,11 @@ export default function ChatRoomScreen() {
   // Voice Recording Triggers
   const handleStartRecording = async () => {
     try {
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(recording);
+      if (!audioPermission?.granted) {
+        await requestAudioPermission();
+      }
+      await recorder.prepareToRecordAsync();
+      recorder.record();
       setIsRecording(true);
     } catch (err) {
       console.warn('Failed to start recording', err);
@@ -243,12 +267,11 @@ export default function ChatRoomScreen() {
   };
 
   const handleStopRecording = async () => {
-    if (!recording || !conversationId) return;
+    if (!conversationId) return;
     setIsRecording(false);
-    setRecording(null);
     try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
+      await recorder.stop();
+      const uri = recorder.uri;
       if (uri) {
         // Read file as base64
         const response = await fetch(uri as string);
@@ -533,10 +556,8 @@ export default function ChatRoomScreen() {
                 onPress={handleStopRecording}
                 className="flex-1 bg-red-500/10 border border-red-500/20 rounded-3xl py-2 px-4 flex-row items-center justify-between"
               >
-                <Text className="text-red-500 text-xs font-bold animate-pulse">
-                  Recording audio... Tap to finish & send
-                </Text>
-                <View className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
+                <RecordingPulse />
+                <RecordingDot />
               </TouchableOpacity>
             ) : (
               <TextInput

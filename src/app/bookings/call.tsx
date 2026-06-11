@@ -1,11 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, Platform, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { Camera } from 'expo-camera';
-import { Audio } from 'expo-av';
+import { requestRecordingPermissionsAsync } from 'expo-audio';
 import { PhoneOff, VideoOff, MicOff, AlertCircle } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
+
+// Animated pulsing timer component (replaces NativeWind animate-pulse which crashes via css-interop)
+function PulsingTimer({ text, color }: { text: string; color: string }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.3, duration: 600, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return (
+    <Animated.Text style={{ opacity, color, fontFamily: 'monospace', fontWeight: 'bold', fontSize: 14 }}>
+      {text}
+    </Animated.Text>
+  );
+}
 
 export default function CallScreen() {
   const router = useRouter();
@@ -26,9 +44,8 @@ export default function CallScreen() {
   useEffect(() => {
     const requestPermissions = async () => {
       const cameraStatus = await Camera.requestCameraPermissionsAsync();
-      const audioStatus = await Audio.requestPermissionsAsync();
-      
       setHasCameraPermission(cameraStatus.granted);
+      const audioStatus = await requestRecordingPermissionsAsync();
       setHasAudioPermission(audioStatus.granted);
     };
 
@@ -134,8 +151,8 @@ export default function CallScreen() {
         <TouchableOpacity
           onPress={async () => {
             const cameraStatus = await Camera.requestCameraPermissionsAsync();
-            const audioStatus = await Audio.requestPermissionsAsync();
             setHasCameraPermission(cameraStatus.granted);
+            const audioStatus = await requestRecordingPermissionsAsync();
             setHasAudioPermission(audioStatus.granted);
           }}
           className="mt-6 bg-primary-500 py-3.5 px-8 rounded-2xl"
@@ -189,11 +206,13 @@ export default function CallScreen() {
 
         {/* Timer */}
         <View className="bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-800/80 mr-3">
-          <Text className={`font-mono font-bold text-sm ${
-            isTimeRunningOut ? 'text-red-500 animate-pulse' : 'text-emerald-400'
-          }`}>
-            {formatTime(timeLeft)}
-          </Text>
+          {isTimeRunningOut ? (
+            <PulsingTimer text={formatTime(timeLeft)} color="#ef4444" />
+          ) : (
+            <Text className="font-mono font-bold text-sm text-emerald-400">
+              {formatTime(timeLeft)}
+            </Text>
+          )}
         </View>
 
         {/* End Call Button */}

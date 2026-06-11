@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, TextInput } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, TextInput, Animated } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useWalletStore } from '@/store/walletStore';
 import { Transaction } from '@/types';
@@ -14,6 +14,34 @@ import { useColorScheme } from 'nativewind';
 import DepositModal from '@/components/wallet/DepositModal';
 import WithdrawModal from '@/components/wallet/WithdrawModal';
 import TransactionDetailModal from '@/components/wallet/TransactionDetailModal';
+
+// Animated skeleton row (replaces NativeWind animate-pulse to avoid css-interop crash)
+function SkeletonRow() {
+  const opacity = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return (
+    <Animated.View
+      style={{ opacity }}
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex-row justify-between items-center mb-3"
+    >
+      <View className="flex-row items-center flex-1">
+        <View className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 mr-3" />
+        <View className="flex-1 space-y-1.5">
+          <View className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-2/3" />
+          <View className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
+        </View>
+      </View>
+      <View className="w-16 h-4 bg-slate-100 dark:bg-slate-800 rounded" />
+    </Animated.View>
+  );
+}
 
 export default function WalletScreen() {
   const { user, token, isGuest } = useAuthStore();
@@ -136,16 +164,7 @@ export default function WalletScreen() {
   const renderSkeletons = () => (
     <View className="space-y-3">
       {[1, 2, 3].map((i) => (
-        <View key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4.5 rounded-2xl flex-row justify-between items-center animate-pulse mb-3">
-          <View className="flex-row items-center flex-1">
-            <View className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 mr-3" />
-            <View className="space-y-1.5 flex-1">
-              <View className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-2/3" />
-              <View className="h-3 bg-slate-105 dark:bg-slate-850 rounded w-1/3" />
-            </View>
-          </View>
-          <View className="w-16 h-4 bg-slate-100 dark:bg-slate-800 rounded" />
-        </View>
+        <SkeletonRow key={i} />
       ))}
     </View>
   );
@@ -183,13 +202,13 @@ export default function WalletScreen() {
           {/* Locked/Total metrics */}
           <View className="flex-row justify-between items-center mt-6 pt-5 border-t border-slate-800/80">
             <View>
-              <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pending (Locked)</Text>
+              <Text className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Pending (Locked)</Text>
               <Text className="text-sm font-extrabold text-slate-300 mt-0.5">
                 {hideBalance ? '₦ •••' : `₦${pendingBalance.toLocaleString()}`}
               </Text>
             </View>
             <View className="items-end">
-              <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Value</Text>
+              <Text className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Total Value</Text>
               <Text className="text-sm font-extrabold text-white mt-0.5">
                 {hideBalance ? '₦ •••' : `₦${totalBalance.toLocaleString()}`}
               </Text>
@@ -206,7 +225,7 @@ export default function WalletScreen() {
                   <ArrowDownLeft size={16} color="#10b981" />
                 </View>
                 <View>
-                  <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Earned</Text>
+                  <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Earned</Text>
                   <Text className="text-sm font-black text-slate-850 dark:text-slate-200 mt-0.5">₦{totalEarned.toLocaleString()}</Text>
                 </View>
               </View>
@@ -215,7 +234,7 @@ export default function WalletScreen() {
                   <ArrowUpRight size={16} color="#8b5cf6" />
                 </View>
                 <View>
-                  <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending Payouts</Text>
+                  <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Payouts</Text>
                   <Text className="text-sm font-black text-slate-850 dark:text-slate-200 mt-0.5">₦{pendingBalance.toLocaleString()}</Text>
                 </View>
               </View>
@@ -227,7 +246,7 @@ export default function WalletScreen() {
                   <ArrowUpRight size={16} color="#8b5cf6" />
                 </View>
                 <View>
-                  <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Spent</Text>
+                  <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Spent</Text>
                   <Text className="text-sm font-black text-slate-850 dark:text-slate-200 mt-0.5">₦{totalSpent.toLocaleString()}</Text>
                 </View>
               </View>
@@ -236,7 +255,7 @@ export default function WalletScreen() {
                   <ArrowDownLeft size={16} color="#10b981" />
                 </View>
                 <View>
-                  <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Deposited</Text>
+                  <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Deposited</Text>
                   <Text className="text-sm font-black text-slate-850 dark:text-slate-200 mt-0.5">₦{totalEarned.toLocaleString()}</Text>
                 </View>
               </View>
@@ -296,7 +315,7 @@ export default function WalletScreen() {
             <Text className="text-base font-extrabold text-slate-900 dark:text-white">Transaction History</Text>
             <View className="flex-row items-center">
               <ShieldCheck size={14} color="#10b981" />
-              <Text className="text-[10px] font-bold text-slate-450 dark:text-slate-500 ml-1 uppercase">Ledger Secured</Text>
+              <Text className="text-[11px] font-bold text-slate-450 dark:text-slate-500 ml-1 uppercase">Ledger Secured</Text>
             </View>
           </View>
 
@@ -362,7 +381,7 @@ export default function WalletScreen() {
           ) : (
             Object.keys(groupedTxs).map((groupName) => (
               <View key={groupName} className="mb-5">
-                <Text className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3.5 ml-1">
+                <Text className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3.5 ml-1">
                   {groupName}
                 </Text>
                 
@@ -403,7 +422,7 @@ export default function WalletScreen() {
                           >
                             {tx.description}
                           </Text>
-                          <Text className="text-slate-500 dark:text-slate-400 text-[9px] uppercase mt-0.5 font-bold tracking-wide">
+                          <Text className="text-slate-500 dark:text-slate-400 text-[11px] uppercase mt-0.5 font-bold tracking-wide">
                             {tx.type} • {isPending ? 'Pending hold' : tx.status}
                           </Text>
                         </View>

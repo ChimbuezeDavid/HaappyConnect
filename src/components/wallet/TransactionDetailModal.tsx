@@ -154,18 +154,18 @@ export default function TransactionDetailModal({ visible, onClose, transaction }
                   
                   <View className="space-y-1.5">
                     <View className="flex-row justify-between">
-                      <Text className="text-slate-500 dark:text-slate-450 text-[11px] font-semibold">Bank</Text>
-                      <Text className="text-slate-900 dark:text-white text-[11px] font-bold">{transaction.metadata.bankName}</Text>
+                      <Text className="text-slate-500 dark:text-slate-450 text-xs font-semibold">Bank</Text>
+                      <Text className="text-slate-900 dark:text-white text-xs font-bold">{transaction.metadata.bankName}</Text>
                     </View>
                     
                     <View className="flex-row justify-between mt-1">
-                      <Text className="text-slate-500 dark:text-slate-450 text-[11px] font-semibold">Account Number</Text>
-                      <Text className="text-slate-900 dark:text-white text-[11px] font-mono font-bold">{transaction.metadata.accountNumber}</Text>
+                      <Text className="text-slate-500 dark:text-slate-450 text-xs font-semibold">Account Number</Text>
+                      <Text className="text-slate-900 dark:text-white text-xs font-mono font-bold">{transaction.metadata.accountNumber}</Text>
                     </View>
 
                     <View className="flex-row justify-between mt-1">
-                      <Text className="text-slate-500 dark:text-slate-450 text-[11px] font-semibold">Account Name</Text>
-                      <Text className="text-slate-900 dark:text-white text-[11px] font-bold">{transaction.metadata.accountName}</Text>
+                      <Text className="text-slate-500 dark:text-slate-450 text-xs font-semibold">Account Name</Text>
+                      <Text className="text-slate-900 dark:text-white text-xs font-bold">{transaction.metadata.accountName}</Text>
                     </View>
                   </View>
                 </View>

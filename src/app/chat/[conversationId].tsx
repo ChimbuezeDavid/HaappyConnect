@@ -9,11 +9,11 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   Modal
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useChatStore, ChatMessage } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';

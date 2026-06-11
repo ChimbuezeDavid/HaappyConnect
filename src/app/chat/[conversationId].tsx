@@ -14,6 +14,7 @@ import {
   Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useColorScheme } from 'nativewind';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useChatStore, ChatMessage } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
@@ -153,6 +154,8 @@ export default function ChatRoomScreen() {
   const router = useRouter();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const { user } = useAuthStore();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const {
     conversations,
     messages,
@@ -365,8 +368,8 @@ export default function ChatRoomScreen() {
         <View
           className={`px-4 py-2.5 rounded-2xl max-w-[75%] relative ${
             isSender
-              ? 'bg-violet-600 rounded-tr-none'
-              : 'bg-slate-100 dark:bg-slate-800 rounded-tl-none'
+              ? 'bg-violet-600 rounded-tr-none shadow-sm'
+              : 'bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-tl-none shadow-sm'
           }`}
         >
           {/* Media Content */}
@@ -401,8 +404,8 @@ export default function ChatRoomScreen() {
           {/* Timestamp & Read receipts */}
           <View className="flex-row justify-end items-center mt-1 space-x-1">
             <Text
-              className={`text-[9px] ${
-                isSender ? 'text-violet-200' : 'text-slate-400'
+              className={`text-[11px] ${
+                isSender ? 'text-violet-200' : 'text-slate-450 dark:text-slate-500'
               }`}
             >
               {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -423,13 +426,13 @@ export default function ChatRoomScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950">
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-955">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1"
       >
         {/* Custom Header */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-slate-150 dark:border-slate-800/80 bg-slate-50/20 dark:bg-slate-900/30">
+        <View className="flex-row items-center justify-between px-4 py-3.5 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm z-10">
           <View className="flex-row items-center flex-1 mr-4">
             <TouchableOpacity onPress={() => router.back()} className="p-1 mr-1">
               <ChevronLeft size={24} color="#8b5cf6" />
@@ -521,7 +524,7 @@ export default function ChatRoomScreen() {
             keyExtractor={(item) => item._id}
             renderItem={renderMessageItem}
             contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
-            className="flex-1 bg-slate-50/30 dark:bg-slate-950/20"
+            className="flex-1 bg-transparent"
             ListEmptyComponent={
               <View className="flex-1 justify-center items-center py-20 pr-4">
                 <Text className="text-slate-400 dark:text-slate-600 text-xs italic">
@@ -540,21 +543,21 @@ export default function ChatRoomScreen() {
             </Text>
           </View>
         ) : (
-          <View className="p-3 flex-row items-center border-t border-slate-150 dark:border-slate-900 bg-white dark:bg-slate-950">
+          <View className="py-4 px-4 flex-row items-center border-t border-slate-150 dark:border-slate-900 bg-white dark:bg-slate-950 shadow-lg">
             {/* Attachment Button */}
             <TouchableOpacity
               onPress={handlePickImage}
-              className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full mr-2"
+              className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full mr-2.5 shadow-sm"
               activeOpacity={0.8}
             >
-              <ImageIcon size={18} color="#64748b" />
+              <ImageIcon size={18} color={isDark ? '#c084fc' : '#8b5cf6'} />
             </TouchableOpacity>
 
             {/* Micro-recording overlay */}
             {isRecording ? (
               <TouchableOpacity
                 onPress={handleStopRecording}
-                className="flex-1 bg-red-500/10 border border-red-500/20 rounded-3xl py-2 px-4 flex-row items-center justify-between"
+                className="flex-1 bg-red-500/10 border border-red-500/20 rounded-2xl py-2.5 px-4 flex-row items-center justify-between shadow-inner"
               >
                 <RecordingPulse />
                 <RecordingDot />
@@ -566,7 +569,7 @@ export default function ChatRoomScreen() {
                 placeholder="Type a message..."
                 placeholderTextColor="#94a3b8"
                 multiline
-                className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white rounded-3xl px-4 py-2 text-sm max-h-20"
+                className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded-2xl px-4 py-3 text-sm max-h-24 shadow-inner"
               />
             )}
 
@@ -574,19 +577,19 @@ export default function ChatRoomScreen() {
             {inputText.trim().length > 0 ? (
               <TouchableOpacity
                 onPress={handleSend}
-                className="p-2.5 bg-violet-600 rounded-full ml-2"
+                className="p-3 bg-violet-600 rounded-full ml-2.5 shadow-md shadow-violet-600/20"
                 activeOpacity={0.8}
               >
-                <Send size={16} color="#fff" />
+                <Send size={18} color="#fff" />
               </TouchableOpacity>
             ) : (
               !isRecording && (
                 <TouchableOpacity
                   onPress={handleStartRecording}
-                  className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-full ml-2"
+                  className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full ml-2.5 shadow-sm"
                   activeOpacity={0.8}
                 >
-                  <Mic size={18} color="#64748b" />
+                  <Mic size={18} color={isDark ? '#c084fc' : '#8b5cf6'} />
                 </TouchableOpacity>
               )
             )}

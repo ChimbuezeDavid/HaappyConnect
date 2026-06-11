@@ -172,7 +172,7 @@ export default function WalletScreen() {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-955">
       <ScrollView
-        className="flex-1 px-4 py-4 max-w-2xl w-full self-center"
+        className="flex-1 px-4 py-6 max-w-2xl w-full self-center"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />}
         showsVerticalScrollIndicator={false}
       >
@@ -215,9 +215,10 @@ export default function WalletScreen() {
             </View>
           </View>
         </View>
+        <View className="h-4" />
 
         {/* Stats Row */}
-        <View className="flex-row gap-3 mb-6">
+        <View className="flex-row gap-3">
           {isExpert ? (
             <>
               <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex-row items-center shadow-sm">
@@ -262,9 +263,10 @@ export default function WalletScreen() {
             </>
           )}
         </View>
+        <View className="h-4" />
 
         {/* Quick Actions Grid */}
-        <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4.5 rounded-3xl mb-6 shadow-sm">
+        <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
           <Text className="text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-4">Quick Actions</Text>
           <View className="flex-row justify-between">
             <TouchableOpacity 
@@ -308,19 +310,21 @@ export default function WalletScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        <View className="h-6" />
 
         {/* Transaction History Filter and List */}
         <View className="mb-8">
-          <View className="flex-row justify-between items-center mb-4">
+          <View className="flex-row justify-between items-center">
             <Text className="text-base font-extrabold text-slate-900 dark:text-white">Transaction History</Text>
             <View className="flex-row items-center">
               <ShieldCheck size={14} color="#10b981" />
               <Text className="text-[11px] font-bold text-slate-450 dark:text-slate-500 ml-1 uppercase">Ledger Secured</Text>
             </View>
           </View>
+          <View className="h-4" />
 
           {/* Search Box */}
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 flex-row items-center mb-4 shadow-sm">
+          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 flex-row items-center shadow-sm">
             <Search size={16} color={isDark ? '#475569' : '#94a3b8'} className="mr-2" />
             <TextInput
               placeholder="Search description..."
@@ -330,12 +334,13 @@ export default function WalletScreen() {
               className="flex-1 text-slate-900 dark:text-white text-sm p-0 ml-1.5"
             />
           </View>
+          <View className="h-4" />
 
           {/* Filter Tabs */}
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
-            className="flex-row mb-5"
+            className="flex-row"
           >
             {[
               { id: 'all', label: 'All' },
@@ -363,6 +368,7 @@ export default function WalletScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+          <View className="h-4" />
 
           {/* Transaction List */}
           {isLoading && transactions.length === 0 ? (

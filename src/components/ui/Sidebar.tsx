@@ -73,7 +73,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <View className="w-[260px] h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-6 justify-between">
+    <View className="w-[260px] h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-6 justify-between" style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderRightColor: isDark ? '#1e293b' : '#e2e8f0', borderRightWidth: 1 }}>
       {/* Brand Header */}
       <View>
         <View className="flex-row items-center mb-8 px-2">

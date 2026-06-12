@@ -7,16 +7,17 @@ import { MessageSquare, Video, ShieldAlert, Sparkles, HelpCircle } from 'lucide-
 import { useColorScheme } from 'nativewind';
 
 export default function AskQuestionModal() {
-  const { expertId } = useLocalSearchParams<{ expertId: string }>();
+  const { expertId, initialType } = useLocalSearchParams<{ expertId: string; initialType?: string }>();
   const router = useRouter();
   const [expert, setExpert] = useState<Profile | null>(null);
+  const [expertUserId, setExpertUserId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   // Form states
-  const [type, setType] = useState<'text' | 'video'>('text');
+  const [type, setType] = useState<'text' | 'video'>(initialType === 'video' ? 'video' : 'text');
   const [seekerContent, setSeekerContent] = useState('');
 
   useEffect(() => {
@@ -24,20 +25,16 @@ export default function AskQuestionModal() {
       if (!expertId) return;
       setIsLoading(true);
       try {
-        const list = await api.get('/expert/discover');
-        const found = list.find((p: Profile) => 
-          typeof p.user === 'string' 
-            ? p.user === expertId 
-            : (p.user as any)?._id === expertId || (p.user as any)?.id === expertId
-        );
-        if (found) {
-          setExpert(found);
-        } else {
-          Alert.alert('Error', 'Expert not found');
-          router.back();
-        }
+        // Direct lookup by profile ID — avoids scanning the full discover list
+        const data = await api.get(`/expert/${expertId}`);
+        setExpert(data);
+        // Extract the user account ID — the question/booking APIs require user ID not profile ID
+        const uid = typeof data.user === 'string' ? data.user : data.user?._id || data.user?.id || '';
+        setExpertUserId(uid);
       } catch (err) {
         console.error('Error fetching expert:', err);
+        Alert.alert('Error', 'Expert not found');
+        router.back();
       } finally {
         setIsLoading(false);
       }
@@ -54,7 +51,7 @@ export default function AskQuestionModal() {
     setSubmitting(true);
     try {
       await api.post('/question', {
-        expertId,
+        expertId: expertUserId,  // question API expects user account ID
         type,
         seekerContent,
       });
@@ -62,7 +59,7 @@ export default function AskQuestionModal() {
         {
           text: 'OK',
           onPress: () => {
-            router.replace('/(tabs)/bookings');
+            router.replace({ pathname: '/(tabs)/bookings', params: { tab: 'questions' } } as any);
           },
         },
       ]);

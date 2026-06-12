@@ -2,17 +2,19 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import CustomHeader from '@/components/ui/CustomHeader';
-import { Play, Pause, RotateCcw, MessageSquare, Video, Volume2, Sparkles } from 'lucide-react-native';
+import SubmitReviewModal from '@/components/review/SubmitReviewModal';
+import { Play, Pause, RotateCcw, MessageSquare, Video, Volume2, Sparkles, Star } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ResponseViewerScreen() {
-  const { questionId, seekerContent, expertResponse, type } = useLocalSearchParams<{
+  const { questionId, seekerContent, expertResponse, type, expertUserId } = useLocalSearchParams<{
     questionId: string;
     seekerContent: string;
     expertResponse: string;
     type: 'text' | 'voice' | 'video';
+    expertUserId?: string;
   }>();
   const router = useRouter();
   const { colorScheme } = useColorScheme();
@@ -23,6 +25,7 @@ export default function ResponseViewerScreen() {
   const [progress, setProgress] = useState(0.35); // mock active progress
   const [currentTime, setCurrentTime] = useState('0:42');
   const [duration, setDuration] = useState('2:00');
+  const [reviewVisible, setReviewVisible] = useState(false);
 
   const handlePlayToggle = () => {
     setIsPlaying(!isPlaying);
@@ -124,8 +127,32 @@ export default function ResponseViewerScreen() {
             </Text>
           </View>
         </View>
+        {/* Leave a Review CTA */}
+        {expertUserId && (
+          <View className="px-6 pt-4 pb-6">
+            <TouchableOpacity
+              onPress={() => setReviewVisible(true)}
+              className="w-full flex-row items-center justify-center bg-amber-500 py-4 rounded-2xl shadow-lg shadow-amber-500/30"
+            >
+              <Star size={16} color="#fff" fill="#fff" style={{ marginRight: 8 }} />
+              <Text className="text-white font-bold text-base">Leave a Review</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
       </View>
+
+      {/* Review Modal */}
+      <SubmitReviewModal
+        visible={reviewVisible}
+        onClose={() => setReviewVisible(false)}
+        expertId={expertUserId || ''}
+        questionId={questionId}
+        onSuccess={() => {
+          setReviewVisible(false);
+          router.back();
+        }}
+      />
     </View>
   );
 }

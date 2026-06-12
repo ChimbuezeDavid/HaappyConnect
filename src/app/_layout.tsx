@@ -8,11 +8,8 @@ import { useColorScheme } from 'nativewind';
 import { useThemeStore } from '@/store/themeStore';
 import { useChatStore } from '@/store/chatStore';
 import '../global.css';
-import { Platform, StyleSheet } from 'react-native';
-
-if (Platform.OS === 'web') {
-  (StyleSheet as any).setFlag('darkMode', 'class');
-}
+import { Platform } from 'react-native';
+import ToastNotificationContainer from '@/components/ui/ToastNotification';
 
 // Keep splash screen visible while we load auth state
 SplashScreen.preventAutoHideAsync();
@@ -40,6 +37,17 @@ export default function RootLayout() {
       setColorScheme(theme);
     }
   }, [theme]);
+
+  // On web with darkMode: 'class', manually drive the <html> class
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const root = document.documentElement;
+    if (colorScheme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [colorScheme]);
 
   // Try to restore user session on startup
   useEffect(() => {
@@ -232,6 +240,7 @@ export default function RootLayout() {
           }}
         />
       </Stack>
+      <ToastNotificationContainer />
     </SafeAreaProvider>
   );
 }

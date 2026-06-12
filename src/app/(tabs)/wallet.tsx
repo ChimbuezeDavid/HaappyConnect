@@ -467,7 +467,7 @@ export default function WalletScreen() {
   );
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-955">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-955" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       <ScrollView
         className="flex-1 w-full self-center"
         contentContainerStyle={

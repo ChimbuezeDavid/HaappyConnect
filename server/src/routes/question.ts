@@ -128,6 +128,16 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       message: 'Question submitted successfully',
       question
     });
+
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${expertId}`).emit('notification', {
+        type: 'new_question',
+        title: 'New Question Received',
+        body: `You have a new ${type} question waiting for your response.`,
+        data: { questionId: question._id }
+      });
+    } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error submitting question' });
   }
@@ -187,6 +197,16 @@ router.patch('/:id/answer', authenticate, async (req: AuthRequest, res: Response
       message: 'Question answered successfully',
       question
     });
+
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${question.seeker}`).emit('notification', {
+        type: 'question_answered',
+        title: 'Expert Has Responded! 🎉',
+        body: 'Your question has been answered. Tap to view the response.',
+        data: { questionId: question._id }
+      });
+    } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error answering question' });
   }
@@ -238,6 +258,16 @@ router.patch('/:id/decline', authenticate, async (req: AuthRequest, res: Respons
       message: 'Question declined and seeker refunded',
       question
     });
+
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${question.seeker}`).emit('notification', {
+        type: 'question_declined',
+        title: 'Question Declined',
+        body: 'Your question was declined. Your wallet has been refunded.',
+        data: { questionId: question._id }
+      });
+    } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error declining question' });
   }

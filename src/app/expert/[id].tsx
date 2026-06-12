@@ -165,7 +165,7 @@ export default function ExpertProfileDetailScreen() {
               }
               router.push({
                 pathname: '/seeker/ask-question',
-                params: { expertId: expertUserId, initialType: 'text' },
+                params: { expertId: expert._id, initialType: 'text' },
               });
             }}
           />
@@ -193,7 +193,7 @@ export default function ExpertProfileDetailScreen() {
               }
               router.push({
                 pathname: '/seeker/ask-question',
-                params: { expertId: expertUserId, initialType: 'video' },
+                params: { expertId: expert._id, initialType: 'video' },
               });
             }}
           />
@@ -221,7 +221,7 @@ export default function ExpertProfileDetailScreen() {
               }
               router.push({
                 pathname: '/seeker/book-call',
-                params: { expertId: expertUserId },
+                params: { expertId: expert._id },
               });
             }}
           />

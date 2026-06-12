@@ -37,3 +37,69 @@ textarea:focus,
 select:focus {
   outline: none !important;
 }
+
+/* ============================================================
+   DARK MODE — CSS-level overrides for web
+   React Native Web renders View backgroundColor as inline styles
+   (e.g. style="background-color: rgb(255,255,255)"). NativeWind's
+   dark: class variants don't override these inline styles.
+   These selectors surgically remap known light colors to dark
+   equivalents only when html.dark is active.
+   ============================================================ */
+
+/* Root & scrollable containers */
+html.dark body,
+html.dark #root {
+  background-color: #020617 !important;
+}
+
+/* Slate-50 (#f8fafc) screen backgrounds → near-black */
+html.dark div[style*="background-color: rgb(248, 250, 252)"],
+html.dark div[style*="background-color: rgba(248, 250, 252"],
+html.dark div[style*="backgroundColor: rgb(248, 250, 252)"],
+html.dark div[style*="backgroundColor: rgba(248, 250, 252"] {
+  background-color: #020617 !important;
+}
+
+/* White (#fff) card/header backgrounds → slate-900 */
+html.dark div[style*="background-color: rgb(255, 255, 255)"],
+html.dark div[style*="background-color: rgba(255, 255, 255"],
+html.dark div[style*="backgroundColor: rgb(255, 255, 255)"],
+html.dark div[style*="backgroundColor: rgba(255, 255, 255"] {
+  background-color: #0f172a !important;
+}
+
+/* Slate-100 (#f1f5f9) chip/input backgrounds → slate-800 */
+html.dark div[style*="background-color: rgb(241, 245, 249)"],
+html.dark div[style*="backgroundColor: rgb(241, 245, 249)"] {
+  background-color: #1e293b !important;
+}
+
+/* Slate-200 (#e2e8f0) borders → slate-800 */
+html.dark div[style*="border-color: rgb(226, 232, 240)"],
+html.dark div[style*="borderColor: rgb(226, 232, 240)"],
+html.dark div[style*="border-top-color: rgb(226, 232, 240)"],
+html.dark div[style*="border-bottom-color: rgb(226, 232, 240)"] {
+  border-color: #1e293b !important;
+}
+
+/* Slate-50/2 border → dark */
+html.dark div[style*="border-color: rgb(248, 250, 252)"],
+html.dark div[style*="borderColor: rgb(248, 250, 252)"] {
+  border-color: #1e293b !important;
+}
+
+/* Dark text colors on dark divs → white */
+html.dark div[style*="color: rgb(15, 23, 42)"],
+html.dark div[style*="color: rgb(30, 41, 59)"],
+html.dark span[style*="color: rgb(15, 23, 42)"],
+html.dark span[style*="color: rgb(30, 41, 59)"] {
+  color: #f1f5f9 !important;
+}
+
+/* Tab bar navigation */
+html.dark nav,
+html.dark [role="tablist"] {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+}

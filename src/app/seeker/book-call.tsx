@@ -10,6 +10,7 @@ export default function BookCallModal() {
   const { expertId } = useLocalSearchParams<{ expertId: string }>();
   const router = useRouter();
   const [expert, setExpert] = useState<Profile | null>(null);
+  const [expertUserId, setExpertUserId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { colorScheme } = useColorScheme();
@@ -31,20 +32,16 @@ export default function BookCallModal() {
       if (!expertId) return;
       setIsLoading(true);
       try {
-        const list = await api.get(`/expert/discover`);
-        const found = list.find((p: Profile) => 
-          typeof p.user === 'string' 
-            ? p.user === expertId 
-            : (p.user as any)?._id === expertId || (p.user as any)?.id === expertId
-        );
-        if (found) {
-          setExpert(found);
-        } else {
-          Alert.alert('Error', 'Expert not found');
-          router.back();
-        }
+        // Direct lookup by profile ID — avoids scanning the full discover list
+        const data = await api.get(`/expert/${expertId}`);
+        setExpert(data);
+        // Extract the user account ID — the booking API requires user ID not profile ID
+        const uid = typeof data.user === 'string' ? data.user : data.user?._id || data.user?.id || '';
+        setExpertUserId(uid);
       } catch (err) {
         console.error('Error fetching expert:', err);
+        Alert.alert('Error', 'Expert not found');
+        router.back();
       } finally {
         setIsLoading(false);
       }
@@ -73,7 +70,7 @@ export default function BookCallModal() {
       date.setHours(hours, minutes, 0, 0);
 
       await api.post('/booking', {
-        expertId,
+        expertId: expertUserId,  // booking API expects user account ID
         scheduledAt: date.toISOString(),
         durationMinutes: duration,
       });
@@ -82,7 +79,7 @@ export default function BookCallModal() {
         {
           text: 'OK',
           onPress: () => {
-            router.replace('/(tabs)/bookings');
+            router.replace({ pathname: '/(tabs)/bookings', params: { tab: 'calls' } } as any);
           },
         },
       ]);

@@ -101,7 +101,38 @@ export const useChatStore = create<ChatState>((set, get) => ({
           set({ messages: [message, ...messages] });
         }
         socket.emit('markAsRead', { conversationId: message.conversationId });
+      } else {
+        // Background conversation — show a notification toast
+        try {
+          const { useNotificationStore } = require('./notificationStore');
+          useNotificationStore.getState().addNotification({
+            type: 'new_question', // reuse as generic message type
+            title: 'New Message',
+            body: message.content || 'You received a new message.',
+            data: { conversationId: message.conversationId },
+          });
+          // Refresh conversations list to update unread counts
+          get().fetchConversations();
+        } catch (_) {}
       }
+    });
+
+    // Server-push notifications (questions, bookings, deposits)
+    socket.on('notification', (payload: {
+      type: string;
+      title: string;
+      body: string;
+      data?: Record<string, any>;
+    }) => {
+      try {
+        const { useNotificationStore } = require('./notificationStore');
+        useNotificationStore.getState().addNotification({
+          type: payload.type as any,
+          title: payload.title,
+          body: payload.body,
+          data: payload.data,
+        });
+      } catch (_) {}
     });
 
     socket.on('typingStatus', ({ conversationId, isTyping }) => {

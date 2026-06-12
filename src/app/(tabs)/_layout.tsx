@@ -28,9 +28,12 @@ export default function TabLayout() {
   }, [token]);
 
   return (
-    <View style={{ flex: 1, flexDirection: isDesktop ? 'row' : 'column' }} className="bg-slate-50 dark:bg-slate-955">
+    <View 
+      style={{ flex: 1, flexDirection: isDesktop ? 'row' : 'column', backgroundColor: isDark ? '#020617' : '#f8fafc' }} 
+      className="bg-slate-50 dark:bg-slate-955"
+    >
       {isDesktop && <Sidebar />}
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
         <Tabs
           screenOptions={{
             tabBarActiveTintColor: '#8b5cf6', // primary 500

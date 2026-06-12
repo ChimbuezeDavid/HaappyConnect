@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Linking, Alert, Platform, useWindowDimensions } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '@/lib/api';
 import { Booking, Question } from '@/types';
 import { Calendar, MessageSquare, ExternalLink, Star } from 'lucide-react-native';
@@ -13,9 +13,13 @@ import { useChatStore } from '@/store/chatStore';
 export default function BookingsScreen() {
   const { user, token, isGuest } = useAuthStore();
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' || width >= 768;
-  const [activeTab, setActiveTab] = useState<'calls' | 'questions'>('calls');
+  // Allow deep-linking to a specific sub-tab via ?tab=calls or ?tab=questions
+  const [activeTab, setActiveTab] = useState<'calls' | 'questions'>(
+    tab === 'questions' ? 'questions' : 'calls'
+  );
 
   const handleStartChat = async (participantId: string, relatedToModel?: 'Booking' | 'Question', relatedToId?: string) => {
     try {
@@ -127,7 +131,7 @@ export default function BookingsScreen() {
   const isExpert = user?.role === 'expert';
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-955 max-w-2xl w-full self-center">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-955 max-w-2xl w-full self-center" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       {/* Tab Switcher */}
       <View className="flex-row mx-4 my-4 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
         <TouchableOpacity
@@ -428,6 +432,10 @@ export default function BookingsScreen() {
                                   seekerContent: question.seekerContent,
                                   expertResponse: question.expertResponse,
                                   type: question.type,
+                                  // Pass expert user ID so the reviewer can leave a review from the viewer
+                                  expertUserId: typeof question.expert === 'string'
+                                    ? question.expert
+                                    : (question.expert as any)?._id || (question.expert as any)?.id || '',
                                 },
                               })
                             }

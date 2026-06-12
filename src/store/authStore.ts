@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { api, setAuthToken, removeAuthToken } from '../lib/api';
 import { User, Profile } from '../types';
 
+// Lazy imports to avoid circular dependency — resolved at runtime
+const getChatStore = () => require('../store/chatStore').useChatStore;
+const getWalletStore = () => require('../store/walletStore').useWalletStore;
+
 interface AuthState {
   token: string | null;
   user: User | null;
@@ -115,6 +119,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isGuest: false,
         isLoading: false,
       });
+      // Tear down all dependent stores to prevent stale data between sessions
+      try {
+        const chatStore = getChatStore().getState();
+        chatStore.disconnectSocket();
+        getChatStore().setState({ conversations: [], messages: [], activeChatId: null, isTyping: false });
+      } catch (_) {}
+      try {
+        getWalletStore().getState().clearWalletState();
+      } catch (_) {}
     } catch (error: any) {
       set({ isLoading: false, isGuest: false });
     }

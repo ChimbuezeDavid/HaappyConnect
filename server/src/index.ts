@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
+import { initSocket } from './socket';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import fs from 'fs';
@@ -64,12 +64,7 @@ app.use('/api/review', reviewRoutes);
 app.use('/api/chat', chatRoutes);
 
 // Socket.io Setup
-const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
+const io = initSocket(httpServer);
 
 // Socket.io JWT Auth Middleware
 io.use((socket, next) => {
@@ -93,7 +88,7 @@ io.on('connection', (socket) => {
   console.log(`[Socket] User connected: ${userId} (${socket.id})`);
 
   // Join notification room for user-specific real-time list updates
-  socket.join(`user_${userId}`);
+  socket.join(`user:${userId}`);
 
   // Event: joinConversation
   socket.on('joinConversation', ({ conversationId }) => {
@@ -150,7 +145,7 @@ io.on('connection', (socket) => {
 
       // Notify other user specifically (for updates to their conversation list list/unread badge)
       conversation.participants.forEach((p) => {
-        io.to(`user_${p.toString()}`).emit('conversationUpdated', {
+        io.to(`user:${p.toString()}`).emit('conversationUpdated', {
           conversationId,
           lastMessage: message,
           unreadCounts: conversation.unreadCounts

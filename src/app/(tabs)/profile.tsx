@@ -104,7 +104,7 @@ export default function ProfileScreen() {
   const isExpert = user?.role === 'expert';
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-950" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       <ScrollView className="flex-1 px-4 py-4 max-w-md w-full self-center" contentContainerStyle={{ paddingBottom: 40 }}>
         {/* User Card */}
         <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 items-center mb-6 shadow-sm dark:shadow-none">

@@ -40,7 +40,7 @@ export default function SearchScreen() {
   };
 
   return (
-    <View className={`flex-1 bg-slate-55 dark:bg-slate-950 px-4 pt-4 w-full self-center ${isDesktop ? 'max-w-5xl' : 'max-w-2xl'}`}>
+    <View className={`flex-1 bg-slate-55 dark:bg-slate-950 px-4 pt-4 w-full self-center ${isDesktop ? 'max-w-5xl' : 'max-w-2xl'}`} style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       {/* Search Input */}
       <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3.5 mb-6 shadow-sm dark:shadow-none">
         <Search size={20} color={isDark ? '#94a3b8' : '#64748b'} />

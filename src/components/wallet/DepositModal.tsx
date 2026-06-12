@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Alert, Pressable } from 'react-native';
+import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Alert, Pressable, Platform } from 'react-native';
 import { X, CreditCard } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { useWalletStore } from '@/store/walletStore';
@@ -38,6 +38,11 @@ export default function DepositModal({ visible, onClose, onSuccess }: DepositMod
       const data = await depositFunds(numericAmount, redirectUri);
       
       if (data && data.authorizationUrl) {
+        if (Platform.OS === 'web') {
+          window.location.href = data.authorizationUrl;
+          return;
+        }
+
         // Open authorization checkout session in system WebBrowser
         const result = await WebBrowser.openAuthSessionAsync(data.authorizationUrl, redirectUri);
         

@@ -97,6 +97,16 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       message: 'Booking created successfully',
       booking
     });
+
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${expertId}`).emit('notification', {
+        type: 'new_booking',
+        title: 'New Booking Request 📅',
+        body: `You have a new ${durationMinutes}-minute call booking request.`,
+        data: { bookingId: booking._id }
+      });
+    } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error creating booking' });
   }
@@ -197,6 +207,27 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
       message: `Booking status updated to ${status}`,
       booking
     });
+
+    try {
+      const { getIO } = require('../socket');
+      const notifyUserId = booking.seeker.toString() === req.userId
+        ? booking.expert
+        : booking.seeker;
+      const statusMessages: Record<string, { title: string; body: string }> = {
+        confirmed: { title: 'Booking Confirmed! ✅', body: 'Your call booking has been confirmed by the expert.' },
+        completed: { title: 'Call Completed 🎓', body: 'Your consultation session has been marked as completed.' },
+        cancelled: { title: 'Booking Cancelled', body: 'A booking has been cancelled. Any charges have been refunded.' }
+      };
+      const msg = statusMessages[status];
+      if (msg) {
+        getIO().to(`user:${notifyUserId}`).emit('notification', {
+          type: `booking_${status}`,
+          title: msg.title,
+          body: msg.body,
+          data: { bookingId: booking._id }
+        });
+      }
+    } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error updating booking status' });
   }

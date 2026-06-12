@@ -12,6 +12,7 @@ import {
   Platform
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useColorScheme } from 'nativewind';
 import { useChatStore, Conversation } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { Search, MessageSquare, User } from 'lucide-react-native';
@@ -30,6 +31,8 @@ export default function MessagesScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' || width >= 768;
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   // Load conversations on mount
   useEffect(() => {
@@ -222,7 +225,7 @@ export default function MessagesScreen() {
 
   if (isDesktop) {
     return (
-      <View className="flex-1 flex-row bg-slate-50 dark:bg-slate-955">
+      <View className="flex-1 flex-row bg-slate-50 dark:bg-slate-955" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
         {/* Left Side Panel: Inbox Conversation Threads List */}
         <View className="w-[360px] h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
           {/* Search Bar */}
@@ -289,7 +292,7 @@ export default function MessagesScreen() {
 
   // Mobile viewport layout
   return (
-    <View className="flex-1 bg-white dark:bg-slate-950">
+    <View className="flex-1 bg-white dark:bg-slate-950" style={{ backgroundColor: isDark ? '#020617' : '#ffffff' }}>
       {/* Search Bar */}
       <View className="px-4 py-3 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/30">
         <View className="flex-row items-center bg-slate-100 dark:bg-slate-800 rounded-2xl px-3.5 py-2">

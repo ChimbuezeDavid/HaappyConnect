@@ -81,10 +81,10 @@ export default function DiscoverScreen() {
       if (user?.role === 'expert' && !isGuest) {
         const [questionList, walletData] = await Promise.all([
           api.get('/question'),
-          api.get('/wallet'),
+          api.get('/wallet/balance'),
         ]);
         setPendingQuestions(questionList.filter((q: Question) => q.status === 'pending'));
-        setEarningsBalance(walletData.balance || 0);
+        setEarningsBalance(walletData.availableBalance || 0);
       }
     } catch (error) {
       console.error('Error fetching home screen data:', error);
@@ -146,7 +146,7 @@ export default function DiscoverScreen() {
   const trendingExperts = experts;
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-955">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-955" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       <ScrollView
         className={`flex-1 w-full self-center ${isDesktop ? 'max-w-5xl px-6' : 'max-w-2xl px-4'}`}
         contentContainerStyle={{ paddingBottom: 100, paddingTop: isDesktop ? 20 : 0 }}

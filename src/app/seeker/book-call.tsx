@@ -20,12 +20,38 @@ export default function BookCallModal() {
   const [duration, setDuration] = useState<15 | 30 | 60>(30);
   const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
-  // Mock available slots
-  const slots = {
-    today: ['10:00 AM', '1:30 PM', '3:00 PM', '4:30 PM'],
-    tomorrow: ['9:00 AM', '11:00 AM', '2:00 PM', '5:30 PM'],
+  const getSelectedDateString = () => {
+    const date = new Date();
+    if (selectedDay === 'tomorrow') {
+      date.setDate(date.getDate() + 1);
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
+
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!expertUserId) return;
+      setIsLoadingSlots(true);
+      try {
+        const dateStr = getSelectedDateString();
+        const data = await api.get(`/booking/availability/${expertUserId}?date=${dateStr}`);
+        setAvailableSlots(data);
+      } catch (err) {
+        console.error('Error fetching availability:', err);
+        setAvailableSlots([]);
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    };
+    fetchSlots();
+  }, [expertUserId, selectedDay]);
 
   useEffect(() => {
     const fetchExpertDetails = async () => {
@@ -167,28 +193,38 @@ export default function BookCallModal() {
 
       {/* Available Slots Selector */}
       <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-3">Available Times</Text>
-      <View className="flex-row flex-wrap gap-2 mb-6">
-        {slots[selectedDay].map((slot) => {
-          const isSelected = selectedSlot === slot;
-          return (
-            <TouchableOpacity
-              key={slot}
-              onPress={() => setSelectedSlot(slot)}
-              className={`flex-row items-center px-4 py-3 rounded-2xl border ${
-                isSelected
-                  ? 'bg-primary-500 border-primary-500'
-                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-              }`}
-              style={{ width: '47%' }}
-            >
-              <Clock size={14} color={isSelected ? '#fff' : (isDark ? '#64748b' : '#94a3b8')} style={{ marginRight: 6 }} />
-              <Text className={`text-sm ml-1.5 ${isSelected ? 'text-white font-semibold' : 'text-slate-500 dark:text-slate-400'}`}>
-                {slot}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {isLoadingSlots ? (
+        <View className="py-6 items-center w-full">
+          <ActivityIndicator color="#8b5cf6" size="small" />
+        </View>
+      ) : availableSlots.length === 0 ? (
+        <View className="py-6 px-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl items-center w-full mb-6">
+          <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">No available slots found for this day</Text>
+        </View>
+      ) : (
+        <View className="flex-row flex-wrap gap-2 mb-6">
+          {availableSlots.map((slot) => {
+            const isSelected = selectedSlot === slot;
+            return (
+              <TouchableOpacity
+                key={slot}
+                onPress={() => setSelectedSlot(slot)}
+                className={`flex-row items-center px-4 py-3 rounded-2xl border ${
+                  isSelected
+                    ? 'bg-primary-500 border-primary-500'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                }`}
+                style={{ width: '47%' }}
+              >
+                <Clock size={14} color={isSelected ? '#fff' : (isDark ? '#64748b' : '#94a3b8')} style={{ marginRight: 6 }} />
+                <Text className={`text-sm ml-1.5 ${isSelected ? 'text-white font-semibold' : 'text-slate-500 dark:text-slate-400'}`}>
+                  {slot}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {/* Charge Warning */}
       <View className="flex-row items-start bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl mb-6 shadow-sm dark:shadow-none">

@@ -220,6 +220,17 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="expert/availability"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            title: 'Call Availability',
+            headerStyle,
+            headerTintColor,
+            headerTitleStyle,
+          }}
+        />
+        <Stack.Screen
           name="expert/[id]"
           options={{
             headerShown: false,

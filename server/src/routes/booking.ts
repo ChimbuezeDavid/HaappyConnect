@@ -5,6 +5,7 @@ import { Profile } from '../models/Profile';
 import { Transaction } from '../models/Transaction';
 import { Review } from '../models/Review';
 import { Conversation } from '../models/Conversation';
+import { Availability } from '../models/Availability';
 
 const router = Router();
 
@@ -230,6 +231,133 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
     } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error updating booking status' });
+  }
+});
+
+// GET /booking/my-availability - Retrieve own availability settings (Experts only)
+router.get('/my-availability', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    let availability = await Availability.findOne({ expert: req.userId });
+    if (!availability) {
+      availability = new Availability({ expert: req.userId });
+      await availability.save();
+    }
+    res.json(availability);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error fetching availability' });
+  }
+});
+
+// PUT /booking/my-availability - Update availability settings (Experts only)
+router.put('/my-availability', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.userRole !== 'expert') {
+      return res.status(403).json({ error: 'Only experts can configure availability.' });
+    }
+    const { weeklyHours, timezone } = req.body;
+    let availability = await Availability.findOne({ expert: req.userId });
+    if (!availability) {
+      availability = new Availability({ expert: req.userId, weeklyHours, timezone });
+    } else {
+      availability.weeklyHours = weeklyHours;
+      if (timezone) availability.timezone = timezone;
+    }
+    await availability.save();
+    res.json(availability);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error saving availability' });
+  }
+});
+
+// GET /booking/availability/:expertId - Retrieve active available slots for an expert on a date
+router.get('/availability/:expertId', async (req, res) => {
+  try {
+    const { expertId } = req.params;
+    const { date } = req.query; // YYYY-MM-DD
+
+    if (!date) {
+      return res.status(400).json({ error: 'Date query parameter (YYYY-MM-DD) is required.' });
+    }
+
+    const queryDate = new Date(date as string);
+    if (isNaN(queryDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format.' });
+    }
+
+    const dayOfWeek = queryDate.getDay();
+
+    let availability = await Availability.findOne({ expert: expertId });
+    if (!availability) {
+      availability = new Availability({ expert: expertId });
+    }
+
+    const schedule = availability.weeklyHours.find(s => s.dayOfWeek === dayOfWeek);
+    if (!schedule || !schedule.enabled || schedule.slots.length === 0) {
+      return res.json([]);
+    }
+
+    const startOfDay = new Date(queryDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(queryDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const activeBookings = await Booking.find({
+      expert: expertId,
+      status: { $ne: 'cancelled' },
+      scheduledAt: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    const freeSlots: string[] = [];
+
+    const parseTime = (timeStr: string) => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const d = new Date(queryDate);
+      d.setHours(hours, minutes, 0, 0);
+      return d;
+    };
+
+    const formatTime12h = (d: Date) => {
+      let hours = d.getHours();
+      const minutes = d.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const minStr = minutes < 10 ? '0' + minutes : minutes;
+      return `${hours}:${minStr} ${ampm}`;
+    };
+
+    const slotDurationMs = 30 * 60 * 1000;
+
+    for (const range of schedule.slots) {
+      const rangeStart = parseTime(range.start);
+      const rangeEnd = parseTime(range.end);
+
+      let current = new Date(rangeStart);
+
+      while (current.getTime() + slotDurationMs <= rangeEnd.getTime()) {
+        const slotStart = new Date(current);
+        const slotEnd = new Date(current.getTime() + slotDurationMs);
+
+        const isOverlap = activeBookings.some(booking => {
+          const bStart = new Date(booking.scheduledAt).getTime();
+          const bEnd = bStart + booking.durationMinutes * 60 * 1000;
+          return slotStart.getTime() < bEnd && slotEnd.getTime() > bStart;
+        });
+
+        if (!isOverlap) {
+          const now = new Date();
+          if (slotStart.getTime() > now.getTime()) {
+            freeSlots.push(formatTime12h(slotStart));
+          }
+        }
+
+        current = new Date(current.getTime() + slotDurationMs);
+      }
+    }
+
+    res.json(freeSlots);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error calculating availability' });
   }
 });
 

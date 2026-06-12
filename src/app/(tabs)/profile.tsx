@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
-import { LogOut, User, Sparkles, Mail, ShieldAlert, Award, Camera, Image as ImageIcon, Check, X, FileText } from 'lucide-react-native';
+import { LogOut, User, Sparkles, Mail, ShieldAlert, CalendarDays, Award, Camera, Image as ImageIcon, Check, X, FileText } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SignInWall from '@/components/ui/SignInWall';
 import * as ImagePicker from 'expo-image-picker';
@@ -192,18 +192,33 @@ export default function ProfileScreen() {
 
         {/* Edit Profile Navigation */}
         {isExpert && (
-          <TouchableOpacity
-            onPress={() => router.push('/expert/edit-profile')}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Edit professional details"
-            accessibilityHint="Navigate to edit your expert profile"
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-4 rounded-2xl items-center mb-4 flex-row justify-center shadow-sm dark:shadow-none"
-            style={{ minHeight: 52 }}
-          >
-            <Sparkles size={16} color={isDark ? '#fff' : '#8b5cf6'} />
-            <Text className="text-slate-900 dark:text-white font-semibold text-sm ml-2">Edit Professional Details</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              onPress={() => router.push('/expert/edit-profile')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Edit professional details"
+              accessibilityHint="Navigate to edit your expert profile"
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-4 rounded-2xl items-center mb-4 flex-row justify-center shadow-sm dark:shadow-none"
+              style={{ minHeight: 52 }}
+            >
+              <Sparkles size={16} color={isDark ? '#fff' : '#8b5cf6'} />
+              <Text className="text-slate-900 dark:text-white font-semibold text-sm ml-2">Edit Professional Details</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/expert/availability')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Manage availability"
+              accessibilityHint="Navigate to configure your call times and weekly slots"
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-4 rounded-2xl items-center mb-4 flex-row justify-center shadow-sm dark:shadow-none"
+              style={{ minHeight: 52 }}
+            >
+              <CalendarDays size={16} color={isDark ? '#fff' : '#8b5cf6'} />
+              <Text className="text-slate-900 dark:text-white font-semibold text-sm ml-2">Manage Live Call Availability</Text>
+            </TouchableOpacity>
+          </>
         )}
 
         {/* Seeker Edit Profile Button */}

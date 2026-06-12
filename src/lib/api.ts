@@ -128,6 +128,19 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
     }
 
     if (!response.ok) {
+      if (response.status === 401) {
+        try {
+          const { useAuthStore } = require('@/store/authStore');
+          useAuthStore.getState().logout();
+
+          const { useNotificationStore } = require('@/store/notificationStore');
+          useNotificationStore.getState().addNotification({
+            type: 'question_declined',
+            title: 'Session Expired',
+            body: 'Your login session has expired. Please sign in again.',
+          });
+        } catch (_) {}
+      }
       throw new Error(jsonData.error || jsonData.message || `HTTP error ${response.status}`);
     }
 

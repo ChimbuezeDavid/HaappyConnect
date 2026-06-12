@@ -150,9 +150,16 @@ function VoiceMessageBubble({ uri, isSender }: { uri: string; isSender: boolean 
   );
 }
 
-export default function ChatRoomScreen() {
+interface ChatRoomScreenProps {
+  conversationIdProp?: string;
+  isInlineProp?: boolean;
+}
+
+export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: ChatRoomScreenProps) {
   const router = useRouter();
-  const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
+  const { conversationId: paramId } = useLocalSearchParams<{ conversationId: string }>();
+  const conversationId = conversationIdProp || paramId;
+  const isInline = isInlineProp ?? false;
   const { user } = useAuthStore();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -434,9 +441,11 @@ export default function ChatRoomScreen() {
         {/* Custom Header */}
         <View className="flex-row items-center justify-between px-4 py-3.5 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm z-10">
           <View className="flex-row items-center flex-1 mr-4">
-            <TouchableOpacity onPress={() => router.back()} className="p-1 mr-1">
-              <ChevronLeft size={24} color="#8b5cf6" />
-            </TouchableOpacity>
+            {!isInline && (
+              <TouchableOpacity onPress={() => router.back()} className="p-1 mr-1">
+                <ChevronLeft size={24} color="#8b5cf6" />
+              </TouchableOpacity>
+            )}
 
             <View className="relative">
               {conversation?.otherProfile.avatarUrl ? (

@@ -8,7 +8,9 @@ import {
   RefreshControl,
   Image,
   Dimensions,
-  Alert
+  Alert,
+  useWindowDimensions,
+  Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '@/lib/api';
@@ -53,6 +55,9 @@ export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' || width >= 768;
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [experts, setExperts] = useState<Profile[]>([]);
@@ -141,10 +146,10 @@ export default function DiscoverScreen() {
   const trendingExperts = experts;
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-955">
       <ScrollView
-        className="flex-1 max-w-2xl w-full self-center"
-        contentContainerStyle={{ paddingBottom: 100 }}
+        className={`flex-1 w-full self-center ${isDesktop ? 'max-w-5xl px-6' : 'max-w-2xl px-4'}`}
+        contentContainerStyle={{ paddingBottom: 100, paddingTop: isDesktop ? 20 : 0 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />}
       >
         {/* Personalized Header */}
@@ -334,7 +339,7 @@ export default function DiscoverScreen() {
               </View>
             )}
 
-            {/* Recommended Experts Vertical List */}
+            {/* Recommended Experts list */}
             <View className="mb-6">
               <Text className="text-slate-500 dark:text-slate-350 text-xs font-semibold uppercase tracking-wider mb-4">Recommended for You</Text>
               {trendingExperts.length === 0 ? (
@@ -342,9 +347,16 @@ export default function DiscoverScreen() {
                   <Text className="text-slate-500 dark:text-slate-400 text-sm">No experts found</Text>
                 </View>
               ) : (
-                trendingExperts.map((expert) => (
-                  <ExpertCard key={expert._id} expert={expert} />
-                ))
+                <View className={isDesktop ? "flex-row flex-wrap gap-4" : "space-y-4"}>
+                  {trendingExperts.map((expert) => (
+                    <View 
+                      key={expert._id} 
+                      style={isDesktop ? { width: '48.5%', marginBottom: 12 } : undefined}
+                    >
+                      <ExpertCard expert={expert} />
+                    </View>
+                  ))}
+                </View>
               )}
             </View>
           </View>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Linking, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Linking, Alert, Platform, useWindowDimensions } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'expo-router';
 import { api } from '@/lib/api';
@@ -13,16 +13,25 @@ import { useChatStore } from '@/store/chatStore';
 export default function BookingsScreen() {
   const { user, token, isGuest } = useAuthStore();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' || width >= 768;
   const [activeTab, setActiveTab] = useState<'calls' | 'questions'>('calls');
 
   const handleStartChat = async (participantId: string, relatedToModel?: 'Booking' | 'Question', relatedToId?: string) => {
     try {
       const chatStore = useChatStore.getState();
       const conversation = await chatStore.initiateConversation(participantId, relatedToModel, relatedToId);
-      router.push({
-        pathname: '/chat/[conversationId]' as any,
-        params: { conversationId: conversation._id }
-      });
+      if (isDesktop) {
+        router.push({
+          pathname: '/messages' as any,
+          params: { conversationId: conversation._id }
+        });
+      } else {
+        router.push({
+          pathname: '/chat/[conversationId]' as any,
+          params: { conversationId: conversation._id }
+        });
+      }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not start conversation');
     }

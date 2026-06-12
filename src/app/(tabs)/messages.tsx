@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
   Platform
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useChatStore, Conversation } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { Search, MessageSquare, User } from 'lucide-react-native';
@@ -20,6 +20,7 @@ import ChatRoomScreen from '../chat/[conversationId]';
 
 export default function MessagesScreen() {
   const router = useRouter();
+  const { conversationId } = useLocalSearchParams<{ conversationId?: string }>();
   const { conversations, fetchConversations, isLoadingConversations } = useChatStore();
   const { user } = useAuthStore();
   
@@ -35,12 +36,26 @@ export default function MessagesScreen() {
     fetchConversations();
   }, []);
 
-  // On desktop, auto-select the first conversation if none is selected
+  // On desktop, auto-select conversation from URL parameter or fall back to the first one
   useEffect(() => {
-    if (isDesktop && conversations.length > 0 && !selectedConversationId) {
-      setSelectedConversationId(conversations[0]._id);
+    if (isDesktop && conversations.length > 0) {
+      if (conversationId && conversations.some(c => c._id === conversationId)) {
+        setSelectedConversationId(conversationId);
+      } else if (!selectedConversationId) {
+        setSelectedConversationId(conversations[0]._id);
+      }
     }
-  }, [conversations, isDesktop]);
+  }, [conversations, isDesktop, conversationId]);
+
+  // On mobile viewports, automatically forward the user to /chat/[conversationId] if specified in query params
+  useEffect(() => {
+    if (!isDesktop && conversationId) {
+      router.push({
+        pathname: '/chat/[conversationId]' as any,
+        params: { conversationId }
+      });
+    }
+  }, [conversationId, isDesktop]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

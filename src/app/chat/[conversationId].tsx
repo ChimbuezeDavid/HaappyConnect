@@ -432,179 +432,189 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
     );
   };
 
-  return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-955">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
-      >
-        {/* Custom Header */}
-        <View className="flex-row items-center justify-between px-4 py-3.5 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-950 shadow-sm z-10">
-          <View className="flex-row items-center flex-1 mr-4">
-            {!isInline && (
-              <TouchableOpacity onPress={() => router.back()} className="p-1 mr-1">
-                <ChevronLeft size={24} color="#8b5cf6" />
-              </TouchableOpacity>
-            )}
+  const chatContent = (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      className="flex-1"
+    >
+      {/* Custom Header */}
+      <View className="flex-row items-center justify-between px-4 py-3.5 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-955 shadow-sm z-10">
+        <View className="flex-row items-center flex-1 mr-4">
+          {!isInline && (
+            <TouchableOpacity onPress={() => router.back()} className="p-1 mr-1">
+              <ChevronLeft size={24} color="#8b5cf6" />
+            </TouchableOpacity>
+          )}
 
-            <View className="relative">
-              {conversation?.otherProfile.avatarUrl ? (
-                <Image
-                  source={{ uri: conversation.otherProfile.avatarUrl }}
-                  className="w-10 h-10 rounded-full bg-slate-200"
-                />
-              ) : (
-                <View className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-950 justify-center items-center">
-                  <Text className="text-violet-600 dark:text-violet-400 font-bold text-xs">
-                    {conversation?.otherProfile.fullName
-                      .split(' ')
-                      .map((n) => n[0])
-                      .slice(0, 2)
-                      .join('')
-                      .toUpperCase() || 'U'}
-                  </Text>
-                </View>
-              )}
-              <View className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-950" />
-            </View>
-
-            <View className="ml-3 flex-1">
-              <Text
-                className="text-slate-900 dark:text-white font-extrabold text-sm"
-                numberOfLines={1}
-              >
-                {conversation?.otherProfile.fullName || 'Consultation Chat'}
-              </Text>
-              <Text className="text-[10px] text-slate-400 dark:text-slate-500" numberOfLines={1}>
-                {isTyping ? 'typing...' : (conversation?.otherProfile.headline || 'Online')}
-              </Text>
-            </View>
-          </View>
-
-          {/* Options Menu Trigger */}
-          <TouchableOpacity onPress={() => setIsMenuOpen(!isMenuOpen)} className="p-2">
-            <MoreVertical size={20} color="#64748b" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Dropdown Menu Modal / Sheet overlay */}
-        {isMenuOpen && (
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => setIsMenuOpen(false)}
-            className="absolute top-0 bottom-0 left-0 right-0 z-50 bg-black/10"
-          >
-            <View
-              className="absolute right-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-2 w-48 shadow-2xl"
-              style={{ top: Platform.OS === 'ios' ? 95 : 55 }}
-            >
-              <TouchableOpacity
-                onPress={handleToggleBlock}
-                className="flex-row items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl"
-              >
-                <ShieldAlert size={16} color="#ef4444" className="mr-2.5" />
-                <Text className="text-red-500 font-bold text-xs">
-                  {conversation?.isBlocked ? 'Unblock Chat' : 'Block User'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  setIsMenuOpen(false);
-                  setReportModalVisible(true);
-                }}
-                className="flex-row items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl"
-              >
-                <ShieldAlert size={16} color="#f59e0b" className="mr-2.5" />
-                <Text className="text-amber-500 font-bold text-xs">Report User</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Conversation Message List */}
-        {isLoadingMessages ? (
-          <View className="flex-1 justify-center items-center">
-            <ActivityIndicator size="large" color="#8b5cf6" />
-          </View>
-        ) : (
-          <FlatList
-            data={messages}
-            inverted
-            keyExtractor={(item) => item._id}
-            renderItem={renderMessageItem}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
-            className="flex-1 bg-transparent"
-            ListEmptyComponent={
-              <View className="flex-1 justify-center items-center py-20 pr-4">
-                <Text className="text-slate-400 dark:text-slate-600 text-xs italic">
-                  No messages yet. Send a greeting to start chatting!
+          <View className="relative">
+            {conversation?.otherProfile.avatarUrl ? (
+              <Image
+                source={{ uri: conversation.otherProfile.avatarUrl }}
+                className="w-10 h-10 rounded-full bg-slate-200"
+              />
+            ) : (
+              <View className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-950 justify-center items-center">
+                <Text className="text-violet-600 dark:text-violet-400 font-bold text-xs">
+                  {conversation?.otherProfile.fullName
+                    .split(' ')
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase() || 'U'}
                 </Text>
               </View>
-            }
-          />
-        )}
+            )}
+            <View className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-955" />
+          </View>
 
-        {/* Input Bar */}
-        {conversation?.isBlocked ? (
-          <View className="p-4 border-t border-slate-100 dark:border-slate-900 bg-slate-50 dark:bg-slate-900/40 justify-center items-center">
-            <Text className="text-xs text-red-500 font-bold">
-              This conversation is blocked.
+          <View className="ml-3 flex-1">
+            <Text
+              className="text-slate-900 dark:text-white font-extrabold text-sm"
+              numberOfLines={1}
+            >
+              {conversation?.otherProfile.fullName || 'Consultation Chat'}
+            </Text>
+            <Text className="text-[10px] text-slate-400 dark:text-slate-500" numberOfLines={1}>
+              {isTyping ? 'typing...' : (conversation?.otherProfile.headline || 'Online')}
             </Text>
           </View>
-        ) : (
-          <View className="py-4 px-4 flex-row items-center border-t border-slate-150 dark:border-slate-900 bg-white dark:bg-slate-950 shadow-lg">
-            {/* Attachment Button */}
+        </View>
+
+        {/* Options Menu Trigger */}
+        <TouchableOpacity onPress={() => setIsMenuOpen(!isMenuOpen)} className="p-2">
+          <MoreVertical size={20} color="#64748b" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Dropdown Menu Modal / Sheet overlay */}
+      {isMenuOpen && (
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setIsMenuOpen(false)}
+          className="absolute top-0 bottom-0 left-0 right-0 z-50 bg-black/10"
+        >
+          <View
+            className="absolute right-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-2 w-48 shadow-2xl"
+            style={{ top: Platform.OS === 'ios' ? 95 : 55 }}
+          >
             <TouchableOpacity
-              onPress={handlePickImage}
-              className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full mr-2.5 shadow-sm"
+              onPress={handleToggleBlock}
+              className="flex-row items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl"
+            >
+              <ShieldAlert size={16} color="#ef4444" className="mr-2.5" />
+              <Text className="text-red-500 font-bold text-xs">
+                {conversation?.isBlocked ? 'Unblock Chat' : 'Block User'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setIsMenuOpen(false);
+                setReportModalVisible(true);
+              }}
+              className="flex-row items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl"
+            >
+              <ShieldAlert size={16} color="#f59e0b" className="mr-2.5" />
+              <Text className="text-amber-500 font-bold text-xs">Report User</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Conversation Message List */}
+      {isLoadingMessages ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#8b5cf6" />
+        </View>
+      ) : (
+        <FlatList
+          data={messages}
+          inverted
+          keyExtractor={(item) => item._id}
+          renderItem={renderMessageItem}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
+          className="flex-1 bg-transparent"
+          ListEmptyComponent={
+            <View className="flex-1 justify-center items-center py-20 pr-4">
+              <Text className="text-slate-400 dark:text-slate-655 text-xs italic text-center">
+                No messages yet. Send a greeting to start chatting!
+              </Text>
+            </View>
+          }
+        />
+      )}
+
+      {/* Input Bar */}
+      {conversation?.isBlocked ? (
+        <View className="p-4 border-t border-slate-100 dark:border-slate-900 bg-slate-50 dark:bg-slate-900/40 justify-center items-center">
+          <Text className="text-xs text-red-500 font-bold">
+            This conversation is blocked.
+          </Text>
+        </View>
+      ) : (
+        <View className="py-4 px-4 flex-row items-center border-t border-slate-150 dark:border-slate-900 bg-white dark:bg-slate-950 shadow-lg">
+          {/* Attachment Button */}
+          <TouchableOpacity
+            onPress={handlePickImage}
+            className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full mr-2.5 shadow-sm"
+            activeOpacity={0.8}
+          >
+            <ImageIcon size={18} color={isDark ? '#c084fc' : '#8b5cf6'} />
+          </TouchableOpacity>
+
+          {/* Micro-recording overlay */}
+          {isRecording ? (
+            <TouchableOpacity
+              onPress={handleStopRecording}
+              className="flex-1 bg-red-500/10 border border-red-500/20 rounded-2xl py-2.5 px-4 flex-row items-center justify-between shadow-inner"
+            >
+              <RecordingPulse />
+              <RecordingDot />
+            </TouchableOpacity>
+          ) : (
+            <TextInput
+              value={inputText}
+              onChangeText={handleInputChange}
+              placeholder="Type a message..."
+              placeholderTextColor="#94a3b8"
+              multiline
+              className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded-2xl px-4 py-3 text-sm max-h-24 shadow-inner"
+            />
+          )}
+
+          {/* Media Send Buttons */}
+          {inputText.trim().length > 0 ? (
+            <TouchableOpacity
+              onPress={handleSend}
+              className="p-3 bg-violet-600 rounded-full ml-2.5 shadow-md shadow-violet-600/20"
               activeOpacity={0.8}
             >
-              <ImageIcon size={18} color={isDark ? '#c084fc' : '#8b5cf6'} />
+              <Send size={18} color="#fff" />
             </TouchableOpacity>
-
-            {/* Micro-recording overlay */}
-            {isRecording ? (
+          ) : (
+            !isRecording && (
               <TouchableOpacity
-                onPress={handleStopRecording}
-                className="flex-1 bg-red-500/10 border border-red-500/20 rounded-2xl py-2.5 px-4 flex-row items-center justify-between shadow-inner"
-              >
-                <RecordingPulse />
-                <RecordingDot />
-              </TouchableOpacity>
-            ) : (
-              <TextInput
-                value={inputText}
-                onChangeText={handleInputChange}
-                placeholder="Type a message..."
-                placeholderTextColor="#94a3b8"
-                multiline
-                className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded-2xl px-4 py-3 text-sm max-h-24 shadow-inner"
-              />
-            )}
-
-            {/* Media Send Buttons */}
-            {inputText.trim().length > 0 ? (
-              <TouchableOpacity
-                onPress={handleSend}
-                className="p-3 bg-violet-600 rounded-full ml-2.5 shadow-md shadow-violet-600/20"
+                onPress={handleStartRecording}
+                className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full ml-2.5 shadow-sm"
                 activeOpacity={0.8}
               >
-                <Send size={18} color="#fff" />
+                <Mic size={18} color={isDark ? '#c084fc' : '#8b5cf6'} />
               </TouchableOpacity>
-            ) : (
-              !isRecording && (
-                <TouchableOpacity
-                  onPress={handleStartRecording}
-                  className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full ml-2.5 shadow-sm"
-                  activeOpacity={0.8}
-                >
-                  <Mic size={18} color={isDark ? '#c084fc' : '#8b5cf6'} />
-                </TouchableOpacity>
-              )
-            )}
-          </View>
-        )}
-      </KeyboardAvoidingView>
+            )
+          )}
+        </View>
+      )}
+    </KeyboardAvoidingView>
+  );
+
+  return (
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-955">
+      {isInline ? (
+        chatContent
+      ) : (
+        <View className="flex-1 w-full max-w-4xl self-center bg-white dark:bg-slate-900 border-x border-slate-200/50 dark:border-slate-800/80 shadow-xl">
+          {chatContent}
+        </View>
+      )}
 
       {/* Image Preview Modal */}
       <Modal visible={!!imageViewerUri} transparent={true} animationType="fade">
@@ -647,7 +657,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
               placeholderTextColor="#94a3b8"
               multiline
               numberOfLines={4}
-              className="bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white rounded-2xl p-3 text-sm min-h-[100px] mb-5 align-top"
+              className="bg-slate-100 dark:bg-slate-800 text-slate-955 dark:text-white rounded-2xl p-3 text-sm min-h-[100px] mb-5 align-top"
             />
             <TouchableOpacity
               onPress={handleReportSubmit}

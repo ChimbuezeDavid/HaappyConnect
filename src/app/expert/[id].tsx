@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, Platform, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '@/lib/api';
 import { Profile, Review } from '@/types';
@@ -13,6 +13,8 @@ import { useColorScheme } from 'nativewind';
 export default function ExpertProfileDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isGuest, user } = useAuthStore();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' || width >= 768;
   const router = useRouter();
   const [expert, setExpert] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -69,10 +71,17 @@ export default function ExpertProfileDetailScreen() {
     try {
       const chatStore = useChatStore.getState();
       const conversation = await chatStore.initiateConversation(expertUserId);
-      router.push({
-        pathname: '/chat/[conversationId]' as any,
-        params: { conversationId: conversation._id }
-      });
+      if (isDesktop) {
+        router.push({
+          pathname: '/messages' as any,
+          params: { conversationId: conversation._id }
+        });
+      } else {
+        router.push({
+          pathname: '/chat/[conversationId]' as any,
+          params: { conversationId: conversation._id }
+        });
+      }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not start conversation');
     }

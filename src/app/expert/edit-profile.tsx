@@ -122,7 +122,10 @@ export default function EditProfileModal() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       className="flex-1 bg-slate-50 dark:bg-slate-955"
     >
-      <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView
+        className="flex-1 w-full max-w-2xl self-center"
+        contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 24, paddingTop: 24 }}
+      >
         <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl">
           <Text className="text-xl font-bold text-slate-900 dark:text-white mb-6">Edit Profile Details</Text>
 

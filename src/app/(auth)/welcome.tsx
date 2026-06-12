@@ -4,17 +4,16 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
   StatusBar,
+  useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Sparkles, MessageSquare, PhoneCall, ArrowRight } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useColorScheme } from 'nativewind';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 interface Slide {
   title: string;
@@ -25,6 +24,8 @@ interface Slide {
 }
 
 export default function WelcomeScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' || width >= 768;
   const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -60,14 +61,14 @@ export default function WelcomeScreen() {
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const contentOffset = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffset / SCREEN_WIDTH);
+    const index = Math.round(contentOffset / width);
     setActiveIndex(index);
   };
 
   const handleNext = () => {
     if (activeIndex < slides.length - 1) {
       scrollViewRef.current?.scrollTo({
-        x: (activeIndex + 1) * SCREEN_WIDTH,
+        x: (activeIndex + 1) * width,
         animated: true,
       });
     } else {
@@ -105,131 +106,225 @@ export default function WelcomeScreen() {
         </Text>
       </View>
 
-      {/* Carousel */}
-      <View style={{ flex: 1, justifyContent: 'center' }}>
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          accessibilityRole="adjustable"
-          accessibilityLabel={`Feature carousel, slide ${activeIndex + 1} of ${slides.length}`}
-          accessibilityHint="Swipe left or right to browse features"
-        >
-          {slides.map((slide, idx) => (
-            <View
-              key={idx}
-              style={{
-                width: SCREEN_WIDTH,
-                paddingHorizontal: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              accessible={true}
-              accessibilityLabel={`${slide.title} ${slide.subtitle}. ${slide.description}`}
-            >
-              {/* Icon */}
+      {/* Carousel or Side-by-Side Cards */}
+      {isDesktop ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 48 }}>
+          <View style={{ flexDirection: 'row', gap: 24, maxWidth: 1000, width: '100%' }}>
+            {slides.map((slide, idx) => (
               <View
+                key={idx}
                 style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 24,
-                  backgroundColor: `${slide.accentColor}15`,
+                  flex: 1,
+                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
                   borderWidth: 1,
-                  borderColor: `${slide.accentColor}30`,
+                  borderColor: isDark ? '#1e293b' : '#e2e8f0',
+                  borderRadius: 24,
+                  padding: 32,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: 32,
+                  shadowColor: '#8b5cf6',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDark ? 0 : 0.05,
+                  shadowRadius: 10,
+                  elevation: 2,
                 }}
               >
-                {slide.icon}
+                {/* Icon */}
+                <View
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 20,
+                    backgroundColor: `${slide.accentColor}15`,
+                    borderWidth: 1,
+                    borderColor: `${slide.accentColor}30`,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 24,
+                  }}
+                >
+                  {slide.icon}
+                </View>
+
+                {/* Title block */}
+                <Text
+                  style={{
+                    fontSize: 22,
+                    fontWeight: '900',
+                    color: isDark ? '#fff' : '#0f172a',
+                    textAlign: 'center',
+                    letterSpacing: -0.5,
+                    lineHeight: 28,
+                  }}
+                >
+                  {slide.title}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 22,
+                    fontWeight: '900',
+                    color: slide.accentColor,
+                    textAlign: 'center',
+                    letterSpacing: -0.5,
+                    lineHeight: 28,
+                    marginBottom: 12,
+                  }}
+                >
+                  {slide.subtitle}
+                </Text>
+
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: isDark ? '#94a3b8' : '#475569',
+                    textAlign: 'center',
+                    lineHeight: 22,
+                  }}
+                >
+                  {slide.description}
+                </Text>
               </View>
+            ))}
+          </View>
+        </View>
+      ) : (
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            accessibilityRole="adjustable"
+            accessibilityLabel={`Feature carousel, slide ${activeIndex + 1} of ${slides.length}`}
+            accessibilityHint="Swipe left or right to browse features"
+          >
+            {slides.map((slide, idx) => (
+              <View
+                key={idx}
+                style={{
+                  width: width,
+                  paddingHorizontal: 32,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                accessible={true}
+                accessibilityLabel={`${slide.title} ${slide.subtitle}. ${slide.description}`}
+              >
+                {/* Icon */}
+                <View
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 24,
+                    backgroundColor: `${slide.accentColor}15`,
+                    borderWidth: 1,
+                    borderColor: `${slide.accentColor}30`,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 32,
+                  }}
+                >
+                  {slide.icon}
+                </View>
 
-              {/* Title block */}
-              <Text
-                style={{
-                  fontSize: 32,
-                  fontWeight: '900',
-                  color: isDark ? '#fff' : '#0f172a',
-                  textAlign: 'center',
-                  letterSpacing: -1,
-                  lineHeight: 38,
-                }}
-              >
-                {slide.title}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 32,
-                  fontWeight: '900',
-                  color: slide.accentColor,
-                  textAlign: 'center',
-                  letterSpacing: -1,
-                  lineHeight: 38,
-                  marginBottom: 16,
-                }}
-              >
-                {slide.subtitle}
-              </Text>
+                {/* Title block */}
+                <Text
+                  style={{
+                    fontSize: 32,
+                    fontWeight: '900',
+                    color: isDark ? '#fff' : '#0f172a',
+                    textAlign: 'center',
+                    letterSpacing: -1,
+                    lineHeight: 38,
+                  }}
+                >
+                  {slide.title}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 32,
+                    fontWeight: '900',
+                    color: slide.accentColor,
+                    textAlign: 'center',
+                    letterSpacing: -1,
+                    lineHeight: 38,
+                    marginBottom: 16,
+                  }}
+                >
+                  {slide.subtitle}
+                </Text>
 
-              <Text
-                style={{
-                  fontSize: 15,
-                  color: isDark ? '#94a3b8' : '#475569',
-                  textAlign: 'center',
-                  lineHeight: 24,
-                  paddingHorizontal: 8,
-                }}
-              >
-                {slide.description}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    color: isDark ? '#94a3b8' : '#475569',
+                    textAlign: 'center',
+                    lineHeight: 24,
+                    paddingHorizontal: 8,
+                  }}
+                >
+                  {slide.description}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Bottom section */}
       <View style={{ paddingHorizontal: 24, paddingBottom: 48 }}>
         {/* Dots */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'center',
-            marginBottom: 32,
-            gap: 8,
-          }}
-          accessible={true}
-          accessibilityLabel={`Page ${activeIndex + 1} of ${slides.length}`}
-        >
-          {slides.map((_, idx) => (
-            <View
-              key={idx}
-              style={{
-                height: 6,
-                borderRadius: 3,
-                width: activeIndex === idx ? 24 : 6,
-                backgroundColor: activeIndex === idx ? currentSlide.accentColor : (isDark ? '#1e293b' : '#cbd5e1'),
-              }}
-            />
-          ))}
-        </View>
+        {!isDesktop && (
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              marginBottom: 32,
+              gap: 8,
+            }}
+            accessible={true}
+            accessibilityLabel={`Page ${activeIndex + 1} of ${slides.length}`}
+          >
+            {slides.map((_, idx) => (
+              <View
+                key={idx}
+                style={{
+                  height: 6,
+                  borderRadius: 3,
+                  width: activeIndex === idx ? 24 : 6,
+                  backgroundColor: activeIndex === idx ? currentSlide.accentColor : (isDark ? '#1e293b' : '#cbd5e1'),
+                }}
+              />
+            ))}
+          </View>
+        )}
 
         {/* Primary CTA */}
         <TouchableOpacity
-          onPress={handleNext}
+          onPress={() => {
+            if (isDesktop || activeIndex === slides.length - 1) {
+              useAuthStore.getState().setGuest(true);
+              router.replace('/(tabs)' as any);
+            } else {
+              handleNext();
+            }
+          }}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel={activeIndex === slides.length - 1 ? 'Get started' : 'Next'}
+          accessibilityLabel={isDesktop || activeIndex === slides.length - 1 ? 'Get started' : 'Next'}
           style={{
-            backgroundColor: currentSlide.accentColor,
+            backgroundColor: isDesktop ? '#8b5cf6' : currentSlide.accentColor,
             paddingVertical: 18,
             borderRadius: 16,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: 56,
+            maxWidth: isDesktop ? 400 : undefined,
+            width: '100%',
+            alignSelf: 'center',
           }}
         >
           <Text
@@ -240,7 +335,7 @@ export default function WelcomeScreen() {
               marginRight: 8,
             }}
           >
-            {activeIndex === slides.length - 1 ? 'Get Started' : 'Next'}
+            {isDesktop || activeIndex === slides.length - 1 ? 'Get Started' : 'Next'}
           </Text>
           <ArrowRight size={18} color="#fff" />
         </TouchableOpacity>

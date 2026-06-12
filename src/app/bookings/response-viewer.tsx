@@ -36,9 +36,10 @@ export default function ResponseViewerScreen() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <CustomHeader title={`${type === 'video' ? 'Video' : 'Audio'} Response`} showBackButton />
+      <View className="flex-1 w-full max-w-3xl self-center">
+        <CustomHeader title={`${type === 'video' ? 'Video' : 'Audio'} Response`} showBackButton />
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Media Player Mock Box */}
         <View className="px-4 py-4">
           <View className="w-full h-64 bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-805 rounded-3xl overflow-hidden justify-between p-5 relative shadow-sm dark:shadow-none">
@@ -124,6 +125,7 @@ export default function ResponseViewerScreen() {
           </View>
         </View>
       </ScrollView>
+      </View>
     </View>
   );
 }

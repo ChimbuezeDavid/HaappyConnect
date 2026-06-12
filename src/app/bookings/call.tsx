@@ -44,6 +44,11 @@ export default function CallScreen() {
   // Request camera and microphone permissions on mount
   useEffect(() => {
     const requestPermissions = async () => {
+      if (Platform.OS === 'web') {
+        setHasCameraPermission(true);
+        setHasAudioPermission(true);
+        return;
+      }
       const cameraStatus = await Camera.requestCameraPermissionsAsync();
       setHasCameraPermission(cameraStatus.granted);
       const audioStatus = await requestRecordingPermissionsAsync();
@@ -178,18 +183,26 @@ export default function CallScreen() {
 
   return (
     <View className="flex-1 bg-slate-950">
-      {/* Immersive Calling WebView */}
-      <WebView
-        source={{ uri: optimizedJitsiUrl }}
-        allowsInlineMediaPlayback={true}
-        mediaPlaybackRequiresUserAction={false}
-        originWhitelist={['*']}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        onNavigationStateChange={handleNavigationStateChange}
-        className="flex-1"
-        style={{ marginTop: Platform.OS === 'ios' ? 44 : 0 }}
-      />
+      {/* Immersive Calling WebView or Iframe */}
+      {Platform.OS === 'web' ? (
+        <iframe
+          src={optimizedJitsiUrl}
+          allow="camera; microphone; display-capture; autoplay; clipboard-write"
+          style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
+        />
+      ) : (
+        <WebView
+          source={{ uri: optimizedJitsiUrl }}
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={false}
+          originWhitelist={['*']}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          onNavigationStateChange={handleNavigationStateChange}
+          className="flex-1"
+          style={{ marginTop: Platform.OS === 'ios' ? 44 : 0 }}
+        />
+      )}
 
       {/* Floating Controls Overlay (Top Header) */}
       <View 

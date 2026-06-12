@@ -209,7 +209,7 @@ export default function RootLayout() {
         <Stack.Screen
           name="expert/[id]"
           options={{
-            headerShown: true,
+            headerShown: false,
             title: 'Expert Profile',
             headerStyle,
             headerTintColor,
@@ -219,7 +219,7 @@ export default function RootLayout() {
         <Stack.Screen
           name="bookings/response-viewer"
           options={{
-            headerShown: true,
+            headerShown: false,
             title: 'Response',
             headerStyle,
             headerTintColor,

@@ -80,22 +80,23 @@ export default function ExpertProfileDetailScreen() {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-955">
-      <CustomHeader
-        title="Expert Details"
-        showBackButton
-        rightElement={
-          !isGuest && (user?.id || (user as any)?._id) !== expertUserId ? (
-            <TouchableOpacity
-              onPress={handleMessageExpert}
-              className="bg-violet-100 dark:bg-violet-950 p-2.5 rounded-2xl border border-violet-200 dark:border-violet-850"
-            >
-              <MessageSquare size={18} color="#8b5cf6" />
-            </TouchableOpacity>
-          ) : undefined
-        }
-      />
+      <View className="flex-1 w-full max-w-3xl self-center">
+        <CustomHeader
+          title="Expert Details"
+          showBackButton
+          rightElement={
+            !isGuest && (user?.id || (user as any)?._id) !== expertUserId ? (
+              <TouchableOpacity
+                onPress={handleMessageExpert}
+                className="bg-violet-100 dark:bg-violet-950 p-2.5 rounded-2xl border border-violet-200 dark:border-violet-850"
+              >
+                <MessageSquare size={18} color="#8b5cf6" />
+              </TouchableOpacity>
+            ) : undefined
+          }
+        />
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 60 }}>
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 60 }}>
         {/* Banner info */}
         <View className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-6 items-center shadow-sm dark:shadow-none">
           <Image
@@ -266,6 +267,7 @@ export default function ExpertProfileDetailScreen() {
           )}
         </View>
       </ScrollView>
+      </View>
     </View>
   );
 }

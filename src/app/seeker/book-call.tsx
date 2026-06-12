@@ -105,7 +105,11 @@ export default function BookCallModal() {
   const price = (hourlyRate / 60) * duration;
 
   return (
-    <ScrollView className="flex-1 bg-slate-50 dark:bg-slate-955 px-6 py-6" contentContainerStyle={{ paddingBottom: 60 }}>
+    <View className="flex-1 bg-slate-50 dark:bg-slate-955">
+      <ScrollView
+        className="flex-1 w-full max-w-2xl self-center"
+        contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 24, paddingTop: 24 }}
+      >
       {/* Expert Profile Banner */}
       {expert && (
         <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-6 flex-row items-center shadow-sm dark:shadow-none">
@@ -218,5 +222,6 @@ export default function BookCallModal() {
         )}
       </TouchableOpacity>
     </ScrollView>
+  </View>
   );
 }

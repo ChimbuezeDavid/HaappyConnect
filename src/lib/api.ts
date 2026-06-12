@@ -49,6 +49,9 @@ const TOKEN_KEY = 'haappyconnect_jwt_token';
 // Retrieve token from secure storage
 export const getAuthToken = async (): Promise<string | null> => {
   try {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(TOKEN_KEY);
+    }
     return await SecureStore.getItemAsync(TOKEN_KEY);
   } catch (error) {
     console.error('Error reading auth token', error);
@@ -59,6 +62,10 @@ export const getAuthToken = async (): Promise<string | null> => {
 // Set token in secure storage
 export const setAuthToken = async (token: string): Promise<void> => {
   try {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(TOKEN_KEY, token);
+      return;
+    }
     await SecureStore.setItemAsync(TOKEN_KEY, token);
   } catch (error) {
     console.error('Error saving auth token', error);
@@ -68,6 +75,10 @@ export const setAuthToken = async (token: string): Promise<void> => {
 // Remove token from secure storage
 export const removeAuthToken = async (): Promise<void> => {
   try {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(TOKEN_KEY);
+      return;
+    }
     await SecureStore.deleteItemAsync(TOKEN_KEY);
   } catch (error) {
     console.error('Error deleting auth token', error);

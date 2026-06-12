@@ -8,6 +8,12 @@ import { useColorScheme } from 'nativewind';
 import { useThemeStore } from '@/store/themeStore';
 import { useChatStore } from '@/store/chatStore';
 import '../global.css';
+import { Platform } from 'react-native';
+import { StyleSheet } from 'react-native-css-interop';
+
+if (Platform.OS === 'web') {
+  (StyleSheet as any).setFlag('darkMode', 'class');
+}
 
 // Keep splash screen visible while we load auth state
 SplashScreen.preventAutoHideAsync();

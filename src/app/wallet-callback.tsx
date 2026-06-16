@@ -79,7 +79,7 @@ export default function WalletCallbackScreen() {
     return () => {
       active = false;
     };
-  }, [params]);
+  }, [params.reference, params.status]);
 
   const backgroundColor = isDark ? '#020617' : '#f8fafc';
   const textColor = isDark ? '#f1f5f9' : '#0f172a';

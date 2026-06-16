@@ -83,7 +83,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     
     const socket = io(socketUrl, {
       auth: { token },
-      transports: ['websocket']
+      transports: ['websocket', 'polling']
     });
 
     socket.on('connect', () => {
@@ -91,7 +91,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     socket.on('connect_error', (err) => {
-      console.error('[Socket] Connection error:', err.message);
+      console.error('[Socket] Connection error:', err.message, err);
+      console.log('[Socket] Attempted Socket URL:', socketUrl);
     });
 
     socket.on('messageReceived', (message: ChatMessage) => {

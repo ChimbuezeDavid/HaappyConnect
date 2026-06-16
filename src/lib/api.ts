@@ -5,10 +5,6 @@ import * as Device from 'expo-device';
 
 // Dynamically determine the backend URL based on platform and environment
 const getBaseUrl = () => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-
   // Robust check for emulator / simulator
   const brand = Device.brand?.toLowerCase() || '';
   const model = Device.modelName?.toLowerCase() || '';
@@ -27,16 +23,34 @@ const getBaseUrl = () => {
 
   console.log(`[Device Detection] isDevice: ${Device.isDevice}, brand: ${Device.brand}, model: ${Device.modelName}, isEmulator: ${isEmulator}`);
 
+  const hostUri = Constants.expoConfig?.hostUri;
+  const hostIp = hostUri ? hostUri.split(':')[0] : null;
+
+  let url = process.env.EXPO_PUBLIC_API_URL;
+  if (url) {
+    // If running on Android emulator and the URL points to localhost, dynamically map it to 10.0.2.2
+    if (Platform.OS === 'android' && isEmulator && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+      const updatedUrl = url.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
+      console.log(`[Base URL] Android Emulator detected: Rewriting localhost URL to: ${updatedUrl}`);
+      return updatedUrl;
+    }
+    // If running on a physical device, try to replace localhost with the host machine's IP
+    if (Device.isDevice && (url.includes('localhost') || url.includes('127.0.0.1')) && hostIp) {
+      const updatedUrl = url.replace('localhost', hostIp).replace('127.0.0.1', hostIp);
+      console.log(`[Base URL] Physical Device detected: Rewriting localhost URL to: ${updatedUrl}`);
+      return updatedUrl;
+    }
+    return url;
+  }
+
   // If on Android emulator, use the standard 10.0.2.2 loopback address (avoids Windows Firewall blocks)
   if (Platform.OS === 'android' && isEmulator) {
     return 'http://10.0.2.2:3000/api';
   }
 
   // Try to get host IP from Expo Constants (works for physical devices on the local network)
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    return `http://${ip}:3000/api`;
+  if (hostIp) {
+    return `http://${hostIp}:3000/api`;
   }
 
   // Fallbacks

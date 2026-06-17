@@ -8,8 +8,20 @@ import { useColorScheme } from 'nativewind';
 import { useThemeStore } from '@/store/themeStore';
 import { useChatStore } from '@/store/chatStore';
 import '../global.css';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import ToastNotificationContainer from '@/components/ui/ToastNotification';
+import { showCustomAlert } from '@/store/alertStore';
+import CustomAlertContainer from '@/components/ui/CustomAlert';
+
+// Globally polyfill React Native's Alert.alert to render our custom HCI dialogs
+Alert.alert = (title, message, buttons) => {
+  const formattedButtons = buttons?.map(btn => ({
+    text: btn.text || 'OK',
+    style: btn.style,
+    onPress: btn.onPress
+  }));
+  showCustomAlert(title || '', message || '', formattedButtons);
+};
 
 // Keep splash screen visible while we load auth state
 SplashScreen.preventAutoHideAsync();
@@ -252,6 +264,7 @@ export default function RootLayout() {
         />
       </Stack>
       <ToastNotificationContainer />
+      <CustomAlertContainer />
     </SafeAreaProvider>
   );
 }

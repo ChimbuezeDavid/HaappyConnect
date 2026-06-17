@@ -13,7 +13,12 @@ import { useChatStore } from '@/store/chatStore';
 export default function BookingsScreen() {
   const { user, token, isGuest } = useAuthStore();
   const router = useRouter();
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab, promptReview, expertId, promptComplete } = useLocalSearchParams<{
+    tab?: string;
+    promptReview?: string;
+    expertId?: string;
+    promptComplete?: string;
+  }>();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === 'web' || width >= 768;
   // Allow deep-linking to a specific sub-tab via ?tab=calls or ?tab=questions
@@ -80,6 +85,41 @@ export default function BookingsScreen() {
     }
     fetchData();
   }, [isGuest, token]);
+
+  // Auto-launch rating feedback modal if seeker returned from a completed call session
+  useEffect(() => {
+    if (promptReview && expertId) {
+      setSelectedExpertId(expertId);
+      setSelectedBookingId(promptReview);
+      setSelectedQuestionId(undefined);
+      setReviewVisible(true);
+      router.setParams({ promptReview: undefined, expertId: undefined });
+    }
+  }, [promptReview, expertId]);
+
+  // Auto-launch completed session confirmation for experts
+  useEffect(() => {
+    if (promptComplete) {
+      Alert.alert(
+        'Consultation Finished',
+        'Would you like to mark this consultation session as completed to release the escrow hold payment?',
+        [
+          { 
+            text: 'Cancel', 
+            style: 'cancel',
+            onPress: () => router.setParams({ promptComplete: undefined }) 
+          },
+          { 
+            text: 'Mark Completed', 
+            onPress: async () => {
+              await handleUpdateBookingStatus(promptComplete, 'completed');
+              router.setParams({ promptComplete: undefined });
+            } 
+          }
+        ]
+      );
+    }
+  }, [promptComplete]);
 
   // Early return for guest mode (must be declared after all hooks)
   if (isGuest) {
@@ -256,7 +296,9 @@ export default function BookingsScreen() {
                             params: {
                               meetingLink: booking.meetingLink,
                               durationMinutes: booking.durationMinutes.toString(),
-                              partnerName: partnerProfile?.fullName || 'Consultation Session'
+                              partnerName: partnerProfile?.fullName || 'Consultation Session',
+                              bookingId: booking._id,
+                              expertId: typeof booking.expert === 'string' ? booking.expert : (booking.expert as any)?._id || (booking.expert as any)?.id || ''
                             }
                           });
                         }}

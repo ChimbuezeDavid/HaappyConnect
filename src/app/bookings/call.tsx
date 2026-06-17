@@ -29,10 +29,12 @@ function PulsingTimer({ text, color }: { text: string; color: string }) {
 export default function CallScreen() {
   const router = useRouter();
   const { user, profile } = useAuthStore();
-  const { meetingLink, durationMinutes, partnerName } = useLocalSearchParams<{
+  const { meetingLink, durationMinutes, partnerName, bookingId, expertId } = useLocalSearchParams<{
     meetingLink: string;
     durationMinutes: string;
     partnerName: string;
+    bookingId: string;
+    expertId: string;
   }>();
 
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -40,6 +42,25 @@ export default function CallScreen() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isGracePeriod, setIsGracePeriod] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleExit = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    
+    const isCurrentUserSeeker = user?.role === 'seeker';
+    if (isCurrentUserSeeker && bookingId && expertId) {
+      router.replace({
+        pathname: '/(tabs)/bookings',
+        params: { tab: 'calls', promptReview: bookingId, expertId }
+      } as any);
+    } else if (bookingId) {
+      router.replace({
+        pathname: '/(tabs)/bookings',
+        params: { tab: 'calls', promptComplete: bookingId }
+      } as any);
+    } else {
+      router.back();
+    }
+  };
 
   // Request camera and microphone permissions on mount
   useEffect(() => {
@@ -84,7 +105,7 @@ export default function CallScreen() {
               // Grace period ended -> automatically hang up
               clearInterval(timerRef.current!);
               Alert.alert('Call Expired', 'The consultation call time limit was reached.');
-              router.back();
+              handleExit();
               return 0;
             }
           }
@@ -115,8 +136,7 @@ export default function CallScreen() {
           text: 'End Call', 
           style: 'destructive',
           onPress: () => {
-            if (timerRef.current) clearInterval(timerRef.current);
-            router.back();
+            handleExit();
           }
         }
       ]
@@ -132,7 +152,7 @@ export default function CallScreen() {
     ) {
       if (timerRef.current) clearInterval(timerRef.current);
       Alert.alert('Call Ended', 'The video consultation has finished.');
-      router.back();
+      handleExit();
     }
   };
 
@@ -176,13 +196,19 @@ export default function CallScreen() {
     `&config.disableDeepLinking=true` +
     `&config.startWithAudioMuted=false` +
     `&config.startWithVideoMuted=false` +
+    `&config.welcomePageEnabled=false` +
+    `&config.hideConferenceTimer=true` +
+    `&config.hideConferenceSubject=true` +
+    `&config.disableInviteFunctions=true` +
+    `&config.readOnlyName=true` +
+    `&config.toolbarButtons=["microphone","camera","chat","tileview","select-background","videobackgroundblur"]` +
     `&userInfo.displayName="${encodeURIComponent(userDisplayName)}"`;
 
   // Warning color shift (red text below 5 minutes)
   const isTimeRunningOut = timeLeft < 300 || isGracePeriod;
 
   return (
-    <View className="flex-1 bg-slate-950">
+    <View className="flex-1 bg-slate-955">
       {/* Immersive Calling WebView or Iframe */}
       {Platform.OS === 'web' ? (
         <iframe
@@ -199,6 +225,11 @@ export default function CallScreen() {
           javaScriptEnabled={true}
           domStorageEnabled={true}
           onNavigationStateChange={handleNavigationStateChange}
+          userAgent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          onPermissionRequest={(event: any) => {
+            const { request } = event.nativeEvent;
+            request.grant(request.resources);
+          }}
           className="flex-1"
           style={{ marginTop: Platform.OS === 'ios' ? 44 : 0 }}
         />

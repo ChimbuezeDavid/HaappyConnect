@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Alert, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Alert, Pressable, KeyboardAvoidingView, Platform, ScrollView, Animated } from 'react-native';
 import { X, Star } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { api } from '@/lib/api';
@@ -20,12 +20,26 @@ export default function SubmitReviewModal({ visible, onClose, expertId, bookingI
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  const bounceAnim = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
     if (visible) {
       setRating(5);
       setComment('');
+      bounceAnim.setValue(1);
     }
   }, [visible]);
+
+  const handleRatingSelect = (starVal: number) => {
+    setRating(starVal);
+    bounceAnim.setValue(0.8);
+    Animated.spring(bounceAnim, {
+      toValue: 1,
+      friction: 4,
+      tension: 180,
+      useNativeDriver: true
+    }).start();
+  };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -81,11 +95,14 @@ export default function SubmitReviewModal({ visible, onClose, expertId, bookingI
               {/* Star Rating Selectors */}
               <Text className="text-xs font-semibold text-slate-655 dark:text-slate-400 uppercase tracking-wider text-center mb-3">Overall Rating</Text>
               
-              <View className="flex-row justify-center gap-3 mb-6">
+              <Animated.View 
+                style={{ transform: [{ scale: bounceAnim }] }}
+                className="flex-row justify-center gap-3 mb-6"
+              >
                 {[1, 2, 3, 4, 5].map((starVal) => (
                   <TouchableOpacity
                     key={starVal}
-                    onPress={() => setRating(starVal)}
+                    onPress={() => handleRatingSelect(starVal)}
                     className="p-1"
                     activeOpacity={0.6}
                   >
@@ -96,7 +113,7 @@ export default function SubmitReviewModal({ visible, onClose, expertId, bookingI
                     />
                   </TouchableOpacity>
                 ))}
-              </View>
+              </Animated.View>
 
               {/* Rating Text description */}
               <Text className="text-center font-extrabold text-slate-850 dark:text-slate-250 text-sm mb-6 uppercase tracking-wider">

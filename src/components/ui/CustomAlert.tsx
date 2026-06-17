@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import { useAlertStore, AlertButton } from '@/store/alertStore';
 import { CheckCircle, AlertTriangle, XCircle, HelpCircle, Info } from 'lucide-react-native';
@@ -32,8 +32,12 @@ export default function CustomAlertContainer() {
   const scale = useRef(new Animated.Value(0.85)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
+  // Local state to keep the modal mounted during exit animations
+  const [localVisible, setLocalVisible] = useState(false);
+
   useEffect(() => {
     if (visible) {
+      setLocalVisible(true);
       // Spring in
       Animated.parallel([
         Animated.spring(scale, {
@@ -48,34 +52,35 @@ export default function CustomAlertContainer() {
           useNativeDriver: true,
         })
       ]).start();
-    } else {
-      // Scale out
-      scale.setValue(0.85);
-      opacity.setValue(0);
+    } else if (localVisible) {
+      // Scale out and fade out before unmounting
+      Animated.parallel([
+        Animated.timing(scale, {
+          toValue: 0.9,
+          duration: 120,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 120,
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        setLocalVisible(false);
+      });
     }
   }, [visible]);
 
-  if (!visible) return null;
+  if (!localVisible) return null;
 
   const handleButtonPress = (btn: AlertButton) => {
-    // Animate scale out slightly before hiding
-    Animated.parallel([
-      Animated.timing(scale, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 100,
-        useNativeDriver: true,
-      })
-    ]).start(() => {
-      hideAlert();
-      if (btn.onPress) {
-        btn.onPress();
-      }
-    });
+    hideAlert();
+    if (btn.onPress) {
+      // Give time for the animation to transition
+      setTimeout(() => {
+        btn.onPress?.();
+      }, 100);
+    }
   };
 
   // Styles dynamically adjusted for theme
@@ -90,7 +95,7 @@ export default function CustomAlertContainer() {
   return (
     <Modal
       transparent
-      visible={visible}
+      visible={localVisible}
       animationType="none"
       onRequestClose={hideAlert}
     >

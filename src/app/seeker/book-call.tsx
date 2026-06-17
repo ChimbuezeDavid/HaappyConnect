@@ -18,20 +18,25 @@ export default function BookCallModal() {
 
   // Form states
   const [duration, setDuration] = useState<15 | 30 | 60>(30);
-  const [selectedDay, setSelectedDay] = useState<'today' | 'tomorrow'>('today');
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [dateOptions] = useState<Date[]>(() => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      dates.push(d);
+    }
+    return dates;
+  });
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   const getSelectedDateString = () => {
-    const date = new Date();
-    if (selectedDay === 'tomorrow') {
-      date.setDate(date.getDate() + 1);
-    }
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
@@ -51,7 +56,7 @@ export default function BookCallModal() {
       }
     };
     fetchSlots();
-  }, [expertUserId, selectedDay]);
+  }, [expertUserId, selectedDate]);
 
   useEffect(() => {
     const fetchExpertDetails = async () => {
@@ -84,10 +89,7 @@ export default function BookCallModal() {
     setSubmitting(true);
     try {
       // Calculate date scheduled time
-      const date = new Date();
-      if (selectedDay === 'tomorrow') {
-        date.setDate(date.getDate() + 1);
-      }
+      const date = new Date(selectedDate);
       
       const [time, modifier] = selectedSlot.split(' ');
       let [hours, minutes] = time.split(':').map(Number);
@@ -164,32 +166,57 @@ export default function BookCallModal() {
       </View>
 
       {/* Scheduled Day Selector */}
-      <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-3">Date</Text>
-      <View className="flex-row mb-4 space-x-3">
-        <TouchableOpacity
-          onPress={() => {
-            setSelectedDay('today');
-            setSelectedSlot(null);
-          }}
-          className={`flex-1 bg-white dark:bg-slate-900 border p-4 rounded-2xl mr-2 items-center justify-center ${
-            selectedDay === 'today' ? 'border-primary-500 bg-primary-500/5' : 'border-slate-200 dark:border-slate-800'
-          }`}
-        >
-          <Text className={`font-bold text-sm ${selectedDay === 'today' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>Today</Text>
-        </TouchableOpacity>
+      <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-3">Select Date</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-6">
+        {dateOptions.map((date, idx) => {
+          const isSelected = selectedDate.toDateString() === date.toDateString();
+          
+          let dayName = '';
+          const today = new Date();
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
+          if (date.toDateString() === today.toDateString()) {
+            dayName = 'Today';
+          } else if (date.toDateString() === tomorrow.toDateString()) {
+            dayName = 'Tomorrow';
+          } else {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            dayName = days[date.getDay()];
+          }
 
-        <TouchableOpacity
-          onPress={() => {
-            setSelectedDay('tomorrow');
-            setSelectedSlot(null);
-          }}
-          className={`flex-1 bg-white dark:bg-slate-900 border p-4 rounded-2xl items-center justify-center ${
-            selectedDay === 'tomorrow' ? 'border-primary-500 bg-primary-500/5' : 'border-slate-200 dark:border-slate-800'
-          }`}
-        >
-          <Text className={`font-bold text-sm ${selectedDay === 'tomorrow' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>Tomorrow</Text>
-        </TouchableOpacity>
-      </View>
+          const dateNum = date.getDate();
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const monthName = months[date.getMonth()];
+
+          return (
+            <TouchableOpacity
+              key={idx}
+              onPress={() => {
+                setSelectedDate(date);
+                setSelectedSlot(null);
+              }}
+              activeOpacity={0.8}
+              className={`mr-3 p-3.5 rounded-2xl items-center justify-center border ${
+                isSelected 
+                  ? 'bg-primary-500 border-primary-500 shadow-md shadow-primary-500/20' 
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+              }`}
+              style={{ width: 85, height: 90 }}
+            >
+              <Text className={`text-[10px] font-bold uppercase ${isSelected ? 'text-primary-100' : 'text-slate-400 dark:text-slate-500'}`}>
+                {dayName}
+              </Text>
+              <Text className={`text-xl font-black mt-1 ${isSelected ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                {dateNum}
+              </Text>
+              <Text className={`text-[10px] font-semibold mt-0.5 ${isSelected ? 'text-primary-200' : 'text-slate-450 dark:text-slate-400'}`}>
+                {monthName}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {/* Available Slots Selector */}
       <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-3">Available Times</Text>

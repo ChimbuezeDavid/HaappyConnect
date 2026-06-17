@@ -25,7 +25,7 @@ export default function CustomHeader({ title, showBackButton = false, rightEleme
             <ArrowLeft size={18} color={isDark ? '#fff' : '#0f172a'} />
           </TouchableOpacity>
         )}
-        <Text className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight numberOfLines={1}">
+        <Text className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight" numberOfLines={1}>
           {title}
         </Text>
       </View>

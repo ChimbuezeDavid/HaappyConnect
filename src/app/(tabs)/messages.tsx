@@ -18,12 +18,13 @@ import { useAuthStore } from '@/store/authStore';
 import { Search, MessageSquare, User } from 'lucide-react-native';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import ChatRoomScreen from '../chat/[conversationId]';
+import SignInWall from '@/components/ui/SignInWall';
 
 export default function MessagesScreen() {
   const router = useRouter();
   const { conversationId } = useLocalSearchParams<{ conversationId?: string }>();
   const { conversations, fetchConversations, isLoadingConversations } = useChatStore();
-  const { user } = useAuthStore();
+  const { user, isGuest } = useAuthStore();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -33,6 +34,11 @@ export default function MessagesScreen() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  // Early return for guest mode
+  if (isGuest) {
+    return <SignInWall />;
+  }
 
   // Load conversations on mount
   useEffect(() => {

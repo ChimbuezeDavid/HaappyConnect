@@ -48,7 +48,7 @@ export default function ExpertProfileDetailScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-slate-50 dark:bg-slate-950 justify-center items-center">
+      <View className="flex-1 bg-slate-55 dark:bg-slate-950 justify-center items-center" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
         <ActivityIndicator size="large" color="#8b5cf6" />
       </View>
     );
@@ -56,7 +56,7 @@ export default function ExpertProfileDetailScreen() {
 
   if (!expert) {
     return (
-      <View className="flex-1 bg-slate-50 dark:bg-slate-950 justify-center items-center px-6">
+      <View className="flex-1 bg-slate-55 dark:bg-slate-950 justify-center items-center px-6" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
         <AlertTriangle size={36} color="#ef4444" />
         <Text className="text-slate-900 dark:text-white text-base mt-2">Expert profile not found</Text>
       </View>
@@ -67,6 +67,19 @@ export default function ExpertProfileDetailScreen() {
   const expertUserId = typeof expert.user === 'string' ? expert.user : expert.user?.id || (expert.user as any)?._id || '';
 
   const handleMessageExpert = async () => {
+    if (isGuest) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in or create an account to start direct conversations with experts.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => {
+            router.replace('/(auth)/login');
+          }}
+        ]
+      );
+      return;
+    }
     if (!expertUserId) return;
     try {
       const chatStore = useChatStore.getState();
@@ -88,13 +101,13 @@ export default function ExpertProfileDetailScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-955">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-955" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       <View className="flex-1 w-full max-w-3xl self-center">
         <CustomHeader
           title="Expert Details"
           showBackButton
           rightElement={
-            !isGuest && (user?.id || (user as any)?._id) !== expertUserId ? (
+            (user?.id || (user as any)?._id) !== expertUserId ? (
               <TouchableOpacity
                 onPress={handleMessageExpert}
                 className="bg-violet-100 dark:bg-violet-950 p-2.5 rounded-2xl border border-violet-200 dark:border-violet-850"
@@ -105,9 +118,9 @@ export default function ExpertProfileDetailScreen() {
           }
         />
 
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 60 }}>
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 60 }} style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
         {/* Banner info */}
-        <View className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-6 items-center shadow-sm dark:shadow-none">
+        <View className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-6 items-center shadow-sm dark:shadow-none" style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderBottomColor: isDark ? '#1e293b' : '#e2e8f0', borderBottomWidth: 1 }}>
           <Image
             source={{ uri: expert.avatarUrl || 'https://via.placeholder.com/150' }}
             className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 mb-4"
@@ -131,7 +144,7 @@ export default function ExpertProfileDetailScreen() {
         </View>
 
         {/* Bio Section */}
-        <View className="px-6 py-6 border-b border-slate-200 dark:border-slate-900">
+        <View className="px-6 py-6 border-b border-slate-200 dark:border-slate-900" style={{ borderBottomColor: isDark ? '#1e293b' : '#e2e8f0', borderBottomWidth: 1 }}>
           <Text className="text-slate-500 dark:text-slate-350 text-xs font-semibold uppercase tracking-wider mb-3">About</Text>
           <Text className="text-slate-700 dark:text-slate-400 text-sm leading-relaxed">
             {expert.bio}
@@ -139,7 +152,7 @@ export default function ExpertProfileDetailScreen() {
         </View>
 
         {/* Pricing Tiers / Service Packages */}
-        <View className="px-6 py-6 border-b border-slate-200 dark:border-slate-900">
+        <View className="px-6 py-6 border-b border-slate-200 dark:border-slate-900" style={{ borderBottomColor: isDark ? '#1e293b' : '#e2e8f0', borderBottomWidth: 1 }}>
           <Text className="text-slate-550 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">Choose Service Type</Text>
 
           {/* Pricing Tier 1: Text Question */}

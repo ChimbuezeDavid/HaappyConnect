@@ -37,6 +37,7 @@ export default function RoleSelectionScreen() {
   return (
     <ScrollView 
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} 
+      style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}
       className="bg-slate-50 dark:bg-slate-955 px-6 py-12"
     >
       <View className="max-w-xl w-full self-center">
@@ -162,7 +163,10 @@ export default function RoleSelectionScreen() {
           }}
           className="w-full py-4 rounded-2xl flex-row justify-center items-center"
         >
-          <Text className={`font-bold text-base mr-2 ${selectedRole ? 'text-white' : (isDark ? '#475569' : '#94a3b8')}`}>
+          <Text 
+            style={{ color: selectedRole ? '#ffffff' : (isDark ? '#475569' : '#94a3b8') }}
+            className="font-bold text-base mr-2"
+          >
             Continue
           </Text>
           <ArrowRight size={18} color={selectedRole ? '#fff' : (isDark ? '#475569' : '#94a3b8')} />

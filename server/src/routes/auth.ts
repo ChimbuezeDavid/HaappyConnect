@@ -540,4 +540,69 @@ router.post('/mock-callback', async (req, res) => {
   }
 });
 
+// Forgot Password - Step 1: Send verification code
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // Security best practice: don't reveal if user doesn't exist
+      return res.json({ message: 'If that email address exists in our database, we will send a password reset code.' });
+    }
+
+    // Generate a 6-digit verification code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    user.resetPasswordCode = code;
+    user.resetPasswordExpires = expiry;
+    await user.save();
+
+    console.log(`[PASSWORD RESET] Code for ${email} is ${code}`);
+
+    res.json({ message: 'If that email address exists in our database, we will send a password reset code.' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error during forgot password' });
+  }
+});
+
+// Reset Password - Step 2: Validate code and set new password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: 'Email, code, and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+      resetPasswordCode: code,
+      resetPasswordExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired password reset code' });
+    }
+
+    // Hash the new password and update user
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = passwordHash;
+    user.resetPasswordCode = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ message: 'Password has been reset successfully.' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error during password reset' });
+  }
+});
+
 export default router;

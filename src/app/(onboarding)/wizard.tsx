@@ -51,6 +51,17 @@ export default function OnboardingWizard() {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
 
+  // Focus state variables for inputs
+  const [fullNameFocused, setFullNameFocused] = useState(false);
+  const [usernameFocused, setUsernameFocused] = useState(false);
+  const [locationFocused, setLocationFocused] = useState(false);
+  const [bioFocused, setBioFocused] = useState(false);
+  const [headlineFocused, setHeadlineFocused] = useState(false);
+  const [experienceFocused, setExperienceFocused] = useState(false);
+  const [customInterestFocused, setCustomInterestFocused] = useState(false);
+  const [goalsFocused, setGoalsFocused] = useState(false);
+  const [availabilityNoteFocused, setAvailabilityNoteFocused] = useState(false);
+
   // Load categories on start
   useEffect(() => {
     const fetchCategories = async () => {
@@ -246,7 +257,10 @@ export default function OnboardingWizard() {
 
             {/* Circle Preview */}
             <View className="relative mb-10">
-              <View className="w-40 h-40 rounded-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 items-center justify-center overflow-hidden">
+              <View 
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 2 }}
+                className="w-40 h-40 rounded-full items-center justify-center overflow-hidden"
+              >
                 {draft.avatarUrl ? (
                   <Image source={{ uri: draft.avatarUrl }} className="w-full h-full" />
                 ) : (
@@ -267,7 +281,8 @@ export default function OnboardingWizard() {
             <View className="w-full space-y-4">
               <TouchableOpacity
                 onPress={() => handlePickImage(true)}
-                className="w-full flex-row items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-4 px-6 rounded-2xl active:bg-slate-100 dark:active:bg-slate-850 mb-3 shadow-sm dark:shadow-none"
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                className="w-full flex-row items-center justify-center py-4 px-6 rounded-2xl active:bg-slate-100 dark:active:bg-slate-850 mb-3 shadow-sm dark:shadow-none"
               >
                 <Camera size={20} color="#8b5cf6" style={{ marginRight: 8 }} />
                 <Text className="text-slate-900 dark:text-white font-bold text-base">Take Photo</Text>
@@ -275,7 +290,8 @@ export default function OnboardingWizard() {
 
               <TouchableOpacity
                 onPress={() => handlePickImage(false)}
-                className="w-full flex-row items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-4 px-6 rounded-2xl active:bg-slate-100 dark:active:bg-slate-850 mb-3 shadow-sm dark:shadow-none"
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                className="w-full flex-row items-center justify-center py-4 px-6 rounded-2xl active:bg-slate-100 dark:active:bg-slate-850 mb-3 shadow-sm dark:shadow-none"
               >
                 <ImageIcon size={20} color="#8b5cf6" style={{ marginRight: 8 }} />
                 <Text className="text-slate-900 dark:text-white font-bold text-base">Choose from Gallery</Text>
@@ -302,11 +318,20 @@ export default function OnboardingWizard() {
             {/* Full Name */}
             <View className="mb-4">
               <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Full Name *</Text>
-              <View className="flex-row items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-violet-500 rounded-2xl px-4 py-3">
-                <User size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+              <View 
+                style={{
+                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                  borderColor: fullNameFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                  borderWidth: 1.5,
+                }}
+                className="flex-row items-center rounded-2xl px-4 py-3"
+              >
+                <User size={18} color={fullNameFocused ? '#8b5cf6' : (isDark ? '#475569' : '#94a3b8')} />
                 <TextInput
                   value={draft.fullName}
                   onChangeText={(text) => draft.updateDraft({ fullName: text })}
+                  onFocus={() => setFullNameFocused(true)}
+                  onBlur={() => setFullNameFocused(false)}
                   placeholder="Jane Doe"
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
@@ -317,8 +342,15 @@ export default function OnboardingWizard() {
             {/* Handle Username */}
             <View className="mb-4">
               <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Username Handle *</Text>
-              <View className="flex-row items-center bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3">
-                <Text className="text-violet-500 dark:text-violet-400 font-bold text-base">@</Text>
+              <View 
+                style={{
+                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                  borderColor: usernameFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#e2e8f0'),
+                  borderWidth: 1.5,
+                }}
+                className="flex-row items-center rounded-2xl px-4 py-3"
+              >
+                <Text style={{ color: usernameFocused ? '#8b5cf6' : '#8b5cf6' }} className="font-bold text-base">@</Text>
                 <TextInput
                   value={draft.username.replace('@', '')}
                   onChangeText={(text) => {
@@ -326,6 +358,8 @@ export default function OnboardingWizard() {
                     draft.updateDraft({ username: cleanVal });
                     checkUsernameUniqueness(cleanVal);
                   }}
+                  onFocus={() => setUsernameFocused(true)}
+                  onBlur={() => setUsernameFocused(false)}
                   placeholder="janedoe"
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   autoCapitalize="none"
@@ -343,11 +377,20 @@ export default function OnboardingWizard() {
             {/* Location */}
             <View className="mb-4">
               <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Location (City, Country) *</Text>
-              <View className="flex-row items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3">
-                <MapPin size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+              <View 
+                style={{
+                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                  borderColor: locationFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                  borderWidth: 1.5,
+                }}
+                className="flex-row items-center rounded-2xl px-4 py-3"
+              >
+                <MapPin size={18} color={locationFocused ? '#8b5cf6' : (isDark ? '#475569' : '#94a3b8')} />
                 <TextInput
                   value={draft.location}
                   onChangeText={(text) => draft.updateDraft({ location: text })}
+                  onFocus={() => setLocationFocused(true)}
+                  onBlur={() => setLocationFocused(false)}
                   placeholder="Lagos, Nigeria"
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
@@ -361,8 +404,16 @@ export default function OnboardingWizard() {
                 <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">Bio / Description</Text>
                 <Text className="text-slate-500 dark:text-slate-500 text-xs">{draft.bio.length}/250</Text>
               </View>
-              <View className="flex-row items-start bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 h-28">
-                <FileText size={18} color={isDark ? '#94a3b8' : '#64748b'} style={{ marginTop: 4 }} />
+              <View 
+                style={{
+                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                  borderColor: bioFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                  borderWidth: 1.5,
+                  height: 112,
+                }}
+                className="flex-row items-start rounded-2xl px-4 py-3"
+              >
+                <FileText size={18} color={bioFocused ? '#8b5cf6' : (isDark ? '#475569' : '#94a3b8')} style={{ marginTop: 4 }} />
                 <TextInput
                   value={draft.bio}
                   onChangeText={(text) => {
@@ -370,6 +421,8 @@ export default function OnboardingWizard() {
                       draft.updateDraft({ bio: text });
                     }
                   }}
+                  onFocus={() => setBioFocused(true)}
+                  onBlur={() => setBioFocused(false)}
                   placeholder="Tell us about yourself..."
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   multiline
@@ -395,11 +448,20 @@ export default function OnboardingWizard() {
               {/* Headline */}
               <View className="mb-4">
                 <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Professional Headline *</Text>
-                <View className="flex-row items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3">
-                  <Sparkles size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+                <View 
+                  style={{
+                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                    borderColor: headlineFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                    borderWidth: 1.5,
+                  }}
+                  className="flex-row items-center rounded-2xl px-4 py-3"
+                >
+                  <Sparkles size={18} color={headlineFocused ? '#8b5cf6' : (isDark ? '#94a3b8' : '#64748b')} />
                   <TextInput
                     value={draft.headline}
                     onChangeText={(text) => draft.updateDraft({ headline: text })}
+                    onFocus={() => setHeadlineFocused(true)}
+                    onBlur={() => setHeadlineFocused(false)}
                     placeholder="Senior Software Engineer | AI Consultant"
                     placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                     className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
@@ -410,11 +472,20 @@ export default function OnboardingWizard() {
               {/* Experience Credentials */}
               <View className="mb-6">
                 <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Credentials / Experience *</Text>
-                <View className="flex-row items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3">
-                  <Bookmark size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+                <View 
+                  style={{
+                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                    borderColor: experienceFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                    borderWidth: 1.5,
+                  }}
+                  className="flex-row items-center rounded-2xl px-4 py-3"
+                >
+                  <Bookmark size={18} color={experienceFocused ? '#8b5cf6' : (isDark ? '#94a3b8' : '#64748b')} />
                   <TextInput
                     value={draft.experience}
                     onChangeText={(text) => draft.updateDraft({ experience: text })}
+                    onFocus={() => setExperienceFocused(true)}
+                    onBlur={() => setExperienceFocused(false)}
                     placeholder="10+ Years Experience / Certified Coach"
                     placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                     className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
@@ -434,9 +505,12 @@ export default function OnboardingWizard() {
                       <TouchableOpacity
                         key={cat._id}
                         onPress={() => toggleCategorySelection(cat._id)}
-                        className={`flex-row items-center px-4.5 py-2.5 rounded-full border ${
-                          isSelected ? 'bg-primary-500 border-primary-500' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-850'
-                        }`}
+                        style={{
+                          backgroundColor: isSelected ? '#8b5cf6' : (isDark ? '#0f172a' : '#ffffff'),
+                          borderColor: isSelected ? '#8b5cf6' : (isDark ? '#1e293b' : '#e2e8f0'),
+                          borderWidth: 1,
+                        }}
+                        className="flex-row items-center px-4 py-2.5 rounded-full"
                       >
                         {isSelected && <Check size={14} color="#fff" style={{ marginRight: 6 }} />}
                         <Text className={`text-sm ${isSelected ? 'text-white font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
@@ -468,9 +542,12 @@ export default function OnboardingWizard() {
                       <TouchableOpacity
                         key={cat._id}
                         onPress={() => toggleCategorySelection(cat.name)}
-                        className={`flex-row items-center px-4 py-2.5 rounded-full border ${
-                          isSelected ? 'bg-primary-500 border-primary-500' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-850'
-                        }`}
+                        style={{
+                          backgroundColor: isSelected ? '#8b5cf6' : (isDark ? '#0f172a' : '#ffffff'),
+                          borderColor: isSelected ? '#8b5cf6' : (isDark ? '#1e293b' : '#e2e8f0'),
+                          borderWidth: 1,
+                        }}
+                        className="flex-row items-center px-4 py-2.5 rounded-full"
                       >
                         {isSelected && <Check size={14} color="#fff" style={{ marginRight: 6 }} />}
                         <Text className={`text-sm ${isSelected ? 'text-white font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
@@ -484,10 +561,19 @@ export default function OnboardingWizard() {
 
               {/* Add Custom Category Chip */}
               <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Can't find a category? Add custom:</Text>
-              <View className="flex-row bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-1.5 items-center">
+              <View 
+                style={{
+                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                  borderColor: customInterestFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                  borderWidth: 1.5,
+                }}
+                className="flex-row rounded-2xl px-4 py-1.5 items-center"
+              >
                 <TextInput
                   value={customInterest}
                   onChangeText={setCustomInterest}
+                  onFocus={() => setCustomInterestFocused(true)}
+                  onBlur={() => setCustomInterestFocused(false)}
                   placeholder="e.g. Artificial Intelligence"
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   className="flex-1 text-slate-900 dark:text-white text-base py-2"
@@ -507,7 +593,12 @@ export default function OnboardingWizard() {
                     <TouchableOpacity
                       key={interest}
                       onPress={() => toggleCategorySelection(interest)}
-                      className="bg-primary-500/10 border border-primary-500/30 px-3.5 py-1.5 rounded-full flex-row items-center"
+                      style={{
+                        backgroundColor: isDark ? '#1e1b4b' : '#f5f3ff',
+                        borderColor: isDark ? '#312e81' : '#c084fc',
+                        borderWidth: 1,
+                      }}
+                      className="px-3.5 py-1.5 rounded-full flex-row items-center"
                     >
                       <Text className="text-primary-700 dark:text-primary-300 text-xs font-semibold mr-1.5">{interest}</Text>
                       <Text className="text-primary-800 dark:text-primary-400 text-xs font-bold">×</Text>
@@ -518,7 +609,6 @@ export default function OnboardingWizard() {
             </View>
           );
         }
-
       case 4:
         if (isExpert) {
           // Expert Step 4: Pricing Setup
@@ -529,8 +619,11 @@ export default function OnboardingWizard() {
                 Configure your pricing packages in Nigerian Naira. You can mark tiers as negotiable.
               </Text>
 
-              {/* Tier 1: Text Question */}
-              <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
+              {/* Tier 1: Quick Text Question */}
+              <View 
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                className="rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none"
+              >
                 <View className="flex-row justify-between items-center mb-4">
                   <View className="flex-row items-center">
                     <View className="bg-primary-500/10 p-2 rounded-xl mr-3 border border-primary-500/20">
@@ -551,7 +644,10 @@ export default function OnboardingWizard() {
                     />
                   </View>
                 </View>
-                <View className="flex-row items-center bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-2xl px-4 py-3">
+                <View 
+                  style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
+                  className="flex-row items-center rounded-2xl px-4 py-3"
+                >
                   <Text className="text-slate-900 dark:text-white font-bold text-base mr-2">₦</Text>
                   <TextInput
                     value={draft.textPrice}
@@ -565,7 +661,10 @@ export default function OnboardingWizard() {
               </View>
 
               {/* Tier 2: Voice/Video Response */}
-              <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
+              <View 
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                className="rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none"
+              >
                 <View className="flex-row justify-between items-center mb-4">
                   <View className="flex-row items-center">
                     <View className="bg-primary-500/10 p-2 rounded-xl mr-3 border border-primary-500/20">
@@ -586,7 +685,10 @@ export default function OnboardingWizard() {
                     />
                   </View>
                 </View>
-                <View className="flex-row items-center bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-2xl px-4 py-3">
+                <View 
+                  style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
+                  className="flex-row items-center rounded-2xl px-4 py-3"
+                >
                   <Text className="text-slate-900 dark:text-white font-bold text-base mr-2">₦</Text>
                   <TextInput
                     value={draft.videoPrice}
@@ -600,7 +702,10 @@ export default function OnboardingWizard() {
               </View>
 
               {/* Tier 3: Live Video Call */}
-              <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
+              <View 
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                className="rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none"
+              >
                 <View className="flex-row justify-between items-center mb-4">
                   <View className="flex-row items-center">
                     <View className="bg-primary-500/10 p-2 rounded-xl mr-3 border border-primary-500/20">
@@ -621,7 +726,10 @@ export default function OnboardingWizard() {
                     />
                   </View>
                 </View>
-                <View className="flex-row items-center bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 rounded-2xl px-4 py-3">
+                <View 
+                  style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
+                  className="flex-row items-center rounded-2xl px-4 py-3"
+                >
                   <Text className="text-slate-900 dark:text-white font-bold text-base mr-2">₦</Text>
                   <TextInput
                     value={draft.callPrice}
@@ -647,11 +755,21 @@ export default function OnboardingWizard() {
               {/* Goals Description */}
               <View className="mb-6">
                 <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">What are you hoping to achieve? *</Text>
-                <View className="flex-row items-start bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 h-32">
-                  <FileText size={18} color={isDark ? '#94a3b8' : '#64748b'} style={{ marginTop: 4 }} />
+                <View 
+                  style={{
+                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                    borderColor: goalsFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                    borderWidth: 1.5,
+                    height: 128,
+                  }}
+                  className="flex-row items-start rounded-2xl px-4 py-3"
+                >
+                  <FileText size={18} color={goalsFocused ? '#8b5cf6' : (isDark ? '#94a3b8' : '#64748b')} style={{ marginTop: 4 }} />
                   <TextInput
                     value={draft.goals}
                     onChangeText={(text) => draft.updateDraft({ goals: text })}
+                    onFocus={() => setGoalsFocused(true)}
+                    onBlur={() => setGoalsFocused(false)}
                     placeholder="Describe your goals (e.g. Learn how to launch a startup, debug architecture issues, transition careers...)"
                     placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                     multiline
@@ -664,14 +782,18 @@ export default function OnboardingWizard() {
 
               {/* Preferred Communication Style */}
               <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-3">Preferred Communication Style</Text>
-              <View className="flex-row bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl">
+              <View 
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
+                className="flex-row p-1.5 rounded-2xl"
+              >
                 {(['Text', 'Voice', 'Video', 'Any'] as const).map((style) => (
                   <TouchableOpacity
                     key={style}
                     onPress={() => draft.updateDraft({ communicationStyle: style })}
-                    className={`flex-1 items-center justify-center py-3 rounded-xl ${
-                      draft.communicationStyle === style ? 'bg-primary-500' : 'bg-transparent'
-                    }`}
+                    style={{
+                      backgroundColor: draft.communicationStyle === style ? '#8b5cf6' : 'transparent',
+                    }}
+                    className="flex-1 items-center justify-center py-3 rounded-xl"
                   >
                     <Text
                       className={`font-semibold text-xs ${
@@ -698,7 +820,10 @@ export default function OnboardingWizard() {
               </Text>
 
               {/* Immediate Availability Toggle */}
-              <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 flex-row justify-between items-center mb-4 shadow-sm dark:shadow-none">
+              <View 
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                className="rounded-3xl p-5 flex-row justify-between items-center mb-4 shadow-sm dark:shadow-none"
+              >
                 <View className="flex-1 mr-4">
                   <Text className="text-slate-900 dark:text-white font-bold text-base mb-1">Available Immediately</Text>
                   <Text className="text-slate-650 dark:text-slate-400 text-xs leading-relaxed">
@@ -716,11 +841,20 @@ export default function OnboardingWizard() {
               {/* Availability Note */}
               <View className="mb-4">
                 <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Availability Notes</Text>
-                <View className="flex-row items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3">
-                  <Bookmark size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+                <View 
+                  style={{
+                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                    borderColor: availabilityNoteFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                    borderWidth: 1.5,
+                  }}
+                  className="flex-row items-center rounded-2xl px-4 py-3"
+                >
+                  <Bookmark size={18} color={availabilityNoteFocused ? '#8b5cf6' : (isDark ? '#94a3b8' : '#64748b')} />
                   <TextInput
                     value={draft.availabilityNote}
                     onChangeText={(text) => draft.updateDraft({ availabilityNote: text })}
+                    onFocus={() => setAvailabilityNoteFocused(true)}
+                    onBlur={() => setAvailabilityNoteFocused(false)}
                     placeholder="e.g. Weekdays 6PM-9PM, Saturday mornings"
                     placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                     className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
@@ -730,14 +864,18 @@ export default function OnboardingWizard() {
 
               {/* Profile Visibility */}
               <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Profile Visibility</Text>
-              <View className="flex-row bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-850 p-1.5 rounded-2xl">
+              <View 
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                className="flex-row p-1.5 rounded-2xl"
+              >
                 {(['Public', 'Private'] as const).map((opt) => (
                   <TouchableOpacity
                     key={opt}
                     onPress={() => draft.updateDraft({ visibility: opt })}
-                    className={`flex-1 items-center justify-center py-3 rounded-xl ${
-                      draft.visibility === opt ? 'bg-primary-500' : 'bg-transparent'
-                    }`}
+                    style={{
+                      backgroundColor: draft.visibility === opt ? '#8b5cf6' : 'transparent',
+                    }}
+                    className="flex-1 items-center justify-center py-3 rounded-xl"
                   >
                     <Text
                       className={`font-semibold text-xs ${
@@ -777,12 +915,16 @@ export default function OnboardingWizard() {
         </Text>
 
         {/* Review Card */}
-        <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-sm dark:shadow-xl">
+        <View 
+          style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+          className="rounded-3xl p-6 space-y-4 shadow-sm dark:shadow-xl"
+        >
           {/* Header Summary */}
           <View className="flex-row items-center border-b border-slate-200 dark:border-slate-800 pb-4">
             <Image
               source={{ uri: draft.avatarUrl || 'https://via.placeholder.com/150' }}
-              className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800"
+              style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
+              className="w-16 h-16 rounded-full"
             />
             <View className="ml-4">
               <Text className="text-lg font-bold text-slate-900 dark:text-white">{draft.fullName || 'Unspecified Name'}</Text>
@@ -791,7 +933,8 @@ export default function OnboardingWizard() {
             </View>
             <TouchableOpacity 
               onPress={() => draft.updateDraft({ currentStep: 2 })}
-              className="ml-auto bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-1.5 rounded-full"
+              style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+              className="ml-auto px-3 py-1.5 rounded-full"
             >
               <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">Edit</Text>
             </TouchableOpacity>
@@ -800,9 +943,20 @@ export default function OnboardingWizard() {
           {/* Account Role details */}
           <View className="flex-row justify-between items-center py-1">
             <Text className="text-slate-500 dark:text-slate-400 text-sm">Account Type</Text>
-            <Text className="text-slate-900 dark:text-white font-bold uppercase text-xs px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20">
-              {draft.role}
-            </Text>
+            <View 
+              style={{ 
+                backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)', 
+                borderColor: 'rgba(139, 92, 246, 0.3)', 
+                borderWidth: 1,
+                borderRadius: 9999,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+              }}
+            >
+              <Text className="text-violet-600 dark:text-violet-400 font-bold uppercase text-xs">
+                {draft.role}
+              </Text>
+            </View>
           </View>
 
           {/* Bio details */}
@@ -820,7 +974,8 @@ export default function OnboardingWizard() {
                   <Text className="text-slate-900 dark:text-white font-bold text-sm">Expert details</Text>
                   <TouchableOpacity 
                     onPress={() => draft.updateDraft({ currentStep: 3 })}
-                    className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-855 px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                    className="px-3 py-1.5 rounded-full"
                   >
                     <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">Edit</Text>
                   </TouchableOpacity>
@@ -830,7 +985,7 @@ export default function OnboardingWizard() {
                   <Text className="text-slate-800 dark:text-white text-sm mt-0.5">{draft.headline || 'No professional headline.'}</Text>
                 </View>
                 <View>
-                  <Text className="text-slate-550 dark:text-slate-400 text-xs uppercase tracking-wider">Experience</Text>
+                  <Text className="text-slate-555 dark:text-slate-400 text-xs uppercase tracking-wider">Experience</Text>
                   <Text className="text-slate-800 dark:text-white text-sm mt-0.5">{draft.experience || 'No experience configured.'}</Text>
                 </View>
                 <View>
@@ -850,7 +1005,8 @@ export default function OnboardingWizard() {
                   <Text className="text-slate-900 dark:text-white font-bold text-sm">Rates & Packages</Text>
                   <TouchableOpacity 
                     onPress={() => draft.updateDraft({ currentStep: 4 })}
-                    className="bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-855 px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                    className="px-3 py-1.5 rounded-full"
                   >
                     <Text className="text-slate-655 dark:text-slate-400 text-xs font-bold">Edit</Text>
                   </TouchableOpacity>
@@ -877,7 +1033,8 @@ export default function OnboardingWizard() {
                   <Text className="text-slate-900 dark:text-white font-bold text-sm">Interests ({draft.interests.length})</Text>
                   <TouchableOpacity 
                     onPress={() => draft.updateDraft({ currentStep: 3 })}
-                    className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                    className="px-3 py-1.5 rounded-full"
                   >
                     <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">Edit</Text>
                   </TouchableOpacity>
@@ -891,7 +1048,8 @@ export default function OnboardingWizard() {
                   <Text className="text-slate-900 dark:text-white font-bold text-sm">Goals & Preferences</Text>
                   <TouchableOpacity 
                     onPress={() => draft.updateDraft({ currentStep: 4 })}
-                    className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-855 px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+                    className="px-3 py-1.5 rounded-full"
                   >
                     <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">Edit</Text>
                   </TouchableOpacity>
@@ -912,15 +1070,36 @@ export default function OnboardingWizard() {
     );
   };
 
+  const nextButtonDisabled = 
+    (draft.currentStep === 2 && (!draft.fullName.trim() || !draft.username.trim() || checkingUsername)) ||
+    (draft.currentStep === 3 && isExpert && draft.categories.length < 3) ||
+    (draft.currentStep === 3 && !isExpert && draft.interests.length < 3) ||
+    (draft.currentStep === 4 && !isExpert && !draft.goals.trim());
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-slate-50 dark:bg-slate-955"
+      style={{ flex: 1, backgroundColor: isDark ? '#020617' : '#f8fafc' }}
+      className="flex-1"
     >
       {/* Top Stepper Indicator */}
-      <View className="px-6 pt-12 pb-4 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-900 flex-row items-center max-w-xl w-full self-center shadow-sm dark:shadow-none">
+      <View 
+        style={{
+          backgroundColor: isDark ? '#0f172a' : '#ffffff',
+          borderBottomColor: isDark ? '#1e293b' : '#e2e8f0',
+          borderBottomWidth: 1,
+          maxWidth: 576, // max-w-xl
+          width: '100%',
+          alignSelf: 'center',
+        }}
+        className="px-6 pt-12 pb-4 flex-row items-center shadow-sm dark:shadow-none"
+      >
         {draft.currentStep > 1 && (
-          <TouchableOpacity onPress={handlePrev} className="bg-slate-100 dark:bg-slate-900 p-2 rounded-xl mr-3 border border-slate-200 dark:border-slate-800">
+          <TouchableOpacity 
+            onPress={handlePrev} 
+            style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
+            className="p-2 rounded-xl mr-3"
+          >
             <ChevronLeft size={16} color={isDark ? '#fff' : '#0f172a'} />
           </TouchableOpacity>
         )}
@@ -930,9 +1109,10 @@ export default function OnboardingWizard() {
           {Array.from({ length: totalSteps }).map((_, idx) => (
             <View
               key={idx}
-              className={`h-1.5 rounded-full flex-1 ${
-                draft.currentStep > idx ? 'bg-primary-500' : (isDark ? 'bg-slate-850' : '#cbd5e1')
-              }`}
+              style={{
+                backgroundColor: draft.currentStep > idx ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1')
+              }}
+              className="h-1.5 rounded-full flex-1"
             />
           ))}
         </View>
@@ -943,8 +1123,10 @@ export default function OnboardingWizard() {
 
       {/* Main Wizard Form Body */}
       <ScrollView
+        style={{ flex: 1 }}
         className="flex-1 max-w-xl w-full self-center px-6"
         contentContainerStyle={{ paddingVertical: 24, paddingBottom: 60 }}
+        keyboardShouldPersistTaps="handled"
       >
         {renderStepContent()}
         
@@ -954,28 +1136,20 @@ export default function OnboardingWizard() {
             {draft.currentStep > 1 && (
               <TouchableOpacity
                 onPress={handlePrev}
-                className="flex-1 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl items-center mr-2 active:bg-slate-100 dark:active:bg-slate-850"
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
+                className="flex-1 py-4 rounded-2xl items-center mr-2 active:bg-slate-100 dark:active:bg-slate-850"
               >
-                <Text className="text-slate-800 dark:text-slate-300 font-bold text-base">Back</Text>
+                <Text className="text-slate-800 dark:text-slate-300 font-bold text-base text-center">Back</Text>
               </TouchableOpacity>
             )}
             
             <TouchableOpacity
               onPress={handleNext}
-              disabled={
-                (draft.currentStep === 2 && (!draft.fullName.trim() || !draft.username.trim() || checkingUsername)) ||
-                (draft.currentStep === 3 && isExpert && draft.categories.length < 3) ||
-                (draft.currentStep === 3 && !isExpert && draft.interests.length < 3) ||
-                (draft.currentStep === 4 && !isExpert && !draft.goals.trim())
-              }
-              className={`flex-1 py-4 rounded-2xl flex-row justify-center items-center ${
-                ((draft.currentStep === 2 && (!draft.fullName.trim() || !draft.username.trim() || checkingUsername)) ||
-                 (draft.currentStep === 3 && isExpert && draft.categories.length < 3) ||
-                 (draft.currentStep === 3 && !isExpert && draft.interests.length < 3) ||
-                 (draft.currentStep === 4 && !isExpert && !draft.goals.trim()))
-                  ? 'bg-primary-500/50'
-                  : 'bg-primary-500 shadow-lg shadow-primary-500 active:bg-primary-600'
-              }`}
+              disabled={nextButtonDisabled}
+              style={{
+                backgroundColor: nextButtonDisabled ? (isDark ? 'rgba(139, 92, 246, 0.3)' : '#8b5cf660') : '#8b5cf6'
+              }}
+              className="flex-1 py-4 rounded-2xl flex-row justify-center items-center active:bg-primary-600"
             >
               <Text className="text-white font-bold text-base mr-1">Next</Text>
               <ChevronRight size={18} color="#fff" />
@@ -987,7 +1161,8 @@ export default function OnboardingWizard() {
             <TouchableOpacity
               onPress={handleFinishOnboarding}
               disabled={apiSaving}
-              className="w-full bg-emerald-500 py-4 rounded-2xl flex-row justify-center items-center shadow-lg shadow-emerald-500 active:bg-emerald-600"
+              style={{ backgroundColor: '#10b981' }}
+              className="w-full py-4 rounded-2xl flex-row justify-center items-center active:bg-emerald-600"
             >
               {apiSaving ? (
                 <ActivityIndicator color="#fff" />

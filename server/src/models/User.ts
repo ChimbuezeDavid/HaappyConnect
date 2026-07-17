@@ -7,6 +7,8 @@ export interface IUser extends Document {
   isOnboarded: boolean;
   googleId?: string;
   twitterId?: string;
+  resetPasswordCode?: string;
+  resetPasswordExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +21,8 @@ const UserSchema = new Schema<IUser>(
     isOnboarded: { type: Boolean, default: false },
     googleId: { type: String, sparse: true, unique: true },
     twitterId: { type: String, sparse: true, unique: true },
+    resetPasswordCode: { type: String },
+    resetPasswordExpires: { type: Date },
   },
   { timestamps: true }
 );

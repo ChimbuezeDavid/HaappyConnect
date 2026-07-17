@@ -181,9 +181,22 @@ export default function RegisterScreen() {
           </View>
 
           {/* Password */}
-          <Text style={{ color: isDark ? '#94a3b8' : '#475569', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-            Password
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={{ color: isDark ? '#94a3b8' : '#475569', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
+              Password
+            </Text>
+            <Link href="/(auth)/forgot-password" asChild>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Forgot password"
+              >
+                <Text style={{ color: '#10b981', fontSize: 13, fontWeight: '600' }}>
+                  Forgot Password?
+                </Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
           <View
             style={{
               flexDirection: 'row',

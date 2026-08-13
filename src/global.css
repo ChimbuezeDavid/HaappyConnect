@@ -19,6 +19,29 @@ html, body, #root {
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
+
+  /* Web Autofill Theme Variables (Default to Light Mode) */
+  --autofill-bg: #ffffff;
+  --autofill-color: #0f172a;
+}
+
+/* System Dark Mode Preference Fallback */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --autofill-bg: #020617;
+    --autofill-color: #ffffff;
+  }
+}
+
+/* Surgical theme updates for HTML dark/light overrides */
+html.dark {
+  --autofill-bg: #020617;
+  --autofill-color: #ffffff;
+}
+
+html.light {
+  --autofill-bg: #ffffff;
+  --autofill-color: #0f172a;
 }
 
 /* Override Autofill backgrounds in Chrome and other browsers */
@@ -26,8 +49,8 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px #020617 inset !important;
-  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0 30px var(--autofill-bg) inset !important;
+  -webkit-text-fill-color: var(--autofill-color) !important;
   transition: background-color 5000s ease-in-out 0s;
 }
 

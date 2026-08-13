@@ -44,6 +44,18 @@ function GoogleIcon({ size = 20 }: { size?: number }) {
   );
 }
 
+function XIcon({ size = 18 }: { size?: number }) {
+  const isDark = useColorScheme().colorScheme === 'dark';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+        fill={isDark ? '#e2e8f0' : '#0f172a'}
+      />
+    </Svg>
+  );
+}
+
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -200,7 +212,7 @@ export default function RegisterScreen() {
               onSubmitEditing={() => passwordRef.current?.focus()}
               blurOnSubmit={false}
               accessibilityLabel="Email address"
-              style={{ flex: 1, color: isDark ? '#fff' : '#0f172a', marginLeft: 12, fontSize: 16 }}
+              style={{ flex: 1, color: isDark ? '#fff' : '#0f172a', marginLeft: 12, fontSize: 16, backgroundColor: 'transparent' }}
             />
           </View>
 
@@ -251,7 +263,7 @@ export default function RegisterScreen() {
               returnKeyType="go"
               onSubmitEditing={handleRegister}
               accessibilityLabel="Password"
-              style={{ flex: 1, color: isDark ? '#fff' : '#0f172a', marginLeft: 12, fontSize: 16 }}
+              style={{ flex: 1, color: isDark ? '#fff' : '#0f172a', marginLeft: 12, fontSize: 16, backgroundColor: 'transparent' }}
             />
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
@@ -349,8 +361,10 @@ export default function RegisterScreen() {
                 paddingVertical: 14,
                 borderRadius: 14,
                 minHeight: 52,
+                gap: 10,
               }}
             >
+              <XIcon size={16} />
               <Text style={{ color: isDark ? '#e2e8f0' : '#475569', fontWeight: '600', fontSize: 15 }}>X (Twitter)</Text>
             </TouchableOpacity>
           </View>

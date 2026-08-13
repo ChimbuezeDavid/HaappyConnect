@@ -60,6 +60,19 @@ interface ChatState {
   blockConversation: (conversationId: string) => Promise<void>;
   reportConversation: (conversationId: string, reason: string) => Promise<void>;
   clearActiveChat: () => void;
+  activeCall: {
+    status: 'incoming' | 'outgoing' | 'connected';
+    bookingId: string;
+    partnerId: string;
+    partnerName: string;
+    meetingLink?: string;
+    durationMinutes?: string;
+  } | null;
+  startCallInvite: (bookingId: string, partnerId: string, meetingLink: string, durationMinutes: string, partnerName: string) => void;
+  acceptCallInvite: () => void;
+  declineCallInvite: () => void;
+  cancelCallInvite: () => void;
+  clearActiveCall: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -71,6 +84,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoadingConversations: false,
   isLoadingMessages: false,
   error: null,
+  activeCall: null,
 
   connectSocket: (token) => {
     const { socket: currentSocket } = get();
@@ -171,6 +185,58 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     socket.on('conversationUpdated', () => {
       get().fetchConversations();
+    });
+
+    // Call signaling events
+    socket.on('incomingCall', (payload: {
+      bookingId: string;
+      callerId: string;
+      callerName: string;
+      meetingLink: string;
+      durationMinutes: string;
+    }) => {
+      console.log('[Socket] Incoming call from:', payload.callerId);
+      set({
+        activeCall: {
+          status: 'incoming',
+          bookingId: payload.bookingId,
+          partnerId: payload.callerId,
+          partnerName: payload.callerName,
+          meetingLink: payload.meetingLink,
+          durationMinutes: payload.durationMinutes
+        }
+      });
+    });
+
+    socket.on('callAccepted', ({ bookingId }) => {
+      console.log('[Socket] Call accepted for booking:', bookingId);
+      const { activeCall } = get();
+      if (activeCall && activeCall.bookingId === bookingId) {
+        set({
+          activeCall: {
+            ...activeCall,
+            status: 'connected'
+          }
+        });
+      }
+    });
+
+    socket.on('callDeclined', ({ bookingId }) => {
+      console.log('[Socket] Call declined for booking:', bookingId);
+      const { activeCall } = get();
+      if (activeCall && activeCall.bookingId === bookingId) {
+        set({ activeCall: null });
+        const { Alert } = require('react-native');
+        Alert.alert('User Busy', 'The call was declined or the user is busy.');
+      }
+    });
+
+    socket.on('callCancelled', ({ bookingId }) => {
+      console.log('[Socket] Call cancelled for booking:', bookingId);
+      const { activeCall } = get();
+      if (activeCall && activeCall.bookingId === bookingId) {
+        set({ activeCall: null });
+      }
     });
 
     set({ socket, error: null });
@@ -297,5 +363,59 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   clearActiveChat: () => {
     set({ activeChatId: null, messages: [], isTyping: false });
+  },
+
+  startCallInvite: (bookingId, partnerId, meetingLink, durationMinutes, partnerName) => {
+    const { socket } = get();
+    if (socket) {
+      console.log('[Socket] Emit initiateCall to:', partnerId);
+      socket.emit('initiateCall', { bookingId, partnerId, meetingLink, durationMinutes, partnerName });
+      set({
+        activeCall: {
+          status: 'outgoing',
+          bookingId,
+          partnerId,
+          partnerName,
+          meetingLink,
+          durationMinutes
+        }
+      });
+    }
+  },
+
+  acceptCallInvite: () => {
+    const { socket, activeCall } = get();
+    if (socket && activeCall) {
+      console.log('[Socket] Emit acceptCall to:', activeCall.partnerId);
+      socket.emit('acceptCall', { bookingId: activeCall.bookingId, partnerId: activeCall.partnerId });
+      set({
+        activeCall: {
+          ...activeCall,
+          status: 'connected'
+        }
+      });
+    }
+  },
+
+  declineCallInvite: () => {
+    const { socket, activeCall } = get();
+    if (socket && activeCall) {
+      console.log('[Socket] Emit declineCall to:', activeCall.partnerId);
+      socket.emit('declineCall', { bookingId: activeCall.bookingId, partnerId: activeCall.partnerId });
+      set({ activeCall: null });
+    }
+  },
+
+  cancelCallInvite: () => {
+    const { socket, activeCall } = get();
+    if (socket && activeCall) {
+      console.log('[Socket] Emit cancelCall to:', activeCall.partnerId);
+      socket.emit('cancelCall', { bookingId: activeCall.bookingId, partnerId: activeCall.partnerId });
+      set({ activeCall: null });
+    }
+  },
+
+  clearActiveCall: () => {
+    set({ activeCall: null });
   }
 }));

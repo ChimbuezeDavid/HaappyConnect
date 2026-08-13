@@ -1197,7 +1197,7 @@ export default function OnboardingWizard() {
       </ScrollView>
 
       {/* Confetti Overlay */}
-      {showConfetti && <Confetti />}
+      {showConfetti && <Confetti active={showConfetti} />}
     </KeyboardAvoidingView>
   );
 }

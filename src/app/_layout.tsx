@@ -12,6 +12,7 @@ import { Platform, Alert } from 'react-native';
 import ToastNotificationContainer from '@/components/ui/ToastNotification';
 import { showCustomAlert } from '@/store/alertStore';
 import CustomAlertContainer from '@/components/ui/CustomAlert';
+import RingingOverlay from '@/components/ui/RingingOverlay';
 import Constants from 'expo-constants';
 
 // Globally polyfill React Native's Alert.alert to render our custom HCI dialogs
@@ -328,6 +329,7 @@ export default function RootLayout() {
       </Stack>
       <ToastNotificationContainer />
       <CustomAlertContainer />
+      <RingingOverlay />
     </SafeAreaProvider>
   );
 }

@@ -100,8 +100,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token,
         user,
         profile,
-        isLoading: false,
       });
+      // If user is onboarded, load complete profile metrics
+      if (user.isOnboarded) {
+        await get().loadUser();
+      } else {
+        set({ isLoading: false });
+      }
     } catch (error: any) {
       set({ error: error.message || 'OAuth login failed', isLoading: false });
       throw error;

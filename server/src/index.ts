@@ -7,6 +7,7 @@ import { initSocket } from './socket';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import fs from 'fs';
+import { startExpirationScheduler } from './utils/scheduler';
 
 // Import models
 import { Conversation } from './models/Conversation';
@@ -224,6 +225,33 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Calling Invitation Sockets
+  socket.on('initiateCall', ({ bookingId, partnerId, meetingLink, durationMinutes, partnerName }) => {
+    console.log(`[Socket Call] Initiate: ${userId} calling ${partnerId} for booking ${bookingId}`);
+    io.to(`user:${partnerId}`).emit('incomingCall', {
+      bookingId,
+      callerId: userId,
+      callerName: partnerName || 'Consultation Session',
+      meetingLink,
+      durationMinutes
+    });
+  });
+
+  socket.on('acceptCall', ({ bookingId, partnerId }) => {
+    console.log(`[Socket Call] Accept: ${userId} accepted call from ${partnerId} for booking ${bookingId}`);
+    io.to(`user:${partnerId}`).emit('callAccepted', { bookingId });
+  });
+
+  socket.on('declineCall', ({ bookingId, partnerId }) => {
+    console.log(`[Socket Call] Decline: ${userId} declined call from ${partnerId} for booking ${bookingId}`);
+    io.to(`user:${partnerId}`).emit('callDeclined', { bookingId });
+  });
+
+  socket.on('cancelCall', ({ bookingId, partnerId }) => {
+    console.log(`[Socket Call] Cancel: ${userId} cancelled call to ${partnerId} for booking ${bookingId}`);
+    io.to(`user:${partnerId}`).emit('callCancelled', { bookingId });
+  });
+
   socket.on('disconnect', () => {
     console.log(`[Socket] User disconnected: ${userId} (${socket.id})`);
   });
@@ -234,6 +262,7 @@ mongoose
   .connect(MONGODB_URI)
   .then(() => {
     console.log('Successfully connected to MongoDB');
+    startExpirationScheduler();
     httpServer.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });

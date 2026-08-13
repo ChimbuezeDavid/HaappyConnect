@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { Transaction } from '../models/Transaction';
 import { User } from '../models/User';
+import crypto from 'crypto';
+import { sendPushNotification } from '../utils/push';
 
 const router = Router();
 
@@ -479,6 +481,119 @@ router.post('/mock-callback', async (req: AuthRequest, res: Response) => {
     res.redirect(finalUrl);
   } catch (error: any) {
     res.status(500).send(`Mock callback processing failed: ${error.message}`);
+  }
+});
+
+// POST /api/wallet/webhook - Paystack Webhook Receiver
+router.post('/webhook', async (req, res) => {
+  try {
+    const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const bypassSignature = isDevelopment && req.headers['x-mock-webhook'] === 'true';
+
+    if (!PAYSTACK_SECRET && !bypassSignature) {
+      console.warn('[Webhook] PAYSTACK_SECRET_KEY is not configured.');
+      return res.sendStatus(400);
+    }
+
+    if (!bypassSignature) {
+      const signature = req.headers['x-paystack-signature'];
+      if (!signature) {
+        return res.status(401).send('Signature missing');
+      }
+
+      // Verify signature using HMAC SHA512
+      const computedSignature = crypto
+        .createHmac('sha512', PAYSTACK_SECRET!)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
+
+      if (computedSignature !== signature) {
+        console.warn('[Webhook] Signature verification failed');
+        return res.status(401).send('Invalid signature');
+      }
+    }
+
+    const event = req.body;
+    console.log(`[Webhook] Received Paystack event: ${event.event}`);
+
+    if (event.event === 'charge.success') {
+      const data = event.data;
+      const reference = data.reference;
+      const amountInNaira = data.amount / 100; // Paystack sends in kobo
+
+      // Find the pending transaction
+      let transaction = await Transaction.findOne({ reference });
+
+      if (transaction) {
+        if (transaction.status === 'pending') {
+          transaction.status = 'success';
+          await transaction.save();
+          console.log(`[Webhook] Updated transaction ${reference} to success`);
+          
+          // Notify user
+          try {
+            const { getIO } = require('../socket');
+            getIO().to(`user:${transaction.user.toString()}`).emit('notification', {
+              type: 'deposit_verified',
+              title: 'Deposit Successful 💸',
+              body: `Your deposit of ₦${amountInNaira.toLocaleString()} has been verified successfully.`,
+              data: { reference }
+            });
+            await sendPushNotification(
+              transaction.user.toString(),
+              'Deposit Successful 💸',
+              `Your deposit of ₦${amountInNaira.toLocaleString()} has been verified successfully.`,
+              { reference }
+            );
+          } catch (notifyErr) {
+            console.error('[Webhook] Notification error:', notifyErr);
+          }
+        }
+      } else {
+        // Fallback safety recovery: if transaction doesn't exist, create it!
+        const userId = data.metadata?.userId;
+        if (userId) {
+          const userExists = await User.findById(userId);
+          if (userExists) {
+            transaction = new Transaction({
+              user: userId,
+              amount: amountInNaira,
+              type: 'deposit',
+              status: 'success',
+              reference,
+              description: `Deposit via Paystack Webhook (recovery)`
+            });
+            await transaction.save();
+            console.log(`[Webhook] Created and resolved missing transaction ${reference} for user ${userId}`);
+
+            // Notify user
+            try {
+              const { getIO } = require('../socket');
+              getIO().to(`user:${userId.toString()}`).emit('notification', {
+                type: 'deposit_verified',
+                title: 'Deposit Successful 💸',
+                body: `Your deposit of ₦${amountInNaira.toLocaleString()} has been verified successfully.`,
+                data: { reference }
+              });
+              await sendPushNotification(
+                userId.toString(),
+                'Deposit Successful 💸',
+                `Your deposit of ₦${amountInNaira.toLocaleString()} has been verified successfully.`,
+                { reference }
+              );
+            } catch (notifyErr) {
+              console.error('[Webhook] Notification error:', notifyErr);
+            }
+          }
+        }
+      }
+    }
+
+    res.sendStatus(200);
+  } catch (error: any) {
+    console.error('[Webhook] Error processing webhook:', error);
+    res.status(500).send('Webhook error');
   }
 });
 

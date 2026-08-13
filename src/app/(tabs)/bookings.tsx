@@ -413,16 +413,17 @@ export default function BookingsScreen() {
                       <TouchableOpacity
                         onPress={() => {
                           const partnerProfile = isCurrentUserExpert ? booking.seekerProfile : booking.expertProfile;
-                          router.push({
-                            pathname: '/bookings/call' as any,
-                            params: {
-                              meetingLink: booking.meetingLink,
-                              durationMinutes: booking.durationMinutes.toString(),
-                              partnerName: partnerProfile?.fullName || 'Consultation Session',
-                              bookingId: booking._id,
-                              expertId: typeof booking.expert === 'string' ? booking.expert : (booking.expert as any)?._id || (booking.expert as any)?.id || ''
-                            }
-                          });
+                          const partnerId = isCurrentUserExpert
+                            ? (typeof booking.seeker === 'string' ? booking.seeker : (booking.seeker as any)?._id || (booking.seeker as any)?.id)
+                            : (typeof booking.expert === 'string' ? booking.expert : (booking.expert as any)?._id || (booking.expert as any)?.id);
+
+                          useChatStore.getState().startCallInvite(
+                            booking._id,
+                            partnerId,
+                            booking.meetingLink || '',
+                            booking.durationMinutes.toString(),
+                            partnerProfile?.fullName || 'Consultation Session'
+                          );
                         }}
                         className="w-full bg-emerald-500 py-3.5 rounded-2xl flex-row justify-center items-center mb-3 shadow-lg shadow-emerald-500"
                       >

@@ -9,6 +9,7 @@ export interface IUser extends Document {
   twitterId?: string;
   resetPasswordCode?: string;
   resetPasswordExpires?: Date;
+  pushToken?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,7 @@ const UserSchema = new Schema<IUser>(
     twitterId: { type: String, sparse: true, unique: true },
     resetPasswordCode: { type: String },
     resetPasswordExpires: { type: Date },
+    pushToken: { type: String },
   },
   { timestamps: true }
 );

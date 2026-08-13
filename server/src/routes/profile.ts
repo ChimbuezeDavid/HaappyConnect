@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { User } from '../models/User';
 import { Profile } from '../models/Profile';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
 
@@ -138,6 +140,60 @@ router.post('/setup', authenticate, async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error setting up profile' });
+  }
+});
+
+// POST /api/profile/upload-avatar
+router.post('/upload-avatar', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { base64, fileName, fileType } = req.body;
+    if (!base64 || !fileName || !fileType) {
+      return res.status(400).json({ error: 'Base64 data, fileName, and fileType are required' });
+    }
+
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const uniqueFileName = `avatar-${Date.now()}-${fileName.replace(/\s+/g, '_')}`;
+    const filePath = path.join(uploadsDir, uniqueFileName);
+    const buffer = Buffer.from(base64, 'base64');
+    fs.writeFileSync(filePath, buffer);
+
+    const host = req.get('host');
+    const fileUrl = `${req.protocol}://${host}/uploads/${uniqueFileName}`;
+
+    res.json({ url: fileUrl });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error uploading avatar' });
+  }
+});
+
+// POST /api/profile/upload-media
+router.post('/upload-media', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { base64, fileName, fileType } = req.body;
+    if (!base64 || !fileName || !fileType) {
+      return res.status(400).json({ error: 'Base64 data, fileName, and fileType are required' });
+    }
+
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const uniqueFileName = `media-${Date.now()}-${fileName.replace(/\s+/g, '_')}`;
+    const filePath = path.join(uploadsDir, uniqueFileName);
+    const buffer = Buffer.from(base64, 'base64');
+    fs.writeFileSync(filePath, buffer);
+
+    const host = req.get('host');
+    const fileUrl = `${req.protocol}://${host}/uploads/${uniqueFileName}`;
+
+    res.json({ url: fileUrl });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error uploading media file' });
   }
 });
 

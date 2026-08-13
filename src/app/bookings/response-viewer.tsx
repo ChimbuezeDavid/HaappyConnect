@@ -1,18 +1,18 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import CustomHeader from '@/components/ui/CustomHeader';
 import SubmitReviewModal from '@/components/review/SubmitReviewModal';
 import { Play, Pause, RotateCcw, MessageSquare, Video, Volume2, Sparkles, Star } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ResponseViewerScreen() {
-  const { questionId, seekerContent, expertResponse, type, expertUserId } = useLocalSearchParams<{
+  const { questionId, seekerContent, expertResponse, expertResponseUrl, type, expertUserId } = useLocalSearchParams<{
     questionId: string;
     seekerContent: string;
     expertResponse: string;
+    expertResponseUrl?: string;
     type: 'text' | 'voice' | 'video';
     expertUserId?: string;
   }>();
@@ -22,19 +22,115 @@ export default function ResponseViewerScreen() {
 
   // Playback control states
   const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0.35); // mock active progress
-  const [currentTime, setCurrentTime] = useState('0:42');
-  const [duration, setDuration] = useState('2:00');
+  const [progress, setProgress] = useState(0); 
+  const [currentTime, setCurrentTime] = useState('0:00');
+  const [duration, setDuration] = useState('0:00');
   const [reviewVisible, setReviewVisible] = useState(false);
+  const [loadingAudio, setLoadingAudio] = useState(false);
+  const [sound, setSound] = useState<any>(null);
 
-  const handlePlayToggle = () => {
-    setIsPlaying(!isPlaying);
+  const soundRef = useRef<any>(null);
+
+  // Format milliseconds to MM:SS
+  const formatTime = (millis: number) => {
+    if (isNaN(millis) || millis <= 0) return '0:00';
+    const totalSeconds = millis / 1000;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
-  const handleRestart = () => {
-    setProgress(0);
-    setCurrentTime('0:00');
-    setIsPlaying(false);
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadSound = async () => {
+      if (!expertResponseUrl || type === 'text') return;
+      setLoadingAudio(true);
+      try {
+        let AudioModule;
+        try {
+          AudioModule = require('expo-av').Audio;
+        } catch (e) {
+          console.warn('[Audio] Failed to load expo-av Audio module:', e);
+          setLoadingAudio(false);
+          return;
+        }
+
+        await AudioModule.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+        });
+
+        const { sound: newSound } = await AudioModule.Sound.createAsync(
+          { uri: expertResponseUrl },
+          { shouldPlay: false },
+          (status: any) => {
+            if (status.isLoaded && isMounted) {
+              const pos = status.positionMillis || 0;
+              const dur = status.durationMillis || 1;
+              setProgress(pos / dur);
+              setCurrentTime(formatTime(pos));
+              setDuration(formatTime(dur));
+              
+              if (status.didJustFinish) {
+                setIsPlaying(false);
+                setProgress(0);
+                setCurrentTime('0:00');
+              }
+            }
+          }
+        );
+
+        soundRef.current = newSound;
+        setSound(newSound);
+      } catch (err) {
+        console.error('Failed to load expert response audio', err);
+      } finally {
+        if (isMounted) setLoadingAudio(false);
+      }
+    };
+
+    loadSound();
+
+    return () => {
+      isMounted = false;
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, [expertResponseUrl]);
+
+  const handlePlayToggle = async () => {
+    try {
+      if (!sound) return;
+      if (isPlaying) {
+        await sound.pauseAsync();
+        setIsPlaying(false);
+      } else {
+        if (progress >= 0.99) {
+          await sound.setPositionAsync(0);
+          setProgress(0);
+        }
+        await sound.playAsync();
+        setIsPlaying(true);
+      }
+    } catch (err) {
+      console.error('Play/Pause error', err);
+    }
+  };
+
+  const handleRestart = async () => {
+    try {
+      if (!sound) return;
+      await sound.setPositionAsync(0);
+      setProgress(0);
+      setCurrentTime('0:00');
+      if (isPlaying) {
+        await sound.playAsync();
+      }
+    } catch (err) {
+      console.error('Restart error', err);
+    }
   };
 
   return (
@@ -67,16 +163,22 @@ export default function ResponseViewerScreen() {
 
             {/* Playback Controls Overlay Overlay */}
             <View className="items-center justify-center z-10 my-4">
-              <TouchableOpacity
-                onPress={handlePlayToggle}
-                className="w-16 h-16 bg-primary-500 rounded-full items-center justify-center shadow-lg shadow-primary-500/50"
-              >
-                {isPlaying ? (
-                  <Pause size={28} color="#fff" fill="#fff" />
-                ) : (
-                  <Play size={28} color="#fff" fill="#fff" style={{ marginLeft: 4 }} />
-                )}
-              </TouchableOpacity>
+              {loadingAudio ? (
+                <ActivityIndicator size="large" color="#8b5cf6" />
+              ) : !expertResponseUrl ? (
+                <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">No Audio Advice Available</Text>
+              ) : (
+                <TouchableOpacity
+                  onPress={handlePlayToggle}
+                  className="w-16 h-16 bg-primary-500 rounded-full items-center justify-center shadow-lg shadow-primary-500/50"
+                >
+                  {isPlaying ? (
+                    <Pause size={28} color="#fff" fill="#fff" />
+                  ) : (
+                    <Play size={28} color="#fff" fill="#fff" style={{ marginLeft: 4 }} />
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Scrubbing timeline */}

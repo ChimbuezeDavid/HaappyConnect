@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Platform } from 'react-native';
 import { useNotificationStore, AppNotification } from '@/store/notificationStore';
 import { Bell, CheckCircle, XCircle, Calendar, MessageSquare, X } from 'lucide-react-native';
@@ -34,8 +34,15 @@ function ToastItem({ notification }: { notification: AppNotification }) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const translateY = useRef(new Animated.Value(-120)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [translateY] = useState(() => new Animated.Value(-120));
+  const [opacity] = useState(() => new Animated.Value(0));
+
+  const handleDismiss = () => {
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: -120, duration: 300, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => dismissToast(notification.id));
+  };
 
   useEffect(() => {
     // Slide in
@@ -48,13 +55,6 @@ function ToastItem({ notification }: { notification: AppNotification }) {
     const timer = setTimeout(() => handleDismiss(), TOAST_DURATION);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleDismiss = () => {
-    Animated.parallel([
-      Animated.timing(translateY, { toValue: -120, duration: 300, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => dismissToast(notification.id));
-  };
 
   return (
     <Animated.View

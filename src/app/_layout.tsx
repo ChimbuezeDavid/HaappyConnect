@@ -12,6 +12,7 @@ import { Platform, Alert } from 'react-native';
 import ToastNotificationContainer from '@/components/ui/ToastNotification';
 import { showCustomAlert } from '@/store/alertStore';
 import CustomAlertContainer from '@/components/ui/CustomAlert';
+import Constants from 'expo-constants';
 
 // Globally polyfill React Native's Alert.alert to render our custom HCI dialogs
 Alert.alert = (title, message, buttons) => {
@@ -22,6 +23,22 @@ Alert.alert = (title, message, buttons) => {
   }));
   showCustomAlert(title || '', message || '', formattedButtons);
 };
+
+// Configure in-app notifications behaviour
+try {
+  if (Platform.OS !== 'web') {
+    const Notifications = require('expo-notifications');
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      } as any),
+    });
+  }
+} catch (e) {
+  console.warn('[Notifications] Failed to initialize setNotificationHandler in Expo Go:', e);
+}
 
 // Keep splash screen visible while we load auth state
 SplashScreen.preventAutoHideAsync();
@@ -40,6 +57,52 @@ export default function RootLayout() {
   useEffect(() => {
     loadTheme();
   }, []);
+
+  // Register Expo Push Notifications
+  useEffect(() => {
+    if (!token || !user) return;
+
+    let isMounted = true;
+
+    const registerPushNotifications = async () => {
+      try {
+        if (Platform.OS === 'web') return;
+
+        const Notifications = require('expo-notifications');
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+          console.warn('[Push Notification] Permission not granted.');
+          return;
+        }
+
+        // Fetch token with safety fallback for projectId
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+        const pushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+
+        if (pushToken && isMounted) {
+          console.log('[Push Notification] Expo Push Token:', pushToken);
+          // Register token with backend
+          const { api } = require('@/lib/api');
+          await api.post('/auth/register-push-token', { token: pushToken });
+        }
+      } catch (err) {
+        console.warn('[Push Notification] Error registering push token:', err);
+      }
+    };
+
+    registerPushNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token, user]);
 
   // Update NativeWind colorScheme when store preference changes
   useEffect(() => {

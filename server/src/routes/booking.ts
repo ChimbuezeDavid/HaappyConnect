@@ -6,6 +6,7 @@ import { Transaction } from '../models/Transaction';
 import { Review } from '../models/Review';
 import { Conversation } from '../models/Conversation';
 import { Availability } from '../models/Availability';
+import { sendPushNotification } from '../utils/push';
 
 const router = Router();
 
@@ -107,6 +108,12 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         body: `You have a new ${durationMinutes}-minute call booking request.`,
         data: { bookingId: booking._id }
       });
+      sendPushNotification(
+        expertId,
+        'New Booking Request 📅',
+        `You have a new ${durationMinutes}-minute call booking request.`,
+        { bookingId: booking._id }
+      );
     } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error creating booking' });
@@ -227,6 +234,12 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
           body: msg.body,
           data: { bookingId: booking._id }
         });
+        sendPushNotification(
+          notifyUserId,
+          msg.title,
+          msg.body,
+          { bookingId: booking._id }
+        );
       }
     } catch (_) {}
   } catch (error: any) {

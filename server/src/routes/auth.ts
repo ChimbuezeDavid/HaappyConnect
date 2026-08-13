@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { Profile } from '../models/Profile';
+import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkeyforhaappyconnect';
@@ -602,6 +603,28 @@ router.post('/reset-password', async (req, res) => {
     res.json({ message: 'Password has been reset successfully.' });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error during password reset' });
+  }
+});
+
+// POST /api/auth/register-push-token
+router.post('/register-push-token', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.pushToken = token;
+    await user.save();
+
+    res.json({ message: 'Push token registered successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error registering push token' });
   }
 });
 

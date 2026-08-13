@@ -42,6 +42,7 @@ export default function OnboardingWizard() {
   const draft = useOnboardingStore();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [isUploading, setIsUploading] = useState(false);
   
   // List of categories loaded from API
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
@@ -193,11 +194,27 @@ export default function OnboardingWizard() {
   };
 
   const handleFinishOnboarding = async () => {
+    setIsUploading(true);
     try {
+      let finalAvatarUrl = draft.avatarUrl;
+      // If draft.avatarUrl is a local device URI, upload it to the server first
+      if (draft.avatarUrl && !draft.avatarUrl.startsWith('http') && !draft.avatarUrl.startsWith('data:')) {
+        try {
+          const { uploadAvatar } = require('@/lib/api');
+          const fileName = draft.avatarUrl.split('/').pop() || 'avatar.jpg';
+          const uploadRes = await uploadAvatar(draft.avatarUrl, fileName);
+          finalAvatarUrl = uploadRes.url;
+        } catch (uploadError: any) {
+          Alert.alert('Upload Error', 'Failed to upload profile photo: ' + uploadError.message);
+          setIsUploading(false);
+          return;
+        }
+      }
+
       // Build backend payload
       const payload: any = {
         fullName: draft.fullName,
-        avatarUrl: draft.avatarUrl,
+        avatarUrl: finalAvatarUrl,
         bio: draft.bio,
         username: draft.username,
         location: draft.location,
@@ -241,6 +258,8 @@ export default function OnboardingWizard() {
 
     } catch (error: any) {
       Alert.alert('Setup Failed', error.message || 'Could not complete profile setup.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -560,7 +579,7 @@ export default function OnboardingWizard() {
               )}
 
               {/* Add Custom Category Chip */}
-              <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Can't find a category? Add custom:</Text>
+              <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Can&apos;t find a category? Add custom:</Text>
               <View 
                 style={{
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
@@ -1160,11 +1179,11 @@ export default function OnboardingWizard() {
             {/* Final Submit Button */}
             <TouchableOpacity
               onPress={handleFinishOnboarding}
-              disabled={apiSaving}
+              disabled={apiSaving || isUploading}
               style={{ backgroundColor: '#10b981' }}
               className="w-full py-4 rounded-2xl flex-row justify-center items-center active:bg-emerald-600"
             >
-              {apiSaving ? (
+              {apiSaving || isUploading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>

@@ -177,3 +177,67 @@ export const api = {
   patch: (endpoint: string, body: any, options: RequestOptions = {}) => apiRequest(endpoint, { ...options, method: 'PATCH', bodyData: body }),
   delete: (endpoint: string, options: RequestOptions = {}) => apiRequest(endpoint, { ...options, method: 'DELETE' }),
 };
+
+// Cross-platform helper to convert local URI to Base64
+export const convertUriToBase64 = async (uri: string): Promise<string> => {
+  if (Platform.OS === 'web') {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = (reader.result as string).split(',')[1];
+        resolve(base64data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } else {
+    const FileSystem = require('expo-file-system');
+    return await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+  }
+};
+
+// Generic media upload helper (primarily for chat and response media)
+export const uploadMedia = async (
+  uri: string,
+  fileName: string,
+  fileType: string,
+  conversationId?: string
+): Promise<{ url: string }> => {
+  try {
+    const base64 = await convertUriToBase64(uri);
+    const endpoint = conversationId 
+      ? `/chat/conversations/${conversationId}/upload` 
+      : '/profile/upload-media';
+    return await api.post(endpoint, {
+      base64,
+      fileName,
+      fileType,
+    });
+  } catch (error: any) {
+    console.error('[Upload Media Error]', error);
+    throw new Error(error.message || 'Failed to upload media');
+  }
+};
+
+// Avatar specific upload helper
+export const uploadAvatar = async (
+  uri: string,
+  fileName: string = 'avatar.jpg',
+  fileType: string = 'image/jpeg'
+): Promise<{ url: string }> => {
+  try {
+    const base64 = await convertUriToBase64(uri);
+    return await api.post('/profile/upload-avatar', {
+      base64,
+      fileName,
+      fileType,
+    });
+  } catch (error: any) {
+    console.error('[Upload Avatar Error]', error);
+    throw new Error(error.message || 'Failed to upload avatar');
+  }
+};

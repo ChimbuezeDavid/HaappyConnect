@@ -6,6 +6,7 @@ import { Transaction } from '../models/Transaction';
 import { Review } from '../models/Review';
 import { Conversation } from '../models/Conversation';
 import { Message } from '../models/Message';
+import { sendPushNotification } from '../utils/push';
 
 const router = Router();
 
@@ -137,6 +138,12 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         body: `You have a new ${type} question waiting for your response.`,
         data: { questionId: question._id }
       });
+      sendPushNotification(
+        expertId,
+        'New Question Received ❓',
+        `You have a new ${type} question waiting for your response.`,
+        { questionId: question._id }
+      );
     } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error submitting question' });
@@ -146,9 +153,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 // Answer a question (Expert only)
 router.patch('/:id/answer', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { expertResponse } = req.body;
-    if (!expertResponse) {
-      return res.status(400).json({ error: 'Response content is required' });
+    const { expertResponse, expertResponseUrl } = req.body;
+    if (!expertResponse && !expertResponseUrl) {
+      return res.status(400).json({ error: 'Response content or media advice file is required' });
     }
 
     const question = await Question.findById(req.params.id);
@@ -165,7 +172,8 @@ router.patch('/:id/answer', authenticate, async (req: AuthRequest, res: Response
       return res.status(400).json({ error: 'This question cannot be answered (it might be cancelled, expired or already answered)' });
     }
 
-    question.expertResponse = expertResponse;
+    question.expertResponse = expertResponse || '';
+    question.expertResponseUrl = expertResponseUrl || '';
     question.status = 'answered';
     question.answeredAt = new Date();
     await question.save();
@@ -206,6 +214,12 @@ router.patch('/:id/answer', authenticate, async (req: AuthRequest, res: Response
         body: 'Your question has been answered. Tap to view the response.',
         data: { questionId: question._id }
       });
+      sendPushNotification(
+        question.seeker,
+        'Expert Has Responded! 🎉',
+        'Your question has been answered. Tap to view the response.',
+        { questionId: question._id }
+      );
     } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error answering question' });
@@ -267,6 +281,12 @@ router.patch('/:id/decline', authenticate, async (req: AuthRequest, res: Respons
         body: 'Your question was declined. Your wallet has been refunded.',
         data: { questionId: question._id }
       });
+      sendPushNotification(
+        question.seeker,
+        'Question Declined ⚠️',
+        'Your question was declined. Your wallet has been refunded.',
+        { questionId: question._id }
+      );
     } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error declining question' });

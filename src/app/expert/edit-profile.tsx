@@ -29,6 +29,7 @@ export default function EditProfileModal() {
     profile?.categories?.map((c) => c._id || (c as any)) || []
   );
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handlePickImage = async (useCamera: boolean) => {
     try {
@@ -95,10 +96,26 @@ export default function EditProfileModal() {
       return;
     }
 
+    setIsSaving(true);
     try {
+      let finalAvatarUrl = avatarUrl;
+      // If avatarUrl is a local device URI, upload it to the server first
+      if (avatarUrl && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
+        try {
+          const { uploadAvatar } = require('@/lib/api');
+          const fileName = avatarUrl.split('/').pop() || 'avatar.jpg';
+          const uploadRes = await uploadAvatar(avatarUrl, fileName);
+          finalAvatarUrl = uploadRes.url;
+        } catch (uploadError: any) {
+          Alert.alert('Upload Error', 'Failed to upload profile image: ' + uploadError.message);
+          setIsSaving(false);
+          return;
+        }
+      }
+
       await updateOnboarding({
         fullName,
-        avatarUrl,
+        avatarUrl: finalAvatarUrl,
         headline,
         bio,
         hourlyRate: Number(hourlyRate) || 0,
@@ -114,6 +131,8 @@ export default function EditProfileModal() {
       ]);
     } catch (e: any) {
       Alert.alert('Save Failed', e.message || 'Server error saving profile');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -291,10 +310,10 @@ export default function EditProfileModal() {
           {/* Save Button */}
           <TouchableOpacity
             onPress={handleSave}
-            disabled={isLoading}
+            disabled={isLoading || isSaving}
             className="w-full py-4 bg-primary-500 rounded-2xl flex-row justify-center items-center shadow-lg shadow-primary-500"
           >
-            {isLoading ? (
+            {isLoading || isSaving ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text className="text-white font-bold text-base">Save Changes</Text>

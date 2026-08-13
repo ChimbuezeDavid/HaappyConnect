@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Animated, StyleSheet, Dimensions } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -21,17 +21,23 @@ interface Particle {
   duration: number;
 }
 
-export default function Confetti() {
-  const particles = useRef<Particle[]>(
-    Array.from({ length: 60 }).map((_, index) => ({
-      id: index,
+interface ConfettiProps {
+  active: boolean;
+}
+
+export default function Confetti({ active }: ConfettiProps) {
+  const [particles] = useState<Particle[]>(() =>
+    Array.from({ length: 40 }).map((_, i) => ({
+      id: i,
       x: Math.random() * SCREEN_WIDTH,
       color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-      size: Math.random() * 8 + 6,
+      size: Math.random() * 6 + 6,
       delay: Math.random() * 800,
-      duration: Math.random() * 1500 + 1500,
+      duration: Math.random() * 2000 + 1500,
     }))
-  ).current;
+  );
+
+  if (!active) return null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -43,9 +49,9 @@ export default function Confetti() {
 }
 
 function ConfettiPiece({ particle }: { particle: Particle }) {
-  const translateY = useRef(new Animated.Value(-20)).current;
-  const rotate = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+  const [translateY] = useState(() => new Animated.Value(-20));
+  const [rotate] = useState(() => new Animated.Value(0));
+  const [opacity] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     Animated.loop(

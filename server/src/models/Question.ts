@@ -8,6 +8,7 @@ export interface IQuestion extends Document {
   price: number;
   seekerContent: string;
   expertResponse: string;
+  expertResponseUrl?: string;
   expiresAt: Date;
   answeredAt?: Date;
   createdAt: Date;
@@ -23,6 +24,7 @@ const QuestionSchema = new Schema<IQuestion>(
     price: { type: Number, required: true },
     seekerContent: { type: String, required: true },
     expertResponse: { type: String, default: '' },
+    expertResponseUrl: { type: String, default: '' },
     expiresAt: { type: Date, required: true },
     answeredAt: { type: Date },
   },

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import { useAlertStore, AlertButton } from '@/store/alertStore';
@@ -29,8 +30,8 @@ export default function CustomAlertContainer() {
   const isDark = colorScheme === 'dark';
 
   // Animation values
-  const scale = useRef(new Animated.Value(0.85)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [scale] = useState(() => new Animated.Value(0.85));
+  const [opacity] = useState(() => new Animated.Value(0));
 
   // Local state to keep the modal mounted during exit animations
   const [localVisible, setLocalVisible] = useState(false);

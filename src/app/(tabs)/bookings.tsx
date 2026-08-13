@@ -1,10 +1,11 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Linking, Alert, Platform, useWindowDimensions } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '@/lib/api';
 import { Booking, Question } from '@/types';
-import { Calendar, MessageSquare, ExternalLink, Star } from 'lucide-react-native';
+import { Calendar, MessageSquare, ExternalLink, Star, Mic, Square, Play, Pause, Trash, Volume2 } from 'lucide-react-native';
 import SignInWall from '@/components/ui/SignInWall';
 import { useColorScheme } from 'nativewind';
 import SubmitReviewModal from '@/components/review/SubmitReviewModal';
@@ -57,6 +58,101 @@ export default function BookingsScreen() {
   const [answerText, setAnswerText] = useState('');
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
 
+  // Audio recording states
+  const [recording, setRecording] = useState<any>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedUri, setRecordedUri] = useState<string | null>(null);
+  const [sound, setSound] = useState<any>(null);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+
+  const getAudioModule = () => {
+    try {
+      return require('expo-av').Audio;
+    } catch (e) {
+      console.warn('[Audio] Failed to load expo-av Audio module:', e);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, [sound]);
+
+  const startRecording = async () => {
+    const AudioModule = getAudioModule();
+    if (!AudioModule) {
+      Alert.alert('Audio Recording Unavailable', 'Native Audio modules are not supported in your current Expo Go client. Please use a development build.');
+      return;
+    }
+    try {
+      const { status } = await AudioModule.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Microphone access is required to record audio.');
+        return;
+      }
+      await AudioModule.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+      const newRecording = new AudioModule.Recording();
+      await newRecording.prepareToRecordAsync(AudioModule.RecordingOptionsPresets.HIGH_QUALITY);
+      await newRecording.startAsync();
+      setRecording(newRecording);
+      setIsRecording(true);
+      setRecordedUri(null);
+    } catch (err) {
+      console.error('Failed to start recording', err);
+      Alert.alert('Error', 'Failed to start voice recording.');
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      if (!recording) return;
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+      setIsRecording(false);
+      setRecordedUri(uri);
+    } catch (err) {
+      console.error('Failed to stop recording', err);
+      Alert.alert('Error', 'Failed to stop recording.');
+    }
+  };
+
+  const playPreview = async () => {
+    const AudioModule = getAudioModule();
+    if (!AudioModule) return;
+    try {
+      if (!recordedUri) return;
+      if (isPlayingPreview && sound) {
+        await sound.pauseAsync();
+        setIsPlayingPreview(false);
+      } else if (sound) {
+        await sound.playAsync();
+        setIsPlayingPreview(true);
+      } else {
+        const { sound: newSound } = await AudioModule.Sound.createAsync(
+          { uri: recordedUri },
+          { shouldPlay: true }
+        );
+        setSound(newSound);
+        setIsPlayingPreview(true);
+        newSound.setOnPlaybackStatusUpdate((status: any) => {
+          if (status.isLoaded && !status.isPlaying && status.positionMillis === status.durationMillis) {
+            setIsPlayingPreview(false);
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Preview error', err);
+    }
+  };
+
   // Review states
   const [reviewVisible, setReviewVisible] = useState(false);
   const [selectedExpertId, setSelectedExpertId] = useState('');
@@ -75,6 +171,16 @@ export default function BookingsScreen() {
       console.error('Error fetching bookings/questions:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleUpdateBookingStatus = async (id: string, status: 'confirmed' | 'completed' | 'cancelled') => {
+    try {
+      await api.patch(`/booking/${id}/status`, { status });
+      Alert.alert('Success', `Booking status updated to ${status}`);
+      fetchData();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to update booking');
     }
   };
 
@@ -132,16 +238,6 @@ export default function BookingsScreen() {
     setRefreshing(false);
   };
 
-  const handleUpdateBookingStatus = async (id: string, status: 'confirmed' | 'completed' | 'cancelled') => {
-    try {
-      await api.patch(`/booking/${id}/status`, { status });
-      Alert.alert('Success', `Booking status updated to ${status}`);
-      fetchData();
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to update booking');
-    }
-  };
-
   const handleDeclineQuestion = async (id: string) => {
     try {
       await api.patch(`/question/${id}/decline`, {});
@@ -152,14 +248,40 @@ export default function BookingsScreen() {
     }
   };
 
-  const handleAnswerQuestionSubmit = async (id: string) => {
-    if (!answerText.trim()) return;
+  const handleAnswerQuestionSubmit = async (id: string, type: 'text' | 'voice' | 'video') => {
+    if (!answerText.trim() && !recordedUri) {
+      Alert.alert('Validation Error', 'Please write a response or record audio advice.');
+      return;
+    }
     setSubmittingAnswer(true);
     try {
-      await api.patch(`/question/${id}/answer`, { expertResponse: answerText });
+      let expertResponseUrl = '';
+      if (recordedUri) {
+        try {
+          const { uploadMedia } = require('@/lib/api');
+          const fileName = `voice-response-${id}.m4a`;
+          const uploadRes = await uploadMedia(recordedUri, fileName, 'audio/m4a');
+          expertResponseUrl = uploadRes.url;
+        } catch (uploadError: any) {
+          Alert.alert('Upload Failed', 'Failed to upload recorded memo: ' + uploadError.message);
+          setSubmittingAnswer(false);
+          return;
+        }
+      }
+
+      await api.patch(`/question/${id}/answer`, { 
+        expertResponse: answerText,
+        expertResponseUrl 
+      });
+
       Alert.alert('Success', 'Response submitted successfully');
       setAnsweringQuestionId(null);
       setAnswerText('');
+      setRecordedUri(null);
+      if (sound) {
+        await sound.unloadAsync();
+        setSound(null);
+      }
       fetchData();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to submit response');
@@ -557,19 +679,120 @@ export default function BookingsScreen() {
                           className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-slate-900 dark:text-white text-sm h-32 mb-3"
                           style={{ textAlignVertical: 'top' }}
                         />
+                        {/* Audio recording panel for voice/video questions */}
+                        {(question.type === 'voice' || question.type === 'video') && (
+                          <View className="mb-4 bg-slate-100/80 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-850 p-4 rounded-2xl">
+                            <Text className="text-slate-700 dark:text-slate-350 text-xs font-bold mb-3 uppercase tracking-wider">
+                              {question.type === 'video' ? 'Video Answer (Audio Track Memo)' : 'Audio Advice Record'}
+                            </Text>
+                            
+                            {Platform.OS === 'web' ? (
+                              <View className="items-center py-2">
+                                <Text className="text-slate-500 dark:text-slate-400 text-xs mb-3">Upload pre-recorded audio/video response file</Text>
+                                <TouchableOpacity
+                                  onPress={async () => {
+                                    if (Platform.OS === 'web') {
+                                      const input = document.createElement('input');
+                                      input.type = 'file';
+                                      input.accept = 'audio/*,video/*';
+                                      input.onchange = async (e: any) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const url = URL.createObjectURL(file);
+                                          setRecordedUri(url);
+                                        }
+                                      };
+                                      input.click();
+                                    }
+                                  }}
+                                  className="bg-primary-500/10 border border-primary-500/20 px-5 py-3 rounded-xl flex-row items-center"
+                                >
+                                  <Volume2 size={16} color="#8b5cf6" style={{ marginRight: 6 }} />
+                                  <Text className="text-primary-600 dark:text-primary-400 font-bold text-xs">
+                                    {recordedUri ? 'Change Media File' : 'Select Media File'}
+                                  </Text>
+                                </TouchableOpacity>
+                                {recordedUri && (
+                                  <Text className="text-emerald-500 text-xs font-semibold mt-2">Media File selected successfully!</Text>
+                                )}
+                              </View>
+                            ) : (
+                              <View className="flex-row items-center justify-between">
+                                <View className="flex-row items-center space-x-3">
+                                  {!recordedUri && (
+                                    <TouchableOpacity
+                                      onPress={isRecording ? stopRecording : startRecording}
+                                      className={`w-12 h-12 rounded-full items-center justify-center ${
+                                        isRecording ? 'bg-red-500' : 'bg-primary-500'
+                                      }`}
+                                    >
+                                      {isRecording ? (
+                                        <Square size={16} color="#fff" fill="#fff" />
+                                      ) : (
+                                        <Mic size={18} color="#fff" />
+                                      )}
+                                    </TouchableOpacity>
+                                  )}
+
+                                  {recordedUri && (
+                                    <View className="flex-row space-x-2">
+                                      <TouchableOpacity
+                                        onPress={playPreview}
+                                        className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 items-center justify-center mr-2"
+                                      >
+                                        {isPlayingPreview ? (
+                                          <Pause size={14} color={isDark ? '#fff' : '#0f172a'} />
+                                        ) : (
+                                          <Play size={14} color={isDark ? '#fff' : '#0f172a'} style={{ marginLeft: 2 }} />
+                                        )}
+                                      </TouchableOpacity>
+                                      <TouchableOpacity
+                                        onPress={() => {
+                                          setRecordedUri(null);
+                                          if (sound) {
+                                            sound.unloadAsync();
+                                            setSound(null);
+                                          }
+                                        }}
+                                        className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 items-center justify-center"
+                                      >
+                                        <Trash size={14} color="#ef4444" />
+                                      </TouchableOpacity>
+                                    </View>
+                                  )}
+
+                                  <View className="ml-2">
+                                    <Text className="text-slate-855 dark:text-slate-200 font-bold text-sm">
+                                      {isRecording ? 'Recording audio advice...' : recordedUri ? 'Advice recording ready!' : 'Ready to record'}
+                                    </Text>
+                                    <Text className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                                      {isRecording ? 'Tap square to finish' : recordedUri ? 'Preview your answer before submitting' : 'Tap mic to start'}
+                                    </Text>
+                                  </View>
+                                </View>
+                              </View>
+                            )}
+                          </View>
+                        )}
+
                         <View className="flex-row justify-end space-x-2">
                           <TouchableOpacity
                             onPress={() => {
                               setAnsweringQuestionId(null);
                               setAnswerText('');
+                              setRecordedUri(null);
+                              if (sound) {
+                                sound.unloadAsync();
+                                setSound(null);
+                              }
                             }}
                             className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-850 border border-slate-300 dark:border-slate-800 mr-2"
                           >
                             <Text className="text-slate-600 dark:text-slate-400 font-semibold text-sm">Cancel</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            onPress={() => handleAnswerQuestionSubmit(question._id)}
-                            disabled={submittingAnswer || !answerText.trim()}
+                            onPress={() => handleAnswerQuestionSubmit(question._id, question.type)}
+                            disabled={submittingAnswer || (!answerText.trim() && !recordedUri)}
                             className="px-5 py-2.5 rounded-xl bg-emerald-500 items-center justify-center"
                           >
                             {submittingAnswer ? (

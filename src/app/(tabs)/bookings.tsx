@@ -346,12 +346,12 @@ export default function BookingsScreen() {
                 const formattedDate = new Date(booking.scheduledAt).toLocaleString();
 
                 return (
-                  <View key={booking._id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-xl">
-                    <View className="flex-row justify-between items-start mb-3">
-                      <View>
+                  <View key={booking._id} className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
+                    {/* Header Row: Partner Name, Role Badge, Status Badge */}
+                    <View className="flex-row justify-between items-start mb-3.5">
+                      <View className="flex-1 mr-2">
                         <View className="flex-row items-center flex-wrap gap-2">
-                          <Text className="text-slate-900 dark:text-white font-bold text-base">{partnerName}</Text>
-                          {/* Role badge context */}
+                          <Text className="text-slate-900 dark:text-white font-extrabold text-base tracking-tight">{partnerName}</Text>
                           {isExpert && (
                             <View
                               className={`px-2 py-0.5 rounded-full border ${
@@ -359,10 +359,9 @@ export default function BookingsScreen() {
                                   ? 'bg-violet-500/10 border-violet-500/20'
                                   : 'bg-emerald-500/10 border-emerald-500/20'
                               }`}
-                              style={{ marginLeft: 8 }}
                             >
                               <Text
-                                className={`text-[10px] font-bold uppercase ${
+                                className={`text-[10px] font-black uppercase ${
                                   isCurrentUserExpert ? 'text-violet-600 dark:text-violet-400' : 'text-emerald-600 dark:text-emerald-400'
                                 }`}
                               >
@@ -371,41 +370,52 @@ export default function BookingsScreen() {
                             </View>
                           )}
                         </View>
-                        <Text className="text-slate-500 dark:text-slate-400 text-xs mt-1">{formattedDate}</Text>
-                        <Text className="text-slate-400 dark:text-slate-500 text-xs mt-0.5">Duration: {booking.durationMinutes} min</Text>
+                        <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">
+                          📅 {formattedDate}
+                        </Text>
                       </View>
-                      {/* Status pill */}
-                      <View
-                        className={`px-3 py-1 rounded-full ${
-                          booking.status === 'confirmed'
-                            ? 'bg-emerald-500/10 border border-emerald-500/25'
-                            : booking.status === 'completed'
-                            ? 'bg-blue-500/10 border border-blue-500/25'
-                            : booking.status === 'cancelled'
-                            ? 'bg-red-500/10 border border-red-500/25'
-                            : 'bg-yellow-500/10 border border-yellow-500/25'
-                        }`}
-                      >
-                        <Text
-                          className={`text-xs font-semibold uppercase ${
+
+                      {/* Status & Price Pill Group */}
+                      <View className="items-end">
+                        <View
+                          className={`px-2.5 py-1 rounded-full mb-1 ${
                             booking.status === 'confirmed'
-                              ? 'text-emerald-600 dark:text-emerald-400'
+                              ? 'bg-emerald-500/10 border border-emerald-500/25'
                               : booking.status === 'completed'
-                              ? 'text-blue-600 dark:text-blue-400'
+                              ? 'bg-blue-500/10 border border-blue-500/25'
                               : booking.status === 'cancelled'
-                              ? 'text-red-600 dark:text-red-400'
-                              : 'text-yellow-600 dark:text-yellow-400'
+                              ? 'bg-red-500/10 border border-red-500/25'
+                              : 'bg-amber-500/10 border border-amber-500/25'
                           }`}
                         >
-                          {booking.status}
+                          <Text
+                            className={`text-[10px] font-black uppercase ${
+                              booking.status === 'confirmed'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : booking.status === 'completed'
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : booking.status === 'cancelled'
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-amber-600 dark:text-amber-400'
+                            }`}
+                          >
+                            {booking.status}
+                          </Text>
+                        </View>
+                        <Text className="text-slate-900 dark:text-white font-extrabold text-sm">
+                          ₦{booking.price.toLocaleString()}
                         </Text>
                       </View>
                     </View>
 
-                    {/* Booking Price Details */}
-                    <View className="bg-slate-100 dark:bg-slate-950 p-3 rounded-2xl mb-4 flex-row justify-between items-center border border-slate-200/50 dark:border-slate-850">
-                      <Text className="text-slate-500 dark:text-slate-400 text-xs">Total Charged</Text>
-                      <Text className="text-slate-900 dark:text-white font-bold text-sm">₦{booking.price.toLocaleString()}</Text>
+                    {/* Metadata Strip: Session Details */}
+                    <View className="bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 rounded-2xl mb-4 flex-row justify-between items-center border border-slate-100 dark:border-slate-850">
+                      <Text className="text-slate-500 dark:text-slate-400 text-xs">
+                        📹 1:1 Video Consultation
+                      </Text>
+                      <Text className="text-slate-700 dark:text-slate-300 font-bold text-xs">
+                        ⏱️ {booking.durationMinutes} mins
+                      </Text>
                     </View>
 
                     {/* Conference Jitsi Meeting Button */}
@@ -524,12 +534,12 @@ export default function BookingsScreen() {
                 const datePosted = new Date(question.createdAt).toLocaleDateString();
 
                 return (
-                  <View key={question._id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-xl">
-                    <View className="flex-row justify-between items-start mb-3">
-                      <View>
+                  <View key={question._id} className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
+                    {/* Header Row: Partner Name, Role Badge, Status Badge */}
+                    <View className="flex-row justify-between items-start mb-3.5">
+                      <View className="flex-1 mr-2">
                         <View className="flex-row items-center flex-wrap gap-2">
-                          <Text className="text-slate-900 dark:text-white font-bold text-base">{partnerName}</Text>
-                          {/* Role badge context */}
+                          <Text className="text-slate-900 dark:text-white font-extrabold text-base tracking-tight">{partnerName}</Text>
                           {isExpert && (
                             <View
                               className={`px-2 py-0.5 rounded-full border ${
@@ -537,10 +547,9 @@ export default function BookingsScreen() {
                                   ? 'bg-violet-500/10 border-violet-500/20'
                                   : 'bg-emerald-500/10 border-emerald-500/20'
                               }`}
-                              style={{ marginLeft: 8 }}
                             >
                               <Text
-                                className={`text-[10px] font-bold uppercase ${
+                                className={`text-[10px] font-black uppercase ${
                                   isCurrentUserExpert ? 'text-violet-600 dark:text-violet-400' : 'text-emerald-600 dark:text-emerald-400'
                                 }`}
                               >
@@ -549,37 +558,48 @@ export default function BookingsScreen() {
                             </View>
                           )}
                         </View>
-                        <Text className="text-slate-550 dark:text-slate-400 text-xs mt-1">Asked: {datePosted}</Text>
+                        <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">
+                          📅 Asked {datePosted} • {question.type === 'video' ? '📹 Video' : question.type === 'voice' ? '🎙️ Audio' : '💬 Text'} Q&A
+                        </Text>
                       </View>
 
-                      {/* Status pill */}
-                      <View
-                        className={`px-3 py-1 rounded-full ${
-                          question.status === 'answered'
-                            ? 'bg-emerald-500/10 border border-emerald-500/25'
-                            : question.status === 'declined'
-                            ? 'bg-red-500/10 border border-red-500/25'
-                            : 'bg-yellow-500/10 border border-yellow-500/25'
-                        }`}
-                      >
-                        <Text
-                          className={`text-xs font-semibold uppercase ${
+                      {/* Status & Price Pill Group */}
+                      <View className="items-end">
+                        <View
+                          className={`px-2.5 py-1 rounded-full mb-1 ${
                             question.status === 'answered'
-                              ? 'text-emerald-600 dark:text-emerald-400'
+                              ? 'bg-emerald-500/10 border border-emerald-500/25'
                               : question.status === 'declined'
-                              ? 'text-red-600 dark:text-red-400'
-                              : 'text-yellow-600 dark:text-yellow-400'
+                              ? 'bg-red-500/10 border border-red-500/25'
+                              : 'bg-amber-500/10 border border-amber-500/25'
                           }`}
                         >
-                          {question.status}
+                          <Text
+                            className={`text-[10px] font-black uppercase ${
+                              question.status === 'answered'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : question.status === 'declined'
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-amber-600 dark:text-amber-400'
+                            }`}
+                          >
+                            {question.status}
+                          </Text>
+                        </View>
+                        <Text className="text-slate-900 dark:text-white font-extrabold text-sm">
+                          ₦{question.price.toLocaleString()}
                         </Text>
                       </View>
                     </View>
 
-                    {/* Question Content */}
-                    <View className="bg-slate-100 dark:bg-slate-955 p-4 rounded-2xl mb-4 border border-slate-200 dark:border-slate-850">
-                      <Text className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold tracking-wide mb-1">Question</Text>
-                      <Text className="text-slate-900 dark:text-white text-sm leading-relaxed">{question.seekerContent}</Text>
+                    {/* Question Content Block */}
+                    <View className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl mb-4 border border-slate-100 dark:border-slate-850">
+                      <Text className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-black tracking-wider mb-1.5">
+                        Client Prompt
+                      </Text>
+                      <Text className="text-slate-900 dark:text-white text-sm leading-relaxed font-medium">
+                        "{question.seekerContent}"
+                      </Text>
                     </View>
 
                     {/* Response Content */}

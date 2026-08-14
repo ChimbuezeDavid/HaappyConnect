@@ -104,68 +104,155 @@ export default function ProfileScreen() {
   const isExpert = user?.role === 'expert';
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
-      <ScrollView className="flex-1 px-4 py-4 max-w-md w-full self-center" contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* User Card */}
-        <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 items-center mb-6 shadow-sm dark:shadow-none">
-          <Image
-            source={{ uri: profile?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${profile?.fullName || 'user'}` }}
-            className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-850 mb-4"
-          />
-          <Text className="text-xl font-bold text-slate-900 dark:text-white">{profile?.fullName || 'User Profile'}</Text>
-          <Text className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-semibold uppercase bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-1 rounded-full">
-            {user?.role} Account
-          </Text>
+    <View className="flex-1 bg-slate-50 dark:bg-slate-955" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
+      <ScrollView className="flex-1 px-4 py-4 max-w-lg w-full self-center" contentContainerStyle={{ paddingBottom: 60 }}>
+        {/* 1. Profile Header Card */}
+        <View className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-6 items-center mb-5 shadow-sm dark:shadow-none">
+          <View className="relative mb-3">
+            <Image
+              source={{ uri: profile?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${profile?.fullName || 'user'}` }}
+              className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-primary-500/30 dark:border-primary-400/30"
+            />
+            {!isExpert && (
+              <TouchableOpacity
+                onPress={() => setIsEditModalVisible(true)}
+                className="absolute bottom-0 right-0 bg-primary-500 p-2 rounded-full border-2 border-white dark:border-slate-900 shadow-sm"
+              >
+                <Camera size={14} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
 
-          <View className="flex-row items-center mt-4 text-slate-500">
-            <Mail size={14} color={isDark ? '#94a3b8' : '#64748b'} />
-            <Text className="text-slate-500 dark:text-slate-400 text-sm ml-2">{user?.email}</Text>
+          <Text className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{profile?.fullName || 'User Profile'}</Text>
+          
+          <View className="flex-row items-center gap-2 mt-1.5">
+            <View className="bg-violet-500/10 dark:bg-violet-500/20 px-3 py-1 rounded-full border border-violet-500/20">
+              <Text className="text-violet-600 dark:text-violet-400 text-xs font-bold uppercase tracking-wider">
+                {user?.role} Account
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-row items-center mt-3 text-slate-400">
+            <Mail size={13} color={isDark ? '#94a3b8' : '#64748b'} />
+            <Text className="text-slate-500 dark:text-slate-400 text-xs ml-1.5">{user?.email}</Text>
           </View>
         </View>
 
-        {/* Expert Profile View Details */}
+        {/* 2. Management & Quick Actions Group */}
+        <View className="mb-5">
+          <Text className="text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-wider mb-2.5 ml-1">
+            Account Management
+          </Text>
+          
+          {isExpert ? (
+            <View className="space-y-3">
+              <TouchableOpacity
+                onPress={() => router.push('/expert/edit-profile')}
+                activeOpacity={0.75}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl flex-row items-center justify-between shadow-sm dark:shadow-none mb-2.5"
+              >
+                <View className="flex-row items-center">
+                  <View className="bg-primary-500/10 p-2.5 rounded-xl mr-3">
+                    <Sparkles size={18} color="#8b5cf6" />
+                  </View>
+                  <View>
+                    <Text className="text-slate-900 dark:text-white font-bold text-sm">Edit Professional Listing</Text>
+                    <Text className="text-slate-400 dark:text-slate-500 text-xs mt-0.5">Headline, bio, categories & rates</Text>
+                  </View>
+                </View>
+                <Text className="text-slate-400 dark:text-slate-600 text-base font-bold">›</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push('/expert/availability')}
+                activeOpacity={0.75}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl flex-row items-center justify-between shadow-sm dark:shadow-none"
+              >
+                <View className="flex-row items-center">
+                  <View className="bg-emerald-500/10 p-2.5 rounded-xl mr-3">
+                    <CalendarDays size={18} color="#10b981" />
+                  </View>
+                  <View>
+                    <Text className="text-slate-900 dark:text-white font-bold text-sm">Live Call Availability</Text>
+                    <Text className="text-slate-400 dark:text-slate-500 text-xs mt-0.5">Set weekly slots & time zones</Text>
+                  </View>
+                </View>
+                <Text className="text-slate-400 dark:text-slate-600 text-base font-bold">›</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => setIsEditModalVisible(true)}
+              activeOpacity={0.75}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl flex-row items-center justify-between shadow-sm dark:shadow-none"
+            >
+              <View className="flex-row items-center">
+                <View className="bg-primary-500/10 p-2.5 rounded-xl mr-3">
+                  <Sparkles size={18} color="#8b5cf6" />
+                </View>
+                <View>
+                  <Text className="text-slate-900 dark:text-white font-bold text-sm">Edit Seeker Profile</Text>
+                  <Text className="text-slate-400 dark:text-slate-500 text-xs mt-0.5">Name, goals & communication style</Text>
+                </View>
+              </View>
+              <Text className="text-slate-400 dark:text-slate-600 text-base font-bold">›</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 3. Profile Overview Summary */}
         {isExpert && profile && (
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-6 shadow-sm dark:shadow-none">
-            <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Public Listing Details</Text>
+          <View className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-5 shadow-sm dark:shadow-none">
+            <Text className="text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-wider mb-3">
+              Listing Overview
+            </Text>
             
-            <Text className="text-slate-900 dark:text-white font-bold text-sm">Headline</Text>
-            <Text className="text-slate-600 dark:text-slate-400 text-sm mt-1 mb-4 leading-relaxed">{profile.headline}</Text>
+            <Text className="text-slate-900 dark:text-white font-bold text-xs uppercase tracking-wider mb-1">Headline</Text>
+            <Text className="text-slate-600 dark:text-slate-300 text-sm mb-3.5 leading-relaxed">{profile.headline || 'No headline set'}</Text>
 
-            <Text className="text-slate-900 dark:text-white font-bold text-sm">Biography</Text>
-            <Text className="text-slate-600 dark:text-slate-400 text-sm mt-1 mb-4 leading-relaxed">{profile.bio}</Text>
+            <Text className="text-slate-900 dark:text-white font-bold text-xs uppercase tracking-wider mb-1">Bio</Text>
+            <Text className="text-slate-600 dark:text-slate-300 text-sm mb-4 leading-relaxed">{profile.bio || 'No biography set'}</Text>
 
-            <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Service Pricing</Text>
-             <View className="flex-row justify-between bg-slate-100 dark:bg-slate-950 px-4 py-3 rounded-2xl mb-3 border border-slate-200/50 dark:border-slate-850">
-              <Text className="text-slate-600 dark:text-slate-400 text-sm">1:1 Live Call Rate</Text>
-              <Text className="text-slate-900 dark:text-white font-bold text-sm">₦{profile.hourlyRate}/hour</Text>
-            </View>
-            <View className="flex-row justify-between bg-slate-100 dark:bg-slate-950 px-4 py-3 rounded-2xl mb-3 border border-slate-200/50 dark:border-slate-850">
-              <Text className="text-slate-600 dark:text-slate-400 text-sm">Written Question Price</Text>
-              <Text className="text-slate-900 dark:text-white font-bold text-sm">₦{profile.textQuestionPrice}</Text>
-            </View>
-            <View className="flex-row justify-between bg-slate-100 dark:bg-slate-950 px-4 py-3 rounded-2xl border border-slate-200/50 dark:border-slate-850">
-              <Text className="text-slate-600 dark:text-slate-400 text-sm">Video response Price</Text>
-              <Text className="text-slate-900 dark:text-white font-bold text-sm">₦{profile.videoResponsePrice}</Text>
+            <View className="border-t border-slate-100 dark:border-slate-800 pt-3">
+              <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2.5">Active Pricing</Text>
+              <View className="flex-row gap-2">
+                <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-850">
+                  <Text className="text-slate-400 text-[10px] uppercase font-bold">1:1 Call</Text>
+                  <Text className="text-slate-900 dark:text-white font-extrabold text-xs mt-0.5">₦{profile.hourlyRate}/hr</Text>
+                </View>
+                <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-850">
+                  <Text className="text-slate-400 text-[10px] uppercase font-bold">Written</Text>
+                  <Text className="text-slate-900 dark:text-white font-extrabold text-xs mt-0.5">₦{profile.textQuestionPrice}</Text>
+                </View>
+                <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-850">
+                  <Text className="text-slate-400 text-[10px] uppercase font-bold">Video</Text>
+                  <Text className="text-slate-900 dark:text-white font-extrabold text-xs mt-0.5">₦{profile.videoResponsePrice}</Text>
+                </View>
+              </View>
             </View>
           </View>
         )}
 
-        {/* Seeker Profile View Details */}
         {!isExpert && profile && (
-          <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-6 shadow-sm dark:shadow-none">
-            <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Seeker Profile Details</Text>
+          <View className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-5 shadow-sm dark:shadow-none">
+            <Text className="text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-wider mb-3">
+              Seeker Preferences
+            </Text>
             
-            <Text className="text-slate-900 dark:text-white font-bold text-sm">Learning Goals</Text>
-            <Text className="text-slate-600 dark:text-slate-400 text-sm mt-1 mb-4 leading-relaxed">{profile.goals || 'No goals specified yet.'}</Text>
+            <Text className="text-slate-900 dark:text-white font-bold text-xs uppercase tracking-wider mb-1">Learning Goals</Text>
+            <Text className="text-slate-600 dark:text-slate-300 text-sm mb-3.5 leading-relaxed">{profile.goals || 'No specific goals set yet.'}</Text>
 
-            <Text className="text-slate-900 dark:text-white font-bold text-sm">Preferred Communication</Text>
-            <Text className="text-slate-600 dark:text-slate-400 text-sm mt-1 mb-4 leading-relaxed">{profile.communicationStyle || 'Any'}</Text>
+            <Text className="text-slate-900 dark:text-white font-bold text-xs uppercase tracking-wider mb-1">Preferred Style</Text>
+            <Text className="text-slate-600 dark:text-slate-300 text-sm">{profile.communicationStyle || 'Any'}</Text>
           </View>
         )}
 
-        {/* Appearance Settings */}
-        <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-6 shadow-sm dark:shadow-none">
-          <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Appearance Theme</Text>
+        {/* 4. Appearance & Preferences Group */}
+        <View className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-5 shadow-sm dark:shadow-none">
+          <Text className="text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-wider mb-3">
+            Appearance & Theme
+          </Text>
           <View className="flex-row bg-slate-100 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-850">
             {(['system', 'light', 'dark'] as const).map((mode) => {
               const isActive = theme === mode;
@@ -190,65 +277,15 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Edit Profile Navigation */}
-        {isExpert && (
-          <>
-            <TouchableOpacity
-              onPress={() => router.push('/expert/edit-profile')}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Edit professional details"
-              accessibilityHint="Navigate to edit your expert profile"
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-4 rounded-2xl items-center mb-4 flex-row justify-center shadow-sm dark:shadow-none"
-              style={{ minHeight: 52 }}
-            >
-              <Sparkles size={16} color={isDark ? '#fff' : '#8b5cf6'} />
-              <Text className="text-slate-900 dark:text-white font-semibold text-sm ml-2">Edit Professional Details</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/expert/availability')}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Manage availability"
-              accessibilityHint="Navigate to configure your call times and weekly slots"
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-4 rounded-2xl items-center mb-4 flex-row justify-center shadow-sm dark:shadow-none"
-              style={{ minHeight: 52 }}
-            >
-              <CalendarDays size={16} color={isDark ? '#fff' : '#8b5cf6'} />
-              <Text className="text-slate-900 dark:text-white font-semibold text-sm ml-2">Manage Live Call Availability</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* Seeker Edit Profile Button */}
-        {!isExpert && (
-          <TouchableOpacity
-            onPress={() => setIsEditModalVisible(true)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Edit profile details"
-            accessibilityHint="Open modal to edit seeker details and profile picture"
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-4 rounded-2xl items-center mb-4 flex-row justify-center shadow-sm dark:shadow-none"
-            style={{ minHeight: 52 }}
-          >
-            <Sparkles size={16} color={isDark ? '#fff' : '#8b5cf6'} />
-            <Text className="text-slate-900 dark:text-white font-semibold text-sm ml-2">Edit Profile Details</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Logout Action */}
+        {/* 5. Account Actions */}
         <TouchableOpacity
           onPress={handleLogout}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Log out"
-          accessibilityHint="Sign out of your account"
-          className="w-full bg-red-500/10 border border-red-500/20 py-4 rounded-2xl items-center flex-row justify-center mb-8"
+          activeOpacity={0.75}
+          className="w-full bg-red-500/10 border border-red-500/20 py-4 rounded-2xl items-center flex-row justify-center mb-6"
           style={{ minHeight: 52 }}
         >
           <LogOut size={16} color="#ef4444" />
-          <Text className="text-red-500 dark:text-red-400 font-bold text-sm ml-2">Log Out</Text>
+          <Text className="text-red-500 dark:text-red-400 font-extrabold text-sm ml-2">Log Out of Haappy-Connect</Text>
         </TouchableOpacity>
       </ScrollView>
 

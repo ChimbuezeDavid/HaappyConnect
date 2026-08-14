@@ -5,6 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
+    "favicon": "./assets/images/favicon.png",
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    },
     "scheme": "haappyconnect",
     "userInterfaceStyle": "automatic",
     "ios": {

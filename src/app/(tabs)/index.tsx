@@ -284,7 +284,7 @@ export default function DiscoverScreen() {
                 {categories.map((cat) => (
                   <TouchableOpacity
                     key={cat._id}
-                    onPress={() => router.push({ pathname: '/(tabs)/search', params: { query: cat.name } })}
+                    onPress={() => router.push({ pathname: '/(tabs)/search', params: { category: cat.slug } })}
                     className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 p-4 rounded-2xl items-center justify-center mr-3 shadow-sm"
                     style={{ width: 140 }}
                   >

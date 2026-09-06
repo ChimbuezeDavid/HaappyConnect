@@ -30,7 +30,11 @@ const app = express();
 app.enable('trust proxy');
 const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/HaappyConnect';
+const MONGODB_URI = 
+  process.env.MONGODB_URI || 
+  process.env.MONGO_URI || 
+  process.env.DATABASE_URL || 
+  'mongodb://127.0.0.1:27017/HaappyConnect';
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkeyforhaappyconnect';
 
 // Middleware
@@ -281,6 +285,11 @@ io.on('connection', (socket) => {
 });
 
 // Connect to MongoDB & Start Server
+const maskedUri = MONGODB_URI.includes('@')
+  ? MONGODB_URI.replace(/:([^:@]+)@/, ':****@')
+  : MONGODB_URI;
+console.log(`[Database] Attempting connection to: ${maskedUri}`);
+
 mongoose
   .connect(MONGODB_URI)
   .then(() => {

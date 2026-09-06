@@ -40,7 +40,8 @@ import {
   Inbox,
   Clock,
   ChevronRight,
-  SlidersHorizontal
+  SlidersHorizontal,
+  CheckCircle2
 } from 'lucide-react-native';
 
 export default function DiscoverScreen() {
@@ -98,7 +99,7 @@ export default function DiscoverScreen() {
   const getCategoryIcon = (slug: string) => {
     switch (slug) {
       case 'tech-ai':
-        return <Code size={18} color="#8b5cf6" />;
+        return <Code size={18} color="#059669" />;
       case 'business-entrepreneurship':
         return <Briefcase size={18} color="#3b82f6" />;
       case 'marketing-sales':
@@ -138,16 +139,22 @@ export default function DiscoverScreen() {
 
   return (
     <View 
-      className="flex-1 bg-slate-50 dark:bg-slate-955" 
-      style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}
+      className="flex-1" 
+      style={{ backgroundColor: isDark ? '#0B0F14' : '#FAF8F5' }}
     >
       <ScrollView
-        className={`flex-1 w-full self-center ${isDesktop ? 'max-w-5xl px-6' : 'max-w-2xl px-4'}`}
-        contentContainerStyle={{ paddingBottom: 110, paddingTop: isDesktop ? 20 : insets.top > 0 ? insets.top + 8 : 12 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />}
+        className="flex-1 w-full"
+        contentContainerStyle={{
+          width: '100%',
+          paddingHorizontal: isDesktop ? 32 : 16,
+          paddingTop: isDesktop ? 20 : (insets.top > 0 ? insets.top + 8 : 12),
+          paddingBottom: isDesktop ? 40 : 110,
+        }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. TOP APP BAR: Greeting + Profile Trigger */}
+        {/* 1. TOP APP BAR: Greeting + Profile Trigger (Mobile Only) */}
+        {!isDesktop && (
         <View className="flex-row justify-between items-center mb-5 px-1">
           <View className="flex-1 mr-3">
             <View className="flex-row items-center">
@@ -155,8 +162,8 @@ export default function DiscoverScreen() {
                 Haappy-Connect
               </Text>
               {isExpert && (
-                <View className="bg-violet-500/10 dark:bg-violet-500/20 px-2 py-0.5 rounded-full border border-violet-500/25 ml-2">
-                  <Text className="text-violet-600 dark:text-violet-400 text-[10px] font-black uppercase">
+                <View className="bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/25 ml-2">
+                  <Text className="text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
                     Expert Hub
                   </Text>
                 </View>
@@ -182,8 +189,10 @@ export default function DiscoverScreen() {
             />
           </TouchableOpacity>
         </View>
+        )}
 
-        {/* 2. INSTANT SEARCH BAR (Primary Discovery Action) */}
+        {/* 2. INSTANT SEARCH BAR (Mobile Only - Desktop uses DesktopHeader) */}
+        {!isDesktop && (
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/search')}
           activeOpacity={0.85}
@@ -199,6 +208,7 @@ export default function DiscoverScreen() {
             <SlidersHorizontal size={14} color={isDark ? '#94a3b8' : '#64748b'} />
           </View>
         </TouchableOpacity>
+        )}
 
         {/* 3. CATEGORY PILLS STRIP (Instant 1-Tap Category Filters) */}
         <View className="mb-6">
@@ -225,11 +235,17 @@ export default function DiscoverScreen() {
                 <View className="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl mb-2 border border-slate-100 dark:border-slate-800/80">
                   {getCategoryIcon(cat.slug)}
                 </View>
-                <Text className="text-slate-900 dark:text-white font-bold text-xs text-center" numberOfLines={1}>
+                <Text 
+                  className="text-slate-900 dark:text-white font-bold text-xs text-center" 
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                  style={{ minHeight: 30 }}
+                >
                   {cat.name}
                 </Text>
-                <Text className="text-slate-400 dark:text-slate-500 text-[10px] text-center mt-0.5">
-                  Explore →
+                <Text className="text-slate-400 dark:text-slate-500 text-[10px] text-center mt-1">
+                  Explore
                 </Text>
               </TouchableOpacity>
             ))}
@@ -238,7 +254,7 @@ export default function DiscoverScreen() {
 
         {isLoading && !refreshing ? (
           <View className="py-20 justify-center items-center">
-            <ActivityIndicator size="large" color="#8b5cf6" />
+            <ActivityIndicator size="large" color="#059669" />
           </View>
         ) : (
           <>
@@ -274,7 +290,7 @@ export default function DiscoverScreen() {
                     <Text className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider">
                       Open Requests
                     </Text>
-                    <Text className="text-xl font-black text-violet-600 dark:text-violet-400 mt-1">
+                    <Text className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
                       {pendingQuestions.length}
                     </Text>
                   </TouchableOpacity>
@@ -312,12 +328,12 @@ export default function DiscoverScreen() {
               // Seeker / Guest Welcome Card
               <View 
                 className="rounded-3xl p-5 mb-6 relative overflow-hidden border border-slate-200/80 dark:border-slate-800"
-                style={{ backgroundColor: isDark ? '#061431' : '#ffffff' }}
+                style={{ backgroundColor: isDark ? '#131A22' : '#ffffff' }}
               >
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="flex-row items-center">
                     <View className="bg-primary-500/15 p-2 rounded-xl mr-2.5">
-                      <Sparkles size={18} color="#8b5cf6" />
+                      <Sparkles size={18} color="#059669" />
                     </View>
                     <Text className="text-base font-extrabold text-slate-900 dark:text-white">
                       Direct Expert Access
@@ -361,10 +377,15 @@ export default function DiscoverScreen() {
                         className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800"
                       />
                       <View className="flex-1 ml-3.5 pr-1">
-                        <Text className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight" numberOfLines={1}>
-                          {expert.fullName}
-                        </Text>
-                        <Text className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5" numberOfLines={1}>
+                        <View className="flex-row items-center space-x-1">
+                          <Text className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight flex-shrink font-display" numberOfLines={1}>
+                            {expert.fullName}
+                          </Text>
+                          {expert.isVerified && (
+                            <CheckCircle2 size={13} color="#059669" fill="#10B981" />
+                          )}
+                        </View>
+                        <Text className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5 font-sans" numberOfLines={1}>
                           {expert.headline}
                         </Text>
                         
@@ -379,7 +400,7 @@ export default function DiscoverScreen() {
                             </Text>
                           </View>
                           <Text className="text-primary-600 dark:text-primary-400 font-extrabold text-xs">
-                            ₦{expert.textQuestionPrice}
+                            ₦{(expert.textQuestionPrice || 0).toLocaleString()}
                           </Text>
                         </View>
                       </View>
@@ -405,11 +426,11 @@ export default function DiscoverScreen() {
                   <Text className="text-slate-500 dark:text-slate-400 text-sm">No experts found</Text>
                 </View>
               ) : (
-                <View className={isDesktop ? "flex-row flex-wrap gap-4" : "space-y-4"}>
+                <View className={isDesktop ? "flex-row flex-wrap justify-between" : "space-y-4"}>
                   {experts.map((expert) => (
                     <View 
                       key={expert._id} 
-                      style={isDesktop ? { width: '48.5%', marginBottom: 12 } : undefined}
+                      style={isDesktop ? { width: width >= 1440 ? '24%' : width >= 1080 ? '31.8%' : '48.5%', marginBottom: 16 } : undefined}
                     >
                       <ExpertCard expert={expert} />
                     </View>
@@ -421,7 +442,8 @@ export default function DiscoverScreen() {
         )}
       </ScrollView>
 
-      {/* 7. FLOATING ACTION BUTTON (Expert Profile / Seeker Search Quick Action) */}
+      {/* 7. FLOATING ACTION BUTTON (Mobile Only) */}
+      {!isDesktop && (
       <TouchableOpacity
         onPress={() => {
           if (isExpert) {
@@ -440,6 +462,7 @@ export default function DiscoverScreen() {
           <Search size={22} color="#fff" />
         )}
       </TouchableOpacity>
+      )}
     </View>
   );
 }

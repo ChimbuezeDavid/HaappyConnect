@@ -228,7 +228,7 @@ export default function WalletScreen() {
           </View>
           <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex-row items-center shadow-sm">
             <View className="p-2 bg-primary-500/10 rounded-xl mr-3">
-              <ArrowUpRight size={16} color="#8b5cf6" />
+              <ArrowUpRight size={16} color="#059669" />
             </View>
             <View>
               <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Payouts</Text>
@@ -240,7 +240,7 @@ export default function WalletScreen() {
         <>
           <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex-row items-center shadow-sm">
             <View className="p-2 bg-primary-500/10 rounded-xl mr-3">
-              <ArrowUpRight size={16} color="#8b5cf6" />
+              <ArrowUpRight size={16} color="#059669" />
             </View>
             <View>
               <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Spent</Text>
@@ -457,7 +457,7 @@ export default function WalletScreen() {
           className="w-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-3 rounded-2xl items-center mt-2"
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color="#8b5cf6" />
+            <ActivityIndicator size="small" color="#059669" />
           ) : (
             <Text className="text-primary-500 font-extrabold text-sm">Load Older Transactions</Text>
           )}
@@ -472,10 +472,10 @@ export default function WalletScreen() {
         className="flex-1 w-full self-center"
         contentContainerStyle={
           isDesktop
-            ? { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 100, maxWidth: 1024, alignSelf: 'center', width: '100%' }
+            ? { paddingHorizontal: 32, paddingTop: 24, paddingBottom: 100, width: '100%' }
             : { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100, maxWidth: 640, alignSelf: 'center', width: '100%' }
         }
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />}
         showsVerticalScrollIndicator={false}
       >
         {isDesktop ? (

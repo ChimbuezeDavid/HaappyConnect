@@ -38,8 +38,8 @@ export default function WelcomeScreen() {
       subtitle: 'On Demand',
       description:
         'Connect with top tech founders, coaches, and financial advisors for personalized 1:1 paid advice.',
-      icon: <Sparkles size={32} color="#8b5cf6" />,
-      accentColor: '#8b5cf6',
+      icon: <Sparkles size={32} color="#059669" />,
+      accentColor: '#059669',
     },
     {
       title: 'Ask Anything',
@@ -102,7 +102,7 @@ export default function WelcomeScreen() {
           }}
         >
           Haappy
-          <Text style={{ color: '#8b5cf6' }}>Connect</Text>
+          <Text style={{ color: '#059669' }}>Connect</Text>
         </Text>
       </View>
 
@@ -122,7 +122,7 @@ export default function WelcomeScreen() {
                   padding: 32,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  shadowColor: '#8b5cf6',
+                  shadowColor: '#059669',
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: isDark ? 0 : 0.05,
                   shadowRadius: 10,
@@ -315,7 +315,7 @@ export default function WelcomeScreen() {
           accessibilityRole="button"
           accessibilityLabel={isDesktop || activeIndex === slides.length - 1 ? 'Get started' : 'Next'}
           style={{
-            backgroundColor: isDesktop ? '#8b5cf6' : currentSlide.accentColor,
+            backgroundColor: isDesktop ? '#059669' : currentSlide.accentColor,
             paddingVertical: 18,
             borderRadius: 16,
             flexDirection: 'row',

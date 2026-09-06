@@ -14,7 +14,7 @@ function getIcon(type: AppNotification['type'], isDark: boolean) {
     case 'question_declined':
       return <XCircle size={size} color="#ef4444" />;
     case 'new_question':
-      return <MessageSquare size={size} color="#8b5cf6" />;
+      return <MessageSquare size={size} color="#059669" />;
     case 'new_booking':
     case 'booking_confirmed':
       return <Calendar size={size} color="#3b82f6" />;
@@ -25,7 +25,7 @@ function getIcon(type: AppNotification['type'], isDark: boolean) {
     case 'deposit_verified':
       return <CheckCircle size={size} color="#10b981" />;
     default:
-      return <Bell size={size} color="#8b5cf6" />;
+      return <Bell size={size} color="#059669" />;
   }
 }
 

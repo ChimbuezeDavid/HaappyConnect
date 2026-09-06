@@ -62,3 +62,7 @@ server/node_modules
 .vscode
 scripts
 .claude
+redketchup/
+redketchup
+*.apk
+*.aab

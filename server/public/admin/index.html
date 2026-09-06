@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HaappyConnect — Executive Admin Suite</title>
+  <style>
+    /* Blazing-fast standalone CSS - Zero external CDN dependencies - 0ms network latency */
+    :root {
+      --obsidian: #0B0F14;
+      --surface: #131A22;
+      --surface-card: #18222E;
+      --surface-border: #243242;
+      --emerald-primary: #059669;
+      --emerald-accent: #10B981;
+      --amber-gold: #F59E0B;
+      --alabaster: #FAF8F5;
+      --muted-text: #94A3B8;
+      --danger: #EF4444;
+      --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: var(--obsidian);
+      color: var(--alabaster);
+      font-family: var(--font-family);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--emerald-primary); }
+
+    /* Header */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(19, 26, 34, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--surface-border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(5, 150, 105, 0.2);
+      border: 1px solid rgba(5, 150, 105, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--emerald-accent);
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-admin {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background: rgba(5, 150, 105, 0.2);
+      color: var(--emerald-accent);
+      border: 1px solid rgba(5, 150, 105, 0.3);
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: var(--muted-text);
+      margin-top: 1px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--emerald-accent);
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald-accent);
+      box-shadow: 0 0 8px var(--emerald-accent);
+    }
+    .btn-icon {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      color: var(--muted-text);
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .btn-icon:hover {
+      color: var(--alabaster);
+      border-color: var(--emerald-primary);
+    }
+
+    /* Main Container */
+    .main-container {
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .metric-card:hover {
+      border-color: rgba(5, 150, 105, 0.4);
+      transform: translateY(-2px);
+    }
+    .metric-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      color: var(--muted-text);
+    }
+    .metric-value {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+    .metric-sub {
+      font-size: 11px;
+      color: var(--muted-text);
+    }
+
+    /* Tabs */
+    .nav-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--surface-border);
+      gap: 8px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted-text);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 20px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover {
+      color: var(--alabaster);
+    }
+    .tab-btn.active {
+      color: var(--emerald-accent);
+      border-bottom-color: var(--emerald-primary);
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .filter-pills {
+      display: flex;
+      gap: 8px;
+    }
+    .filter-btn {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      color: var(--muted-text);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-btn.active {
+      background: var(--surface-card);
+      color: var(--alabaster);
+      border-color: var(--emerald-primary);
+    }
+    .search-input {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 13px;
+      color: var(--alabaster);
+      outline: none;
+      width: 280px;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--emerald-primary);
+    }
+
+    /* Table Container */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    .table-responsive {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    th {
+      background: rgba(24, 34, 46, 0.8);
+      color: var(--muted-text);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--surface-border);
+    }
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--surface-border);
+      vertical-align: middle;
+    }
+    tr:hover td {
+      background: rgba(24, 34, 46, 0.4);
+    }
+    .expert-row-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid var(--surface-border);
+    }
+    .pill-verified {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(5, 150, 105, 0.15);
+      color: var(--emerald-accent);
+      border: 1px solid rgba(5, 150, 105, 0.3);
+    }
+    .pill-pending {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--amber-gold);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .btn-verify {
+      background: var(--emerald-primary);
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-verify:hover { background: var(--emerald-accent); }
+    .btn-revoke {
+      background: rgba(239, 68, 68, 0.15);
+      color: #F87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-revoke:hover { background: rgba(239, 68, 68, 0.3); }
+
+    /* Login Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-content {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted-text);
+    }
+    .form-input {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      color: var(--alabaster);
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--emerald-primary); }
+    .btn-primary {
+      background: var(--emerald-primary);
+      color: #fff;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: var(--emerald-accent); }
+    .hidden { display: none !important; }
+
+    /* Toast */
+    .toast-box {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      background: var(--surface-card);
+      border: 1px solid var(--emerald-primary);
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 13px;
+      color: var(--alabaster);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      transition: transform 0.3s, opacity 0.3s;
+    }
+    .spin { animation: spin 0.7s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="brand-group">
+      <div class="brand-logo">H</div>
+      <div>
+        <div class="brand-title">
+          <span>HaappyConnect</span>
+          <span class="badge-admin">Executive Suite</span>
+        </div>
+        <div class="brand-sub">Platform Governance & Oversight Console</div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span>Live Operational Node</span>
+      </div>
+
+      <button id="refreshBtn" class="btn-icon" onclick="fetchDashboardData()" title="Refresh Dashboard">
+        <svg id="refreshIcon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      </button>
+
+      <div id="adminUserBadge" class="hidden" style="align-items: center; gap: 12px; padding-left: 12px; border-left: 1px solid var(--surface-border);">
+        <div style="text-align: right;">
+          <div id="adminEmailDisplay" style="font-size: 12px; font-weight: 700;">admin@haappyconnect.com</div>
+          <div style="font-size: 10px; color: var(--muted-text);">Super Administrator</div>
+        </div>
+        <button onclick="logoutAdmin()" class="btn-revoke" style="padding: 4px 10px;">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- AUTH WALL MODAL -->
+  <div id="loginModal" class="modal-backdrop">
+    <div class="modal-content">
+      <div style="text-align: center;">
+        <div class="brand-logo" style="margin: 0 auto 12px; width: 48px; height: 48px;">H</div>
+        <h2 style="font-size: 20px; font-weight: 800;">Administrator Sign In</h2>
+        <p style="font-size: 12px; color: var(--muted-text); margin-top: 4px;">Enter administrator credentials to unlock the operations suite.</p>
+      </div>
+
+      <div id="loginError" class="hidden" style="background: rgba(239,68,68,0.2); border: 1px solid var(--danger); padding: 10px; border-radius: 8px; font-size: 12px; color: #FCA5A5; text-align: center;"></div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label">Administrator Email</label>
+          <input type="email" id="loginEmail" class="form-input" required value="admin@haappyconnect.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="loginPassword" class="form-input" required value="AdminPass123!" />
+        </div>
+        <button type="submit" id="loginSubmitBtn" class="btn-primary">Unlock Operations Console</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD -->
+  <main class="main-container">
+
+    <!-- METRICS GRID -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Settled Escrow Volume</div>
+        <div id="statTotalVolume" class="metric-value" style="color: var(--emerald-accent);">₦0</div>
+        <div class="metric-sub">Nigerian Naira (₦) gross transacted</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">In-Flight Escrow</div>
+        <div id="statEscrowLocked" class="metric-value" style="color: var(--amber-gold);">₦0</div>
+        <div class="metric-sub">Held in atomic 72h / booking lock</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">Platform Revenue (20%)</div>
+        <div id="statRevenue" class="metric-value">₦0</div>
+        <div class="metric-sub">Automated 20% platform commission</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">Completed Consultations</div>
+        <div id="statCompleted" class="metric-value">0</div>
+        <div id="statSubConsultations" class="metric-sub">Calls & Async Voice Memos</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">Pending Verification</div>
+        <div id="statPendingExperts" class="metric-value" style="color: var(--emerald-accent);">0</div>
+        <div id="statSeekerExpertRatio" class="metric-sub">0 Seekers • 0 Experts</div>
+      </div>
+    </section>
+
+    <!-- TABS -->
+    <div class="nav-tabs">
+      <button onclick="switchTab('experts')" id="tab-experts" class="tab-btn active">Expert Approval Queue</button>
+      <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn">Leaderboard</button>
+      <button onclick="switchTab('transactions')" id="tab-transactions" class="tab-btn">Transaction Ledger (₦)</button>
+      <button onclick="switchTab('consultations')" id="tab-consultations" class="tab-btn">Live Consultations</button>
+    </div>
+
+    <!-- VIEW 1: EXPERT APPROVAL QUEUE -->
+    <section id="view-experts" style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="controls-bar">
+        <div class="filter-pills">
+          <button onclick="setExpertFilter('all')" id="filter-all" class="filter-btn active">All Experts</button>
+          <button onclick="setExpertFilter('pending')" id="filter-pending" class="filter-btn">Pending Review</button>
+          <button onclick="setExpertFilter('verified')" id="filter-verified" class="filter-btn">Verified Badge</button>
+        </div>
+        <input type="text" id="expertSearchInput" oninput="debounceSearch()" placeholder="Search experts by name or headline..." class="search-input" />
+      </div>
+
+      <div class="table-card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Expert Profile</th>
+                <th>Discipline / Headline</th>
+                <th>Rates (₦)</th>
+                <th>Reputation</th>
+                <th>Status</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="expertsTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 32px; color: var(--muted-text);">Loading expert queue...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: LEADERBOARD -->
+    <section id="view-leaderboard" class="hidden" style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="table-card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Expert</th>
+                <th>Headline</th>
+                <th>Rating</th>
+                <th>Reviews</th>
+                <th>Hourly Rate (₦)</th>
+                <th>Badge</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardTableBody">
+              <tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--muted-text);">Loading leaderboard...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: TRANSACTIONS -->
+    <section id="view-transactions" class="hidden" style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="table-card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>User Account</th>
+                <th>Type</th>
+                <th>Description / Ref</th>
+                <th>Status</th>
+                <th style="text-align: right;">Amount (₦)</th>
+              </tr>
+            </thead>
+            <tbody id="transactionsTableBody">
+              <tr><td colspan="6" style="text-align: center; padding: 32px; color: var(--muted-text);">Loading ledger...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: CONSULTATIONS -->
+    <section id="view-consultations" class="hidden" style="display: flex; flex-direction: column; gap: 20px;">
+      <div class="table-card">
+        <div style="padding: 14px 16px; font-weight: 700; border-bottom: 1px solid var(--surface-border);">Scheduled 1:1 Live Calls</div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Scheduled At</th>
+                <th>Seeker</th>
+                <th>Expert</th>
+                <th>Duration</th>
+                <th>Escrow Value (₦)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="bookingsTableBody">
+              <tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--muted-text);">Loading bookings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div style="padding: 14px 16px; font-weight: 700; border-bottom: 1px solid var(--surface-border);">Async Written & Voice Questions</div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Submitted</th>
+                <th>Seeker</th>
+                <th>Expert</th>
+                <th>Type</th>
+                <th>Escrow Value (₦)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="questionsTableBody">
+              <tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--muted-text);">Loading questions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast-box hidden">
+    <span id="toastMessage">Success</span>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin + '/api/admin';
+    let currentFilter = 'all';
+    let searchDebounceTimer = null;
+
+    function getToken() { return localStorage.getItem('haappy_admin_token'); }
+    function setToken(token) { localStorage.setItem('haappy_admin_token', token); }
+    function removeToken() { localStorage.removeItem('haappy_admin_token'); }
+
+    // Fast fetch with AbortController timeout (4s max)
+    async function fetchWithTimeout(url, options = {}) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 4000);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+      } catch (err) {
+        clearTimeout(id);
+        throw err;
+      }
+    }
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.borderColor = isError ? '#EF4444' : '#059669';
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    async function checkAuth() {
+      const token = getToken();
+      if (!token) {
+        document.getElementById('loginModal').classList.remove('hidden');
+        document.getElementById('adminUserBadge').classList.add('hidden');
+        return false;
+      }
+
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('loginModal').classList.add('hidden');
+          const badge = document.getElementById('adminUserBadge');
+          badge.classList.remove('hidden');
+          badge.style.display = 'flex';
+          document.getElementById('adminEmailDisplay').innerText = data.admin.email;
+          return true;
+        }
+      } catch (e) {}
+
+      removeToken();
+      document.getElementById('loginModal').classList.remove('hidden');
+      document.getElementById('adminUserBadge').classList.add('hidden');
+      return false;
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('loginSubmitBtn');
+      const errBox = document.getElementById('loginError');
+
+      btn.disabled = true;
+      btn.innerText = 'Authenticating...';
+      errBox.classList.add('hidden');
+
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Authentication failed');
+
+        setToken(data.token);
+        document.getElementById('loginModal').classList.add('hidden');
+        const badge = document.getElementById('adminUserBadge');
+        badge.classList.remove('hidden');
+        badge.style.display = 'flex';
+        document.getElementById('adminEmailDisplay').innerText = data.admin.email;
+        showToast('Authenticated as Administrator');
+        fetchDashboardData();
+      } catch (err) {
+        errBox.innerText = err.message || 'Login failed';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Unlock Operations Console';
+      }
+    }
+
+    function logoutAdmin() {
+      removeToken();
+      document.getElementById('loginModal').classList.remove('hidden');
+      document.getElementById('adminUserBadge').classList.add('hidden');
+      showToast('Logged out of Admin Suite');
+    }
+
+    function switchTab(tab) {
+      const tabs = ['experts', 'leaderboard', 'transactions', 'consultations'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        const view = document.getElementById(`view-${t}`);
+        if (t === tab) {
+          btn.classList.add('active');
+          view.classList.remove('hidden');
+          view.style.display = 'flex';
+        } else {
+          btn.classList.remove('active');
+          view.classList.add('hidden');
+          view.style.display = 'none';
+        }
+      });
+      if (tab === 'leaderboard') fetchLeaderboard();
+      if (tab === 'transactions') fetchTransactions();
+      if (tab === 'consultations') fetchConsultations();
+    }
+
+    function setExpertFilter(filter) {
+      currentFilter = filter;
+      ['all', 'pending', 'verified'].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        if (f === filter) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+      fetchExperts();
+    }
+
+    function debounceSearch() {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(fetchExperts, 250);
+    }
+
+    async function fetchDashboardData() {
+      const isAuthed = await checkAuth();
+      if (!isAuthed) return;
+
+      const icon = document.getElementById('refreshIcon');
+      icon.classList.add('spin');
+
+      await Promise.all([fetchMetrics(), fetchExperts()]);
+      setTimeout(() => icon.classList.remove('spin'), 400);
+    }
+
+    async function fetchMetrics() {
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/metrics`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById('statTotalVolume').innerText = `₦${(data.finances?.totalVolumeNaira || 0).toLocaleString()}`;
+        document.getElementById('statEscrowLocked').innerText = `₦${(data.finances?.totalEscrowLockedNaira || 0).toLocaleString()}`;
+        document.getElementById('statRevenue').innerText = `₦${(data.finances?.platformRevenueNaira || 0).toLocaleString()}`;
+        document.getElementById('statCompleted').innerText = (data.consultations?.totalCompleted || 0).toLocaleString();
+        document.getElementById('statSubConsultations').innerText = `${data.consultations?.completedBookings || 0} Calls • ${data.consultations?.answeredQuestions || 0} Async Memos`;
+        document.getElementById('statPendingExperts').innerText = (data.users?.unverifiedExperts || 0);
+        document.getElementById('statSeekerExpertRatio').innerText = `${data.users?.seekers || 0} Seekers • ${data.users?.experts || 0} Experts`;
+      } catch (e) {
+        console.error('Metrics fetch error:', e);
+      }
+    }
+
+    async function fetchExperts() {
+      const search = document.getElementById('expertSearchInput').value.trim();
+      const tbody = document.getElementById('expertsTableBody');
+
+      try {
+        const query = new URLSearchParams({ status: currentFilter, search, limit: '50' });
+        const res = await fetchWithTimeout(`${API_BASE}/experts?${query.toString()}`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) throw new Error('Failed to load experts');
+        const data = await res.json();
+
+        if (!data.experts || data.experts.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 28px; color: var(--muted-text);">No experts match your filter criteria.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.experts.map(exp => {
+          const isVerified = exp.isVerified === true;
+          const avatar = exp.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop';
+          const cats = (exp.categories || []).map(c => c.name).join(', ') || 'General';
+
+          return `
+            <tr>
+              <td>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <img src="${avatar}" class="expert-row-avatar" alt="${exp.fullName}" />
+                  <div>
+                    <div style="font-weight: 700; color: var(--alabaster); display: flex; align-items: center; gap: 4px;">
+                      <span>${exp.fullName}</span>
+                      ${isVerified ? '<span style="color: var(--emerald-accent); font-size: 11px;">✓</span>' : ''}
+                    </div>
+                    <div style="font-size: 11px; color: var(--muted-text);">${exp.email}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="max-width: 260px;">
+                <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${exp.headline || 'Consultant'}</div>
+                <div style="font-size: 11px; color: var(--muted-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cats}</div>
+              </td>
+              <td>
+                <div style="font-weight: 700; color: var(--emerald-accent);">₦${(exp.hourlyRate || 0).toLocaleString()} <span style="font-size: 10px; color: var(--muted-text);">/hr</span></div>
+                <div style="font-size: 10px; color: var(--muted-text);">Q: ₦${(exp.textQuestionPrice || 0).toLocaleString()}</div>
+              </td>
+              <td>
+                <span style="color: var(--amber-gold);">★</span>
+                <span style="font-weight: 700;">${(exp.ratingAverage || 0).toFixed(1)}</span>
+                <span style="font-size: 11px; color: var(--muted-text);">(${exp.reviewsCount || 0})</span>
+              </td>
+              <td>
+                ${isVerified ? '<span class="pill-verified">Verified</span>' : '<span class="pill-pending">Pending</span>'}
+              </td>
+              <td style="text-align: right;">
+                ${isVerified
+                  ? `<button onclick="toggleVerifyExpert('${exp._id}', false)" class="btn-revoke">Revoke</button>`
+                  : `<button onclick="toggleVerifyExpert('${exp._id}', true)" class="btn-verify">Verify Expert</button>`
+                }
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: #FCA5A5;">Error: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function toggleVerifyExpert(profileId, newStatus) {
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/experts/${profileId}/verify`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
+          },
+          body: JSON.stringify({ isVerified: newStatus })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update');
+
+        showToast(newStatus ? 'Expert verified successfully' : 'Expert verification revoked');
+        fetchExperts();
+        fetchMetrics();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    async function fetchLeaderboard() {
+      const tbody = document.getElementById('leaderboardTableBody');
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/leaderboard`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+        tbody.innerHTML = (data.leaderboard || []).map(exp => `
+          <tr>
+            <td style="font-weight: 900; color: ${exp.rank === 1 ? 'var(--amber-gold)' : 'var(--muted-text)'};">#${exp.rank}</td>
+            <td style="font-weight: 700;">${exp.fullName}</td>
+            <td style="color: var(--muted-text);">${exp.headline || ''}</td>
+            <td style="color: var(--amber-gold); font-weight: 700;">★ ${(exp.ratingAverage || 0).toFixed(1)}</td>
+            <td style="color: var(--muted-text);">${exp.reviewsCount || 0} reviews</td>
+            <td style="color: var(--emerald-accent); font-weight: 700;">₦${(exp.hourlyRate || 0).toLocaleString()}/hr</td>
+            <td>${exp.isVerified ? '<span class="pill-verified">Verified</span>' : '<span style="color: var(--muted-text);">Standard</span>'}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #FCA5A5;">Failed to load leaderboard</td></tr>`;
+      }
+    }
+
+    async function fetchTransactions() {
+      const tbody = document.getElementById('transactionsTableBody');
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/transactions`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+        if (!data.transactions || data.transactions.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 28px; color: var(--muted-text);">No transactions in ledger yet.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.transactions.map(tx => {
+          const isCredit = tx.type === 'deposit' || tx.type === 'refund';
+          return `
+            <tr>
+              <td style="color: var(--muted-text); font-size: 11px;">${new Date(tx.createdAt).toLocaleDateString()} ${new Date(tx.createdAt).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</td>
+              <td>${tx.user?.email || 'N/A'}</td>
+              <td style="text-transform: uppercase; font-size: 11px; font-weight: 700;">${tx.type}</td>
+              <td style="color: var(--muted-text);">${tx.description}</td>
+              <td><span class="${tx.status === 'success' ? 'pill-verified' : 'pill-pending'}">${tx.status}</span></td>
+              <td style="text-align: right; font-weight: 700; color: ${isCredit ? 'var(--emerald-accent)' : 'var(--alabaster)'};">
+                ${isCredit ? '+' : '-'}₦${Math.abs(tx.amount || 0).toLocaleString()}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: #FCA5A5;">Failed to load transactions</td></tr>`;
+      }
+    }
+
+    async function fetchConsultations() {
+      const bBody = document.getElementById('bookingsTableBody');
+      const qBody = document.getElementById('questionsTableBody');
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/consultations`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+
+        bBody.innerHTML = (!data.bookings || data.bookings.length === 0)
+          ? `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--muted-text);">No bookings found.</td></tr>`
+          : data.bookings.map(b => `
+            <tr>
+              <td>${new Date(b.scheduledAt).toLocaleString()}</td>
+              <td>${b.seeker?.email || 'N/A'}</td>
+              <td>${b.expert?.email || 'N/A'}</td>
+              <td>${b.durationMinutes} mins</td>
+              <td style="color: var(--emerald-accent); font-weight: 700;">₦${(b.price || 0).toLocaleString()}</td>
+              <td><span class="pill-verified">${b.status}</span></td>
+            </tr>
+          `).join('');
+
+        qBody.innerHTML = (!data.questions || data.questions.length === 0)
+          ? `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--muted-text);">No questions found.</td></tr>`
+          : data.questions.map(q => `
+            <tr>
+              <td>${new Date(q.createdAt).toLocaleDateString()}</td>
+              <td>${q.seeker?.email || 'N/A'}</td>
+              <td>${q.expert?.email || 'N/A'}</td>
+              <td style="text-transform: uppercase; font-size: 11px;">${q.type}</td>
+              <td style="color: var(--emerald-accent); font-weight: 700;">₦${(q.price || 0).toLocaleString()}</td>
+              <td><span class="pill-verified">${q.status}</span></td>
+            </tr>
+          `).join('');
+      } catch (err) {
+        bBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #FCA5A5;">Error loading consultations</td></tr>`;
+      }
+    }
+
+    // Initialize immediately
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchDashboardData();
+    });
+  </script>
+</body>
+</html>

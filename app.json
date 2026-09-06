@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "HaappyConnect",
+    "name": "Happy Connect",
     "slug": "HaappyConnect",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,6 +12,7 @@
     "scheme": "haappyconnect",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.anonymous.haappyconnect",
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSCameraUsageDescription": "HaappyConnect needs camera access for live video calls.",
@@ -22,8 +23,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#061431",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundImage": "./assets/images/android-icon-background.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.HaappyConnect",
@@ -35,17 +35,8 @@
     },
 
     "plugins": [
+      "expo-dev-client",
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
-          }
-        }
-      ],
       "expo-secure-store",
       [
         "expo-camera",

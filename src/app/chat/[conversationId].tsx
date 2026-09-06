@@ -34,6 +34,7 @@ import {
 } from 'lucide-react-native';
 import { useAudioPlayer, useAudioRecorder, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
+import { requestAudioPermission as primeAudioPermission } from '@/services/permissions';
 
 // Animated recording indicator components (replaces NativeWind animate-pulse / animate-ping)
 function RecordingPulse() {
@@ -114,7 +115,7 @@ function VoiceMessageBubble({ uri, isSender }: { uri: string; isSender: boolean 
       <TouchableOpacity
         onPress={handlePlayPause}
         className={`w-9 h-9 rounded-full justify-center items-center ${
-          isSender ? 'bg-white/20' : 'bg-violet-600'
+          isSender ? 'bg-white/20' : 'bg-emerald-600'
         }`}
         activeOpacity={0.8}
       >
@@ -136,14 +137,14 @@ function VoiceMessageBubble({ uri, isSender }: { uri: string; isSender: boolean 
               style={{ height }}
               className={`w-0.75 mx-0.5 rounded-full ${
                 active 
-                  ? (isSender ? 'bg-white' : 'bg-violet-600') 
+                  ? (isSender ? 'bg-white' : 'bg-emerald-600') 
                   : (isSender ? 'bg-white/30' : 'bg-slate-300 dark:bg-slate-700')
               }`}
             />
           );
         })}
       </View>
-      <Text className={`text-[10px] ${isSender ? 'text-violet-200' : 'text-slate-500'}`}>
+      <Text className={`text-[10px] ${isSender ? 'text-emerald-200' : 'text-slate-500'}`}>
         {displayTime()}
       </Text>
     </View>
@@ -266,7 +267,9 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
   const handleStartRecording = async () => {
     try {
       if (!audioPermission?.granted) {
-        await requestAudioPermission();
+        const granted = await primeAudioPermission();
+        setAudioPermission({ granted });
+        if (!granted) return;
       }
       await recorder.prepareToRecordAsync();
       recorder.record();
@@ -375,7 +378,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
         <View
           className={`px-4 py-2.5 rounded-2xl max-w-[75%] relative ${
             isSender
-              ? 'bg-violet-600 rounded-tr-none shadow-sm'
+              ? 'bg-emerald-600 rounded-tr-none shadow-sm'
               : 'bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-tl-none shadow-sm'
           }`}
         >
@@ -412,7 +415,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
           <View className="flex-row justify-end items-center mt-1 space-x-1">
             <Text
               className={`text-[11px] ${
-                isSender ? 'text-violet-200' : 'text-slate-450 dark:text-slate-500'
+                isSender ? 'text-emerald-200' : 'text-slate-450 dark:text-slate-500'
               }`}
             >
               {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -442,7 +445,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
         <View className="flex-row items-center flex-1 mr-4">
           {!isInline && (
             <TouchableOpacity onPress={() => router.back()} className="p-1 mr-1">
-              <ChevronLeft size={24} color="#8b5cf6" />
+              <ChevronLeft size={24} color="#059669" />
             </TouchableOpacity>
           )}
 
@@ -453,8 +456,8 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
                 className="w-10 h-10 rounded-full bg-slate-200"
               />
             ) : (
-              <View className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-950 justify-center items-center">
-                <Text className="text-violet-600 dark:text-violet-400 font-bold text-xs">
+              <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950 justify-center items-center">
+                <Text className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                   {conversation?.otherProfile.fullName
                     .split(' ')
                     .map((n) => n[0])
@@ -523,7 +526,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
       {/* Conversation Message List */}
       {isLoadingMessages ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color="#059669" />
         </View>
       ) : (
         <FlatList
@@ -558,7 +561,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
             className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full mr-2.5 shadow-sm"
             activeOpacity={0.8}
           >
-            <ImageIcon size={18} color={isDark ? '#c084fc' : '#8b5cf6'} />
+            <ImageIcon size={18} color={isDark ? '#34d399' : '#059669'} />
           </TouchableOpacity>
 
           {/* Micro-recording overlay */}
@@ -585,7 +588,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
           {inputText.trim().length > 0 ? (
             <TouchableOpacity
               onPress={handleSend}
-              className="p-3 bg-violet-600 rounded-full ml-2.5 shadow-md shadow-violet-600/20"
+              className="p-3 bg-emerald-600 rounded-full ml-2.5 shadow-md shadow-emerald-600/20"
               activeOpacity={0.8}
             >
               <Send size={18} color="#fff" />
@@ -597,7 +600,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
                 className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full ml-2.5 shadow-sm"
                 activeOpacity={0.8}
               >
-                <Mic size={18} color={isDark ? '#c084fc' : '#8b5cf6'} />
+                <Mic size={18} color={isDark ? '#34d399' : '#059669'} />
               </TouchableOpacity>
             )
           )}
@@ -663,7 +666,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
               onPress={handleReportSubmit}
               disabled={!reportReason.trim()}
               className={`py-3.5 rounded-2xl items-center ${
-                reportReason.trim() ? 'bg-violet-600' : 'bg-slate-200 dark:bg-slate-800'
+                reportReason.trim() ? 'bg-emerald-600' : 'bg-slate-200 dark:bg-slate-800'
               }`}
             >
               <Text

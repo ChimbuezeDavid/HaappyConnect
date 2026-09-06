@@ -104,7 +104,9 @@ export default function EditProfileModal() {
         try {
           const { uploadAvatar } = require('@/lib/api');
           const fileName = avatarUrl.split('/').pop() || 'avatar.jpg';
-          const uploadRes = await uploadAvatar(avatarUrl, fileName);
+          const ext = fileName.split('.').pop()?.toLowerCase();
+          const fileType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+          const uploadRes = await uploadAvatar(avatarUrl, fileName, fileType);
           finalAvatarUrl = uploadRes.url;
         } catch (uploadError: any) {
           Alert.alert('Upload Error', 'Failed to upload profile image: ' + uploadError.message);
@@ -180,7 +182,7 @@ export default function EditProfileModal() {
                 onPress={() => handlePickImage(true)}
                 className="bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 px-4 py-2.5 rounded-xl flex-row items-center mr-2"
               >
-                <Camera size={14} color="#8b5cf6" style={{ marginRight: 6 }} />
+                <Camera size={14} color="#059669" style={{ marginRight: 6 }} />
                 <Text className="text-slate-800 dark:text-white text-xs font-bold">Take Photo</Text>
               </TouchableOpacity>
 
@@ -188,7 +190,7 @@ export default function EditProfileModal() {
                 onPress={() => handlePickImage(false)}
                 className="bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-850 px-4 py-2.5 rounded-xl flex-row items-center"
               >
-                <ImageIcon size={14} color="#8b5cf6" style={{ marginRight: 6 }} />
+                <ImageIcon size={14} color="#059669" style={{ marginRight: 6 }} />
                 <Text className="text-slate-800 dark:text-white text-xs font-bold">From Gallery</Text>
               </TouchableOpacity>
             </View>
@@ -282,7 +284,7 @@ export default function EditProfileModal() {
           {/* Categories Selector */}
           <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-3">Select Categories</Text>
           {loadingCategories ? (
-            <ActivityIndicator color="#8b5cf6" style={{ paddingVertical: 16 }} />
+            <ActivityIndicator color="#059669" style={{ paddingVertical: 16 }} />
           ) : (
             <View className="flex-row flex-wrap gap-2 mb-6">
               {dbCategories.map((cat) => {

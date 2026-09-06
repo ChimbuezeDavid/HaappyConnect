@@ -165,9 +165,9 @@ export default function MessagesScreen() {
               className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800"
             />
           ) : (
-            <View className="w-12 h-12 rounded-full bg-violet-500/10 dark:bg-violet-500/20 justify-center items-center">
-              <Text className="text-violet-600 dark:text-violet-400 font-bold text-xs">
-                {initials || <User size={18} color="#8b5cf6" />}
+            <View className="w-12 h-12 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 justify-center items-center">
+              <Text className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                {initials || <User size={18} color="#059669" />}
               </Text>
             </View>
           )}
@@ -185,8 +185,8 @@ export default function MessagesScreen() {
                 {item.otherProfile.fullName}
               </Text>
               {typeLabel && (
-                <View className="ml-2 bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 rounded-full">
-                  <Text className="text-[11px] text-violet-600 dark:text-violet-400 font-semibold uppercase tracking-wider">
+                <View className="ml-2 bg-emerald-100 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
+                  <Text className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold uppercase tracking-wider">
                     {typeLabel}
                   </Text>
                 </View>
@@ -210,7 +210,7 @@ export default function MessagesScreen() {
 
         {/* Unread Badge / Action Badge */}
         {isUnread && (
-          <View className="bg-violet-500 rounded-full w-5 h-5 justify-center items-center">
+          <View className="bg-primary-600 dark:bg-primary-500 rounded-full w-5 h-5 justify-center items-center shadow-sm shadow-emerald-600/30">
             <Text className="text-white text-[10px] font-black">{item.unreadCount}</Text>
           </View>
         )}
@@ -223,7 +223,7 @@ export default function MessagesScreen() {
   if (isLoadingConversations && conversations.length === 0) {
     return (
       <View className="flex-1 bg-white dark:bg-slate-950 justify-center items-center">
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color="#059669" />
         <Text className="text-slate-450 text-xs mt-3">Loading conversations...</Text>
       </View>
     );
@@ -257,8 +257,8 @@ export default function MessagesScreen() {
               <RefreshControl
                 refreshing={isRefreshing}
                 onRefresh={handleRefresh}
-                colors={['#8b5cf6']}
-                tintColor="#8b5cf6"
+                colors={['#059669']}
+                tintColor="#059669"
               />
             }
             ListEmptyComponent={
@@ -282,7 +282,7 @@ export default function MessagesScreen() {
             <View className="flex-1 justify-center items-center p-8 bg-slate-50 dark:bg-slate-950">
               <View className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-200/50 dark:border-slate-800/80 items-center max-w-sm shadow-xl">
                 <View className="w-16 h-16 rounded-3xl bg-primary-500/10 justify-center items-center mb-5">
-                  <MessageSquare size={30} color="#8b5cf6" />
+                  <MessageSquare size={30} color="#059669" />
                 </View>
                 <Text className="text-slate-900 dark:text-white font-black text-lg text-center">Your Inbox Dashboard</Text>
                 <Text className="text-slate-400 text-xs text-center mt-2 leading-relaxed">
@@ -322,8 +322,8 @@ export default function MessagesScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            colors={['#8b5cf6']}
-            tintColor="#8b5cf6"
+            colors={['#059669']}
+            tintColor="#059669"
           />
         }
         ListEmptyComponent={

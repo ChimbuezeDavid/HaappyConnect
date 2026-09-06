@@ -90,7 +90,7 @@ export default function WalletCallbackScreen() {
       <View style={[styles.card, { backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0' }]}>
         {status === 'verifying' && (
           <>
-            <ActivityIndicator size="large" color="#8b5cf6" style={styles.spinner} />
+            <ActivityIndicator size="large" color="#059669" style={styles.spinner} />
             <Text style={[styles.title, { color: textColor }]}>Verifying Deposit...</Text>
             <Text style={[styles.subtitle, { color: subTextColor }]}>Please do not close this window or navigate away.</Text>
           </>

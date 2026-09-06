@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api, setAuthToken, removeAuthToken } from '../lib/api';
+import { api, setAuthTokens, clearAuthTokens, getAuthToken, getRefreshToken } from '../lib/api';
 import { User, Profile } from '../types';
 
 // Lazy imports to avoid circular dependency — resolved at runtime
@@ -8,6 +8,7 @@ const getWalletStore = () => require('../store/walletStore').useWalletStore;
 
 interface AuthState {
   token: string | null;
+  refreshToken: string | null;
   user: User | null;
   profile: Profile | null;
   isGuest: boolean;
@@ -16,6 +17,14 @@ interface AuthState {
   
   signup: (email: string, password: string, role: 'seeker' | 'expert') => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  socialLogin: (payload: {
+    provider: 'google' | 'linkedin' | 'apple' | 'twitter';
+    email: string;
+    fullName?: string;
+    avatarUrl?: string;
+    providerId?: string;
+    role?: 'seeker' | 'expert';
+  }) => Promise<void>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
   setGuest: (isGuest: boolean) => void;
@@ -43,12 +52,13 @@ interface AuthState {
     categories?: string[];
     role?: 'seeker' | 'expert';
   }) => Promise<void>;
-  loginWithOAuth: (token: string, user: User, profile: Profile | null) => Promise<void>;
+  loginWithOAuth: (token: string, refreshToken: string | null, user: User, profile?: Profile | null) => Promise<void>;
   clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
+  refreshToken: null,
   user: null,
   profile: null,
   isGuest: false,
@@ -56,15 +66,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
 
   clearError: () => set({ error: null }),
-  setGuest: (isGuest) => set({ isGuest, token: null, user: null, profile: null }),
+  setGuest: (isGuest) => set({ isGuest, token: null, refreshToken: null, user: null, profile: null }),
 
   signup: async (email, password, role) => {
     set({ isLoading: true, error: null, isGuest: false });
     try {
       const data = await api.post('/auth/signup', { email, password, role });
-      await setAuthToken(data.token);
+      await setAuthTokens(data.token, data.refreshToken);
       set({
         token: data.token,
+        refreshToken: data.refreshToken || null,
         user: data.user,
         profile: null,
         isLoading: false,
@@ -79,9 +90,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null, isGuest: false });
     try {
       const data = await api.post('/auth/login', { email, password });
-      await setAuthToken(data.token);
+      await setAuthTokens(data.token, data.refreshToken);
       set({
         token: data.token,
+        refreshToken: data.refreshToken || null,
         user: data.user,
         profile: data.profile,
         isLoading: false,
@@ -92,12 +104,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  loginWithOAuth: async (token, user, profile = null) => {
+  socialLogin: async (payload) => {
     set({ isLoading: true, error: null, isGuest: false });
     try {
-      await setAuthToken(token);
+      const data = await api.post('/auth/social-login', payload);
+      await setAuthTokens(data.token, data.refreshToken);
+      set({
+        token: data.token,
+        refreshToken: data.refreshToken || null,
+        user: data.user,
+        profile: data.profile,
+        isLoading: false,
+      });
+    } catch (error: any) {
+      set({ error: error.message || 'Social sign-in failed', isLoading: false });
+      throw error;
+    }
+  },
+
+  loginWithOAuth: async (token, refreshToken, user, profile = null) => {
+    set({ isLoading: true, error: null, isGuest: false });
+    try {
+      await setAuthTokens(token, refreshToken || undefined);
       set({
         token,
+        refreshToken: refreshToken || null,
         user,
         profile,
       });
@@ -116,15 +147,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     set({ isLoading: true });
     try {
-      await removeAuthToken();
+      const currentRefresh = await getRefreshToken();
+      if (currentRefresh) {
+        api.post('/auth/logout', { refreshToken: currentRefresh }).catch(() => {});
+      }
+      await clearAuthTokens();
       set({
         token: null,
+        refreshToken: null,
         user: null,
         profile: null,
         isGuest: false,
         isLoading: false,
       });
-      // Tear down all dependent stores to prevent stale data between sessions
+      // Tear down dependent stores to prevent stale data between sessions
       try {
         const chatStore = getChatStore().getState();
         chatStore.disconnectSocket();
@@ -149,10 +185,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     } catch (error: any) {
-      // If loading fails, it might mean token expired
-      await removeAuthToken();
+      // If loading fails, clear invalid tokens
+      await clearAuthTokens();
       set({
         token: null,
+        refreshToken: null,
         user: null,
         profile: null,
         isGuest: false,

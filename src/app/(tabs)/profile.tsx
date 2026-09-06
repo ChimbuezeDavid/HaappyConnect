@@ -1,12 +1,48 @@
-import { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
 import { useAuthStore } from '@/store/authStore';
-import { LogOut, User, Sparkles, Mail, ShieldAlert, CalendarDays, Award, Camera, Image as ImageIcon, Check, X, FileText } from 'lucide-react-native';
+import {
+  LogOut,
+  User,
+  Sparkles,
+  Mail,
+  CalendarDays,
+  Camera,
+  Image as ImageIcon,
+  Check,
+  X,
+  FileText,
+  Wallet,
+  ShieldCheck,
+  Clock,
+  Banknote,
+  ChevronRight,
+  Headphones,
+  MessageSquare,
+  PhoneCall,
+  Lock,
+} from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SignInWall from '@/components/ui/SignInWall';
 import * as ImagePicker from 'expo-image-picker';
 import { useColorScheme } from 'nativewind';
 import { useThemeStore } from '@/store/themeStore';
+import AppScreen from '@/components/ui/AppScreen';
+import PasswordChangeModal from '@/components/profile/PasswordChangeModal';
 
 export default function ProfileScreen() {
   const { user, profile, logout, updateOnboarding, isGuest } = useAuthStore();
@@ -25,6 +61,10 @@ export default function ProfileScreen() {
   const { theme, setTheme } = useThemeStore();
   const isDark = colorScheme === 'dark';
 
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+
   useEffect(() => {
     if (profile) {
       setFullName(profile.fullName || '');
@@ -38,9 +78,10 @@ export default function ProfileScreen() {
     return <SignInWall />;
   }
 
+  const isExpert = user?.role === 'expert';
+
   const handleLogout = async () => {
     await logout();
-    // Redirect is handled reactively by _layout.tsx
   };
 
   const handlePickImage = async (useCamera: boolean) => {
@@ -101,195 +142,734 @@ export default function ProfileScreen() {
     }
   };
 
-  const isExpert = user?.role === 'expert';
+  const renderIdentityCard = () => (
+    <View
+      style={{
+        backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+        borderColor: isDark ? '#222D3D' : '#E7E1D8',
+        borderWidth: 1,
+        borderRadius: 24,
+        padding: 24,
+        alignItems: 'center',
+        marginBottom: 16,
+      }}
+    >
+      <View style={{ position: 'relative', marginBottom: 12 }}>
+        <Image
+          source={{
+            uri:
+              profile?.avatarUrl ||
+              `https://api.dicebear.com/7.x/adventurer/svg?seed=${profile?.fullName || 'user'}`,
+          }}
+          style={{
+            width: 92,
+            height: 92,
+            borderRadius: 46,
+            backgroundColor: isDark ? '#1B2430' : '#F3EFEA',
+            borderWidth: 3,
+            borderColor: isDark ? '#10B98130' : '#05966930',
+          }}
+        />
+        {!isExpert && (
+          <TouchableOpacity
+            onPress={() => setIsEditModalVisible(true)}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              right: 0,
+              backgroundColor: '#059669',
+              padding: 8,
+              borderRadius: 20,
+              borderWidth: 2,
+              borderColor: isDark ? '#131A22' : '#FFFFFF',
+            }}
+            accessibilityLabel="Change avatar"
+          >
+            <Camera size={13} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </View>
 
-  return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-955" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
-      <ScrollView className="flex-1 px-4 py-4 max-w-lg w-full self-center" contentContainerStyle={{ paddingBottom: 60 }}>
-        {/* 1. Profile Header Card */}
-        <View className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-6 items-center mb-5 shadow-sm dark:shadow-none">
-          <View className="relative mb-3">
-            <Image
-              source={{ uri: profile?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${profile?.fullName || 'user'}` }}
-              className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-primary-500/30 dark:border-primary-400/30"
-            />
-            {!isExpert && (
-              <TouchableOpacity
-                onPress={() => setIsEditModalVisible(true)}
-                className="absolute bottom-0 right-0 bg-primary-500 p-2 rounded-full border-2 border-white dark:border-slate-900 shadow-sm"
-              >
-                <Camera size={14} color="#fff" />
-              </TouchableOpacity>
-            )}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Text
+          style={{
+            fontSize: 20,
+            fontFamily: 'PlusJakartaSans_700Bold',
+            color: isDark ? '#F8FAFC' : '#0F172A',
+          }}
+        >
+          {profile?.fullName || 'My Account'}
+        </Text>
+        {isExpert && (
+          <View
+            style={{
+              backgroundColor: isDark ? '#10B98120' : '#05966915',
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: 8,
+            }}
+          >
+            <ShieldCheck size={14} color={isDark ? '#34D399' : '#059669'} />
           </View>
+        )}
+      </View>
 
-          <Text className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{profile?.fullName || 'User Profile'}</Text>
-          
-          <View className="flex-row items-center gap-2 mt-1.5">
-            <View className="bg-violet-500/10 dark:bg-violet-500/20 px-3 py-1 rounded-full border border-violet-500/20">
-              <Text className="text-violet-600 dark:text-violet-400 text-xs font-bold uppercase tracking-wider">
-                {user?.role} Account
+      {isExpert && profile?.headline ? (
+        <Text
+          style={{
+            fontSize: 13,
+            color: isDark ? '#94A3B8' : '#64748B',
+            textAlign: 'center',
+            marginTop: 4,
+            fontFamily: 'Inter_400Regular',
+          }}
+        >
+          {profile.headline}
+        </Text>
+      ) : null}
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+        <Mail size={12} color={isDark ? '#64748B' : '#94A3B8'} />
+        <Text
+          style={{
+            fontSize: 12,
+            color: isDark ? '#64748B' : '#94A3B8',
+            marginLeft: 6,
+            fontFamily: 'Inter_400Regular',
+          }}
+        >
+          {user?.email}
+        </Text>
+      </View>
+    </View>
+  );
+
+  const renderSecurityCard = () => (
+    <View
+      style={{
+        backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+        borderColor: isDark ? '#222D3D' : '#E7E1D8',
+        borderWidth: 1,
+        borderRadius: 20,
+        padding: 18,
+        marginBottom: 16,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 11,
+          fontFamily: 'PlusJakartaSans_700Bold',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          color: isDark ? '#64748B' : '#94A3B8',
+          marginBottom: 12,
+        }}
+      >
+        Security & Credentials
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => setIsPasswordModalVisible(true)}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor: isDark ? '#0B0F14' : '#F8FAFC',
+          borderColor: isDark ? '#222D3D' : '#E2E8F0',
+          borderWidth: 1,
+          borderRadius: 16,
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <View
+            style={{
+              backgroundColor: isDark ? '#10B98120' : '#05966915',
+              padding: 9,
+              borderRadius: 12,
+              marginRight: 12,
+            }}
+          >
+            <Lock size={16} color={isDark ? '#34D399' : '#059669'} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'PlusJakartaSans_600SemiBold',
+                color: isDark ? '#F8FAFC' : '#0F172A',
+              }}
+            >
+              Account Password
+            </Text>
+            <Text
+              style={{
+                fontSize: 11,
+                color: isDark ? '#64748B' : '#94A3B8',
+                marginTop: 2,
+                fontFamily: 'Inter_400Regular',
+              }}
+            >
+              Change password or reset via email code
+            </Text>
+          </View>
+        </View>
+        <ChevronRight size={16} color={isDark ? '#475569' : '#94A3B8'} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderThemeCard = () => (
+    <View
+      style={{
+        backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+        borderColor: isDark ? '#222D3D' : '#E7E1D8',
+        borderWidth: 1,
+        borderRadius: 20,
+        padding: 18,
+        marginBottom: 16,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 11,
+          fontFamily: 'PlusJakartaSans_700Bold',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          color: isDark ? '#64748B' : '#94A3B8',
+          marginBottom: 12,
+        }}
+      >
+        Appearance & Theme
+      </Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          backgroundColor: isDark ? '#0B0F14' : '#F3EFEA',
+          padding: 4,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: isDark ? '#222D3D' : '#E7E1D8',
+        }}
+      >
+        {(['system', 'light', 'dark'] as const).map((mode) => {
+          const isActive = theme === mode;
+          return (
+            <TouchableOpacity
+              key={mode}
+              onPress={() => setTheme(mode)}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 10,
+                borderRadius: 10,
+                backgroundColor: isActive ? '#059669' : 'transparent',
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: 'Inter_600SemiBold',
+                  fontSize: 12,
+                  textTransform: 'capitalize',
+                  color: isActive ? '#FFFFFF' : isDark ? '#94A3B8' : '#64748B',
+                }}
+              >
+                {mode}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+
+  const renderLogoutCard = () => (
+    <TouchableOpacity
+      onPress={handleLogout}
+      activeOpacity={0.75}
+      style={{
+        backgroundColor: isDark ? '#EF444415' : '#FEF2F2',
+        borderColor: isDark ? '#EF444430' : '#FECACA',
+        borderWidth: 1,
+        paddingVertical: 16,
+        borderRadius: 18,
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        minHeight: 52,
+        marginBottom: 16,
+      }}
+    >
+      <LogOut size={16} color="#EF4444" />
+      <Text
+        style={{
+          color: '#EF4444',
+          fontFamily: 'PlusJakartaSans_700Bold',
+          fontSize: 14,
+          marginLeft: 8,
+        }}
+      >
+        Log Out of HaappyConnect
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderManagementHub = () => (
+    isExpert ? (
+      /* EXPERT: Consultancy Suite Controls */
+      <View style={{ marginBottom: 16 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            fontFamily: 'PlusJakartaSans_700Bold',
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            color: isDark ? '#64748B' : '#94A3B8',
+            marginBottom: 10,
+            marginLeft: 4,
+          }}
+        >
+          Consultancy Suite
+        </Text>
+
+        {/* Edit Professional Listing */}
+        <TouchableOpacity
+          onPress={() => router.push('/expert/edit-profile')}
+          activeOpacity={0.7}
+          style={{
+            backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+            borderColor: isDark ? '#222D3D' : '#E7E1D8',
+            borderWidth: 1,
+            borderRadius: 18,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View
+              style={{
+                backgroundColor: isDark ? '#10B98120' : '#05966915',
+                padding: 10,
+                borderRadius: 12,
+                marginRight: 14,
+              }}
+            >
+              <Sparkles size={18} color={isDark ? '#34D399' : '#059669'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'PlusJakartaSans_600SemiBold',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                }}
+              >
+                Advisory Profile & Bio
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? '#64748B' : '#94A3B8',
+                  marginTop: 2,
+                  fontFamily: 'Inter_400Regular',
+                }}
+              >
+                Headline, specialties & background
               </Text>
             </View>
           </View>
-
-          <View className="flex-row items-center mt-3 text-slate-400">
-            <Mail size={13} color={isDark ? '#94a3b8' : '#64748b'} />
-            <Text className="text-slate-500 dark:text-slate-400 text-xs ml-1.5">{user?.email}</Text>
-          </View>
-        </View>
-
-        {/* 2. Management & Quick Actions Group */}
-        <View className="mb-5">
-          <Text className="text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-wider mb-2.5 ml-1">
-            Account Management
-          </Text>
-          
-          {isExpert ? (
-            <View className="space-y-3">
-              <TouchableOpacity
-                onPress={() => router.push('/expert/edit-profile')}
-                activeOpacity={0.75}
-                className="w-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl flex-row items-center justify-between shadow-sm dark:shadow-none mb-2.5"
-              >
-                <View className="flex-row items-center">
-                  <View className="bg-primary-500/10 p-2.5 rounded-xl mr-3">
-                    <Sparkles size={18} color="#8b5cf6" />
-                  </View>
-                  <View>
-                    <Text className="text-slate-900 dark:text-white font-bold text-sm">Edit Professional Listing</Text>
-                    <Text className="text-slate-400 dark:text-slate-500 text-xs mt-0.5">Headline, bio, categories & rates</Text>
-                  </View>
-                </View>
-                <Text className="text-slate-400 dark:text-slate-600 text-base font-bold">›</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => router.push('/expert/availability')}
-                activeOpacity={0.75}
-                className="w-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl flex-row items-center justify-between shadow-sm dark:shadow-none"
-              >
-                <View className="flex-row items-center">
-                  <View className="bg-emerald-500/10 p-2.5 rounded-xl mr-3">
-                    <CalendarDays size={18} color="#10b981" />
-                  </View>
-                  <View>
-                    <Text className="text-slate-900 dark:text-white font-bold text-sm">Live Call Availability</Text>
-                    <Text className="text-slate-400 dark:text-slate-500 text-xs mt-0.5">Set weekly slots & time zones</Text>
-                  </View>
-                </View>
-                <Text className="text-slate-400 dark:text-slate-600 text-base font-bold">›</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              onPress={() => setIsEditModalVisible(true)}
-              activeOpacity={0.75}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl flex-row items-center justify-between shadow-sm dark:shadow-none"
-            >
-              <View className="flex-row items-center">
-                <View className="bg-primary-500/10 p-2.5 rounded-xl mr-3">
-                  <Sparkles size={18} color="#8b5cf6" />
-                </View>
-                <View>
-                  <Text className="text-slate-900 dark:text-white font-bold text-sm">Edit Seeker Profile</Text>
-                  <Text className="text-slate-400 dark:text-slate-500 text-xs mt-0.5">Name, goals & communication style</Text>
-                </View>
-              </View>
-              <Text className="text-slate-400 dark:text-slate-600 text-base font-bold">›</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* 3. Profile Overview Summary */}
-        {isExpert && profile && (
-          <View className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-5 shadow-sm dark:shadow-none">
-            <Text className="text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-wider mb-3">
-              Listing Overview
-            </Text>
-            
-            <Text className="text-slate-900 dark:text-white font-bold text-xs uppercase tracking-wider mb-1">Headline</Text>
-            <Text className="text-slate-600 dark:text-slate-300 text-sm mb-3.5 leading-relaxed">{profile.headline || 'No headline set'}</Text>
-
-            <Text className="text-slate-900 dark:text-white font-bold text-xs uppercase tracking-wider mb-1">Bio</Text>
-            <Text className="text-slate-600 dark:text-slate-300 text-sm mb-4 leading-relaxed">{profile.bio || 'No biography set'}</Text>
-
-            <View className="border-t border-slate-100 dark:border-slate-800 pt-3">
-              <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2.5">Active Pricing</Text>
-              <View className="flex-row gap-2">
-                <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-850">
-                  <Text className="text-slate-400 text-[10px] uppercase font-bold">1:1 Call</Text>
-                  <Text className="text-slate-900 dark:text-white font-extrabold text-xs mt-0.5">₦{profile.hourlyRate}/hr</Text>
-                </View>
-                <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-850">
-                  <Text className="text-slate-400 text-[10px] uppercase font-bold">Written</Text>
-                  <Text className="text-slate-900 dark:text-white font-extrabold text-xs mt-0.5">₦{profile.textQuestionPrice}</Text>
-                </View>
-                <View className="flex-1 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-850">
-                  <Text className="text-slate-400 text-[10px] uppercase font-bold">Video</Text>
-                  <Text className="text-slate-900 dark:text-white font-extrabold text-xs mt-0.5">₦{profile.videoResponsePrice}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {!isExpert && profile && (
-          <View className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-5 shadow-sm dark:shadow-none">
-            <Text className="text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-wider mb-3">
-              Seeker Preferences
-            </Text>
-            
-            <Text className="text-slate-900 dark:text-white font-bold text-xs uppercase tracking-wider mb-1">Learning Goals</Text>
-            <Text className="text-slate-600 dark:text-slate-300 text-sm mb-3.5 leading-relaxed">{profile.goals || 'No specific goals set yet.'}</Text>
-
-            <Text className="text-slate-900 dark:text-white font-bold text-xs uppercase tracking-wider mb-1">Preferred Style</Text>
-            <Text className="text-slate-600 dark:text-slate-300 text-sm">{profile.communicationStyle || 'Any'}</Text>
-          </View>
-        )}
-
-        {/* 4. Appearance & Preferences Group */}
-        <View className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-5 shadow-sm dark:shadow-none">
-          <Text className="text-slate-400 dark:text-slate-500 text-[11px] font-black uppercase tracking-wider mb-3">
-            Appearance & Theme
-          </Text>
-          <View className="flex-row bg-slate-100 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-850">
-            {(['system', 'light', 'dark'] as const).map((mode) => {
-              const isActive = theme === mode;
-              return (
-                <TouchableOpacity
-                  key={mode}
-                  onPress={() => setTheme(mode)}
-                  className={`flex-1 items-center justify-center py-2.5 rounded-xl ${
-                    isActive ? 'bg-primary-500' : 'bg-transparent'
-                  }`}
-                >
-                  <Text
-                    className={`font-bold text-xs capitalize ${
-                      isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'
-                    }`}
-                  >
-                    {mode}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 5. Account Actions */}
-        <TouchableOpacity
-          onPress={handleLogout}
-          activeOpacity={0.75}
-          className="w-full bg-red-500/10 border border-red-500/20 py-4 rounded-2xl items-center flex-row justify-center mb-6"
-          style={{ minHeight: 52 }}
-        >
-          <LogOut size={16} color="#ef4444" />
-          <Text className="text-red-500 dark:text-red-400 font-extrabold text-sm ml-2">Log Out of Haappy-Connect</Text>
+          <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
         </TouchableOpacity>
-      </ScrollView>
 
-      {/* Seeker Edit Profile Modal */}
+        {/* Time Rates & Services (₦) */}
+        <View
+          style={{
+            backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+            borderColor: isDark ? '#222D3D' : '#E7E1D8',
+            borderWidth: 1,
+            borderRadius: 18,
+            padding: 16,
+            marginBottom: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <View
+              style={{
+                backgroundColor: isDark ? '#F59E0B20' : '#F59E0B15',
+                padding: 8,
+                borderRadius: 10,
+                marginRight: 10,
+              }}
+            >
+              <Banknote size={16} color="#F59E0B" />
+            </View>
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'PlusJakartaSans_600SemiBold',
+                color: isDark ? '#F8FAFC' : '#0F172A',
+              }}
+            >
+              Advisory Rates (Naira ₦)
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: isDark ? '#0B0F14' : '#FAF8F5',
+                borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 10,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <PhoneCall size={11} color={isDark ? '#34D399' : '#059669'} />
+                <Text style={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter_500Medium' }}>1:1 Call</Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Inter_600SemiBold',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                  marginTop: 4,
+                }}
+              >
+                ₦{profile?.hourlyRate || 0}/hr
+              </Text>
+            </View>
+
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: isDark ? '#0B0F14' : '#FAF8F5',
+                borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 10,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Headphones size={11} color="#F59E0B" />
+                <Text style={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter_500Medium' }}>Voice Note</Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Inter_600SemiBold',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                  marginTop: 4,
+                }}
+              >
+                ₦{profile?.videoResponsePrice || 0}
+              </Text>
+            </View>
+
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: isDark ? '#0B0F14' : '#FAF8F5',
+                borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 10,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <MessageSquare size={11} color="#60A5FA" />
+                <Text style={{ fontSize: 10, color: '#94A3B8', fontFamily: 'Inter_500Medium' }}>Written</Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: 'Inter_600SemiBold',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                  marginTop: 4,
+                }}
+              >
+                ₦{profile?.textQuestionPrice || 0}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Call Availability & Slots */}
+        <TouchableOpacity
+          onPress={() => router.push('/expert/availability')}
+          activeOpacity={0.7}
+          style={{
+            backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+            borderColor: isDark ? '#222D3D' : '#E7E1D8',
+            borderWidth: 1,
+            borderRadius: 18,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View
+              style={{
+                backgroundColor: isDark ? '#10B98120' : '#05966915',
+                padding: 10,
+                borderRadius: 12,
+                marginRight: 14,
+              }}
+            >
+              <CalendarDays size={18} color={isDark ? '#34D399' : '#059669'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'PlusJakartaSans_600SemiBold',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                }}
+              >
+                Office Hours & Availability
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? '#64748B' : '#94A3B8',
+                  marginTop: 2,
+                  fontFamily: 'Inter_400Regular',
+                }}
+              >
+                Weekly consultation booking slots
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
+        </TouchableOpacity>
+
+        {/* Wallet & Financial Receipts Shortcut for Experts */}
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/wallet')}
+          activeOpacity={0.7}
+          style={{
+            backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+            borderColor: isDark ? '#222D3D' : '#E7E1D8',
+            borderWidth: 1,
+            borderRadius: 18,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View
+              style={{
+                backgroundColor: isDark ? '#F59E0B20' : '#F59E0B15',
+                padding: 10,
+                borderRadius: 12,
+                marginRight: 14,
+              }}
+            >
+              <Wallet size={18} color="#F59E0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'PlusJakartaSans_600SemiBold',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                }}
+              >
+                Earnings Wallet & Payouts (₦)
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? '#64748B' : '#94A3B8',
+                  marginTop: 2,
+                  fontFamily: 'Inter_400Regular',
+                }}
+              >
+                Available balance, pending escrow & withdrawal
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
+        </TouchableOpacity>
+      </View>
+    ) : (
+      /* SEEKER: My Space & Growth Controls */
+      <View style={{ marginBottom: 16 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            fontFamily: 'PlusJakartaSans_700Bold',
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            color: isDark ? '#64748B' : '#94A3B8',
+            marginBottom: 10,
+            marginLeft: 4,
+          }}
+        >
+          My Learning Journey
+        </Text>
+
+        {/* Edit Goals & Ambitions */}
+        <TouchableOpacity
+          onPress={() => setIsEditModalVisible(true)}
+          activeOpacity={0.7}
+          style={{
+            backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+            borderColor: isDark ? '#222D3D' : '#E7E1D8',
+            borderWidth: 1,
+            borderRadius: 18,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View
+              style={{
+                backgroundColor: isDark ? '#10B98120' : '#05966915',
+                padding: 10,
+                borderRadius: 12,
+                marginRight: 14,
+              }}
+            >
+              <Sparkles size={18} color={isDark ? '#34D399' : '#059669'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'PlusJakartaSans_600SemiBold',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                }}
+              >
+                Learning Goals & Preferences
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? '#64748B' : '#94A3B8',
+                  marginTop: 2,
+                  fontFamily: 'Inter_400Regular',
+                }}
+              >
+                {profile?.goals ? profile.goals.slice(0, 42) + '...' : 'Define what you want to achieve'}
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
+        </TouchableOpacity>
+
+        {/* Wallet & Financial Receipts Shortcut */}
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/wallet')}
+          activeOpacity={0.7}
+          style={{
+            backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+            borderColor: isDark ? '#222D3D' : '#E7E1D8',
+            borderWidth: 1,
+            borderRadius: 18,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View
+              style={{
+                backgroundColor: isDark ? '#F59E0B20' : '#F59E0B15',
+                padding: 10,
+                borderRadius: 12,
+                marginRight: 14,
+              }}
+            >
+              <Wallet size={18} color="#F59E0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontFamily: 'PlusJakartaSans_600SemiBold',
+                  color: isDark ? '#F8FAFC' : '#0F172A',
+                }}
+              >
+                Naira Wallet & Receipts (₦)
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: isDark ? '#64748B' : '#94A3B8',
+                  marginTop: 2,
+                  fontFamily: 'Inter_400Regular',
+                }}
+              >
+                Deposit funds, view escrow & history
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
+        </TouchableOpacity>
+      </View>
+    )
+  );
+
+  return (
+    <AppScreen 
+      contentContainerStyle={{ 
+        paddingHorizontal: isDesktop ? 32 : 16, 
+        paddingVertical: 16, 
+        paddingBottom: 60,
+        maxWidth: isDesktop ? '100%' : 640,
+        alignSelf: 'center',
+        width: '100%' 
+      }}
+    >
+      {isDesktop ? (
+        <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start', width: '100%' }}>
+          {/* Left Column: Identity, Security, Theme, Logout */}
+          <View style={{ width: 360 }}>
+            {renderIdentityCard()}
+            {renderSecurityCard()}
+            {renderThemeCard()}
+            {renderLogoutCard()}
+          </View>
+
+          {/* Right Column: Consultancy Suite or Seeker Hub */}
+          <View style={{ flex: 1 }}>
+            {renderManagementHub()}
+          </View>
+        </View>
+      ) : (
+        <View>
+          {renderIdentityCard()}
+          {renderManagementHub()}
+          {renderSecurityCard()}
+          {renderThemeCard()}
+          {renderLogoutCard()}
+        </View>
+      )}
+
+      {/* Password Change / Recovery Modal */}
+      <PasswordChangeModal
+        visible={isPasswordModalVisible}
+        onClose={() => setIsPasswordModalVisible(false)}
+        userEmail={user?.email || ''}
+      />
+
+      {/* Seeker Edit Goals & Ambition Modal */}
       <Modal
         visible={isEditModalVisible}
         animationType="slide"
@@ -298,100 +878,242 @@ export default function ProfileScreen() {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="flex-1 bg-slate-50 dark:bg-slate-950"
+          style={{ flex: 1, backgroundColor: isDark ? '#0B0F14' : '#FAF8F5' }}
         >
-          <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ paddingBottom: 60 }}>
-            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl dark:shadow-none">
-              <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-xl font-bold text-slate-900 dark:text-white">Edit Profile</Text>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View
+              style={{
+                backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+                borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                borderWidth: 1,
+                borderRadius: 24,
+                padding: 22,
+              }}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontFamily: 'PlusJakartaSans_700Bold',
+                    color: isDark ? '#F8FAFC' : '#0F172A',
+                  }}
+                >
+                  Learning Space Settings
+                </Text>
                 <TouchableOpacity
                   onPress={() => setIsEditModalVisible(false)}
-                  className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 p-2 rounded-full"
+                  style={{
+                    backgroundColor: isDark ? '#0B0F14' : '#F3EFEA',
+                    padding: 8,
+                    borderRadius: 20,
+                  }}
                 >
-                  <X size={16} color="#ef4444" />
+                  <X size={16} color={isDark ? '#94A3B8' : '#64748B'} />
                 </TouchableOpacity>
               </View>
 
               {/* Profile Picture */}
-              <View className="items-center mb-6 mt-2">
-                <View className="relative mb-4">
-                  <View className="w-28 h-28 rounded-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 items-center justify-center overflow-hidden">
-                    {avatarUrl ? (
-                      <Image source={{ uri: avatarUrl }} className="w-full h-full" />
-                    ) : (
-                      <User size={40} color={isDark ? '#475569' : '#94a3b8'} />
-                    )}
-                  </View>
+              <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                <View
+                  style={{
+                    width: 96,
+                    height: 96,
+                    borderRadius: 48,
+                    backgroundColor: isDark ? '#0B0F14' : '#F3EFEA',
+                    borderWidth: 1,
+                    borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    marginBottom: 12,
+                  }}
+                >
+                  {avatarUrl ? (
+                    <Image source={{ uri: avatarUrl }} style={{ width: '100%', height: '100%' }} />
+                  ) : (
+                    <User size={36} color={isDark ? '#475569' : '#94A3B8'} />
+                  )}
                 </View>
 
-                <View className="flex-row space-x-2">
+                <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TouchableOpacity
                     onPress={() => handlePickImage(true)}
-                    className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-4 py-2.5 rounded-xl flex-row items-center mr-2"
+                    style={{
+                      backgroundColor: isDark ? '#0B0F14' : '#F3EFEA',
+                      borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                      borderWidth: 1,
+                      paddingHorizontal: 14,
+                      paddingVertical: 10,
+                      borderRadius: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}
                   >
-                    <Camera size={14} color="#8b5cf6" style={{ marginRight: 6 }} />
-                    <Text className="text-slate-800 dark:text-white text-xs font-bold">Take Photo</Text>
+                    <Camera size={14} color="#059669" style={{ marginRight: 6 }} />
+                    <Text style={{ color: isDark ? '#F8FAFC' : '#0F172A', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+                      Take Photo
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     onPress={() => handlePickImage(false)}
-                    className="bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-4 py-2.5 rounded-xl flex-row items-center"
+                    style={{
+                      backgroundColor: isDark ? '#0B0F14' : '#F3EFEA',
+                      borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                      borderWidth: 1,
+                      paddingHorizontal: 14,
+                      paddingVertical: 10,
+                      borderRadius: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}
                   >
-                    <ImageIcon size={14} color="#8b5cf6" style={{ marginRight: 6 }} />
-                    <Text className="text-slate-800 dark:text-white text-xs font-bold">From Gallery</Text>
+                    <ImageIcon size={14} color="#059669" style={{ marginRight: 6 }} />
+                    <Text style={{ color: isDark ? '#F8FAFC' : '#0F172A', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+                      From Gallery
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
               {/* Display Name */}
-              <View className="mb-4">
-                <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Display Name *</Text>
-                <View className="flex-row items-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3">
-                  <User size={18} color={isDark ? '#94a3b8' : '#64748b'} />
+              <View style={{ marginBottom: 16 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Inter_600SemiBold',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    color: isDark ? '#94A3B8' : '#64748B',
+                    marginBottom: 8,
+                  }}
+                >
+                  Full Name *
+                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: isDark ? '#0B0F14' : '#FAF8F5',
+                    borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                    borderWidth: 1,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                  }}
+                >
+                  <User size={18} color={isDark ? '#64748B' : '#94A3B8'} />
                   <TextInput
                     value={fullName}
                     onChangeText={setFullName}
-                    placeholder="Jane Doe"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
+                    placeholder="Enter your name"
+                    placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
+                    style={{
+                      flex: 1,
+                      color: isDark ? '#F8FAFC' : '#0F172A',
+                      marginLeft: 10,
+                      fontSize: 15,
+                      fontFamily: 'Inter_400Regular',
+                    }}
                   />
                 </View>
               </View>
 
-              {/* Goals Description */}
-              <View className="mb-4">
-                <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Learning Goals</Text>
-                <View className="flex-row items-start bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 h-28">
-                  <FileText size={18} color={isDark ? '#94a3b8' : '#64748b'} style={{ marginTop: 4 }} />
+              {/* Learning Goals */}
+              <View style={{ marginBottom: 16 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Inter_600SemiBold',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    color: isDark ? '#94A3B8' : '#64748B',
+                    marginBottom: 8,
+                  }}
+                >
+                  Learning Ambitions & Goals
+                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    backgroundColor: isDark ? '#0B0F14' : '#FAF8F5',
+                    borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                    borderWidth: 1,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    height: 110,
+                  }}
+                >
+                  <FileText size={18} color={isDark ? '#64748B' : '#94A3B8'} style={{ marginTop: 2 }} />
                   <TextInput
                     value={goals}
                     onChangeText={setGoals}
-                    placeholder="What are you hoping to achieve?"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+                    placeholder="What skills or advice are you seeking from mentors?"
+                    placeholderTextColor={isDark ? '#475569' : '#94A3B8'}
                     multiline
                     numberOfLines={4}
-                    className="flex-1 text-slate-900 dark:text-white ml-3 text-base h-full"
-                    style={{ textAlignVertical: 'top' }}
+                    style={{
+                      flex: 1,
+                      color: isDark ? '#F8FAFC' : '#0F172A',
+                      marginLeft: 10,
+                      fontSize: 14,
+                      fontFamily: 'Inter_400Regular',
+                      textAlignVertical: 'top',
+                      height: '100%',
+                    }}
                   />
                 </View>
               </View>
 
-              {/* Preferred Communication Style */}
-              <View className="mb-6">
-                <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Preferred Communication Style</Text>
-                <View className="flex-row bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 p-1.5 rounded-2xl">
+              {/* Communication Style */}
+              <View style={{ marginBottom: 24 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Inter_600SemiBold',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    color: isDark ? '#94A3B8' : '#64748B',
+                    marginBottom: 10,
+                  }}
+                >
+                  Preferred Consultation Format
+                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    backgroundColor: isDark ? '#0B0F14' : '#F3EFEA',
+                    borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                    borderWidth: 1,
+                    padding: 4,
+                    borderRadius: 14,
+                  }}
+                >
                   {(['Text', 'Voice', 'Video', 'Any'] as const).map((style) => (
                     <TouchableOpacity
                       key={style}
                       onPress={() => setCommunicationStyle(style)}
-                      className={`flex-1 items-center justify-center py-3 rounded-xl ${
-                        communicationStyle === style ? 'bg-primary-500' : 'bg-transparent'
-                      }`}
+                      style={{
+                        flex: 1,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        backgroundColor: communicationStyle === style ? '#059669' : 'transparent',
+                      }}
                     >
                       <Text
-                        className={`font-semibold text-xs ${
-                          communicationStyle === style ? 'text-white' : 'text-slate-600 dark:text-slate-400'
-                        }`}
+                        style={{
+                          fontSize: 12,
+                          fontFamily: 'Inter_600SemiBold',
+                          color: communicationStyle === style ? '#FFFFFF' : isDark ? '#94A3B8' : '#64748B',
+                        }}
                       >
                         {style}
                       </Text>
@@ -404,18 +1126,34 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 onPress={handleSave}
                 disabled={isSaving}
-                className="w-full py-4 bg-primary-500 rounded-2xl flex-row justify-center items-center shadow-lg shadow-primary-500"
+                activeOpacity={0.7}
+                style={{
+                  width: '100%',
+                  paddingVertical: 16,
+                  backgroundColor: '#059669',
+                  borderRadius: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
                 {isSaving ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text className="text-white font-bold text-base">Save Changes</Text>
+                  <Text
+                    style={{
+                      color: '#FFFFFF',
+                      fontSize: 16,
+                      fontFamily: 'PlusJakartaSans_700Bold',
+                    }}
+                  >
+                    Save Changes
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </AppScreen>
   );
 }

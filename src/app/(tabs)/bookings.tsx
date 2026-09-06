@@ -10,6 +10,7 @@ import SignInWall from '@/components/ui/SignInWall';
 import { useColorScheme } from 'nativewind';
 import SubmitReviewModal from '@/components/review/SubmitReviewModal';
 import { useChatStore } from '@/store/chatStore';
+import { requestAudioPermission } from '@/services/permissions';
 
 export default function BookingsScreen() {
   const { user, token, isGuest } = useAuthStore();
@@ -59,49 +60,35 @@ export default function BookingsScreen() {
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
 
   // Audio recording states
-  const [recording, setRecording] = useState<any>(null);
+  const [recorder, setRecorder] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
-  const [sound, setSound] = useState<any>(null);
+  const [player, setPlayer] = useState<any>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
-
-  const getAudioModule = () => {
-    try {
-      return require('expo-av').Audio;
-    } catch (e) {
-      console.warn('[Audio] Failed to load expo-av Audio module:', e);
-      return null;
-    }
-  };
 
   useEffect(() => {
     return () => {
-      if (sound) {
-        sound.unloadAsync();
+      if (player) {
+        player.release?.();
       }
     };
-  }, [sound]);
+  }, [player]);
 
   const startRecording = async () => {
-    const AudioModule = getAudioModule();
-    if (!AudioModule) {
-      Alert.alert('Audio Recording Unavailable', 'Native Audio modules are not supported in your current Expo Go client. Please use a development build.');
-      return;
-    }
     try {
-      const { status } = await AudioModule.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Microphone access is required to record audio.');
+      const granted = await requestAudioPermission();
+      if (!granted) {
         return;
       }
-      await AudioModule.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      const { AudioRecorder, RecordingPresets, setAudioModeAsync } = require('expo-audio');
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
-      const newRecording = new AudioModule.Recording();
-      await newRecording.prepareToRecordAsync(AudioModule.RecordingOptionsPresets.HIGH_QUALITY);
-      await newRecording.startAsync();
-      setRecording(newRecording);
+      const newRecorder = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
+      await newRecorder.prepareToRecordAsync();
+      newRecorder.record();
+      setRecorder(newRecorder);
       setIsRecording(true);
       setRecordedUri(null);
     } catch (err) {
@@ -112,10 +99,10 @@ export default function BookingsScreen() {
 
   const stopRecording = async () => {
     try {
-      if (!recording) return;
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecording(null);
+      if (!recorder) return;
+      await recorder.stop();
+      const uri = recorder.uri;
+      setRecorder(null);
       setIsRecording(false);
       setRecordedUri(uri);
     } catch (err) {
@@ -125,28 +112,25 @@ export default function BookingsScreen() {
   };
 
   const playPreview = async () => {
-    const AudioModule = getAudioModule();
-    if (!AudioModule) return;
     try {
       if (!recordedUri) return;
-      if (isPlayingPreview && sound) {
-        await sound.pauseAsync();
+      const { createAudioPlayer } = require('expo-audio');
+      if (isPlayingPreview && player) {
+        player.pause();
         setIsPlayingPreview(false);
-      } else if (sound) {
-        await sound.playAsync();
+      } else if (player) {
+        player.play();
         setIsPlayingPreview(true);
       } else {
-        const { sound: newSound } = await AudioModule.Sound.createAsync(
-          { uri: recordedUri },
-          { shouldPlay: true }
-        );
-        setSound(newSound);
-        setIsPlayingPreview(true);
-        newSound.setOnPlaybackStatusUpdate((status: any) => {
-          if (status.isLoaded && !status.isPlaying && status.positionMillis === status.durationMillis) {
+        const newPlayer = createAudioPlayer(recordedUri);
+        setPlayer(newPlayer);
+        newPlayer.addListener('playbackStatusUpdate', (status: any) => {
+          if (!status.playing && status.currentTime >= status.duration && status.duration > 0) {
             setIsPlayingPreview(false);
           }
         });
+        newPlayer.play();
+        setIsPlayingPreview(true);
       }
     } catch (err) {
       console.error('Preview error', err);
@@ -278,9 +262,9 @@ export default function BookingsScreen() {
       setAnsweringQuestionId(null);
       setAnswerText('');
       setRecordedUri(null);
-      if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
+      if (player) {
+        player.release?.();
+        setPlayer(null);
       }
       fetchData();
     } catch (err: any) {
@@ -293,9 +277,9 @@ export default function BookingsScreen() {
   const isExpert = user?.role === 'expert';
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-955 max-w-2xl w-full self-center" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
+    <View className={`flex-1 w-full ${isDesktop ? 'px-8' : 'max-w-2xl self-center px-4'}`} style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       {/* Tab Switcher */}
-      <View className="flex-row mx-4 my-4 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
+      <View className={`flex-row my-4 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none ${isDesktop ? 'max-w-sm' : 'mx-4'}`}>
         <TouchableOpacity
           onPress={() => setActiveTab('calls')}
           className={`flex-1 flex-row items-center justify-center py-3 rounded-xl ${
@@ -324,12 +308,13 @@ export default function BookingsScreen() {
       {/* Main Content Area */}
       {isLoading ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color="#059669" />
         </View>
       ) : (
         <ScrollView
-          className="flex-1 px-4"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />}
+          className={`flex-1 ${isDesktop ? '' : 'px-4'}`}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />}
         >
           {activeTab === 'calls' ? (
             /* LIVE CALLS LIST */
@@ -339,14 +324,15 @@ export default function BookingsScreen() {
                 <Text className="text-slate-500 dark:text-slate-400 text-base mt-3">No live calls scheduled yet</Text>
               </View>
             ) : (
-              bookings.map((booking) => {
+              <View className={isDesktop ? "flex-row flex-wrap justify-between" : ""}>
+              {bookings.map((booking) => {
                 const isCurrentUserExpert = booking.expert === user?.id || (booking.expert as any)?._id === user?.id || (booking.expert as any)?.id === user?.id;
                 const isCurrentUserSeeker = booking.seeker === user?.id || (booking.seeker as any)?._id === user?.id || (booking.seeker as any)?.id === user?.id;
                 const partnerName = isCurrentUserExpert ? booking.seekerProfile?.fullName : booking.expertProfile?.fullName;
                 const formattedDate = new Date(booking.scheduledAt).toLocaleString();
 
                 return (
-                  <View key={booking._id} className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
+                  <View key={booking._id} style={isDesktop ? { width: '49%' } : undefined} className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
                     {/* Header Row: Partner Name, Role Badge, Status Badge */}
                     <View className="flex-row justify-between items-start mb-3.5">
                       <View className="flex-1 mr-2">
@@ -354,16 +340,10 @@ export default function BookingsScreen() {
                           <Text className="text-slate-900 dark:text-white font-extrabold text-base tracking-tight">{partnerName}</Text>
                           {isExpert && (
                             <View
-                              className={`px-2 py-0.5 rounded-full border ${
-                                isCurrentUserExpert
-                                  ? 'bg-violet-500/10 border-violet-500/20'
-                                  : 'bg-emerald-500/10 border-emerald-500/20'
-                              }`}
+                              className="px-2 py-0.5 rounded-full border bg-emerald-500/10 border-emerald-500/20"
                             >
                               <Text
-                                className={`text-[10px] font-black uppercase ${
-                                  isCurrentUserExpert ? 'text-violet-600 dark:text-violet-400' : 'text-emerald-600 dark:text-emerald-400'
-                                }`}
+                                className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400"
                               >
                                 {isCurrentUserExpert ? 'Client Request' : 'My Booking'}
                               </Text>
@@ -518,6 +498,8 @@ export default function BookingsScreen() {
                   </View>
                 );
               })
+              }
+              </View>
             )
           ) : (
             /* WRITTEN QUESTIONS LIST */
@@ -527,14 +509,15 @@ export default function BookingsScreen() {
                 <Text className="text-slate-500 dark:text-slate-400 text-base mt-3">No questions submitted yet</Text>
               </View>
             ) : (
-              questions.map((question) => {
+              <View className={isDesktop ? "flex-row flex-wrap justify-between" : ""}>
+              {questions.map((question) => {
                 const isCurrentUserExpert = question.expert === user?.id || (question.expert as any)?._id === user?.id || (question.expert as any)?.id === user?.id;
                 const isCurrentUserSeeker = question.seeker === user?.id || (question.seeker as any)?._id === user?.id || (question.seeker as any)?.id === user?.id;
                 const partnerName = isCurrentUserExpert ? question.seekerProfile?.fullName : question.expertProfile?.fullName;
                 const datePosted = new Date(question.createdAt).toLocaleDateString();
 
                 return (
-                  <View key={question._id} className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
+                  <View key={question._id} style={isDesktop ? { width: '49%' } : undefined} className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
                     {/* Header Row: Partner Name, Role Badge, Status Badge */}
                     <View className="flex-row justify-between items-start mb-3.5">
                       <View className="flex-1 mr-2">
@@ -542,16 +525,10 @@ export default function BookingsScreen() {
                           <Text className="text-slate-900 dark:text-white font-extrabold text-base tracking-tight">{partnerName}</Text>
                           {isExpert && (
                             <View
-                              className={`px-2 py-0.5 rounded-full border ${
-                                isCurrentUserExpert
-                                  ? 'bg-violet-500/10 border-violet-500/20'
-                                  : 'bg-emerald-500/10 border-emerald-500/20'
-                              }`}
+                              className="px-2 py-0.5 rounded-full border bg-emerald-500/10 border-emerald-500/20"
                             >
                               <Text
-                                className={`text-[10px] font-black uppercase ${
-                                  isCurrentUserExpert ? 'text-violet-600 dark:text-violet-400' : 'text-emerald-600 dark:text-emerald-400'
-                                }`}
+                                className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400"
                               >
                                 {isCurrentUserExpert ? 'Client Request' : 'My Question'}
                               </Text>
@@ -728,7 +705,7 @@ export default function BookingsScreen() {
                                   }}
                                   className="bg-primary-500/10 border border-primary-500/20 px-5 py-3 rounded-xl flex-row items-center"
                                 >
-                                  <Volume2 size={16} color="#8b5cf6" style={{ marginRight: 6 }} />
+                                  <Volume2 size={16} color="#059669" style={{ marginRight: 6 }} />
                                   <Text className="text-primary-600 dark:text-primary-400 font-bold text-xs">
                                     {recordedUri ? 'Change Media File' : 'Select Media File'}
                                   </Text>
@@ -770,9 +747,9 @@ export default function BookingsScreen() {
                                       <TouchableOpacity
                                         onPress={() => {
                                           setRecordedUri(null);
-                                          if (sound) {
-                                            sound.unloadAsync();
-                                            setSound(null);
+                                          if (player) {
+                                            player.release?.();
+                                            setPlayer(null);
                                           }
                                         }}
                                         className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 items-center justify-center"
@@ -802,9 +779,9 @@ export default function BookingsScreen() {
                               setAnsweringQuestionId(null);
                               setAnswerText('');
                               setRecordedUri(null);
-                              if (sound) {
-                                sound.unloadAsync();
-                                setSound(null);
+                              if (player) {
+                                player.release?.();
+                                setPlayer(null);
                               }
                             }}
                             className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-850 border border-slate-300 dark:border-slate-800 mr-2"
@@ -828,6 +805,8 @@ export default function BookingsScreen() {
                   </View>
                 );
               })
+              }
+              </View>
             )
           )}
         </ScrollView>

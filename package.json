@@ -56,6 +56,8 @@
   "scripts": {
     "start": "expo start",
     "start:dev": "expo start --dev-client",
+    "build": "expo export -p web",
+    "build:web": "expo export -p web",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "build:dev:android": "eas build --profile development --platform android",

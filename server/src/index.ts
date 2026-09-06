@@ -12,6 +12,7 @@ import { startExpirationScheduler } from './utils/scheduler';
 // Import models
 import { Conversation } from './models/Conversation';
 import { Message } from './models/Message';
+import { Category } from './models/Category';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -290,10 +291,38 @@ const maskedUri = MONGODB_URI.includes('@')
   : MONGODB_URI;
 console.log(`[Database] Attempting connection to: ${maskedUri}`);
 
+const OFFICIAL_CATEGORIES = [
+  { name: 'Technology & AI', slug: 'tech-ai', icon: 'code', description: 'Software engineering, AI systems, mobile development, tech stack design' },
+  { name: 'Business & Entrepreneurship', slug: 'business-entrepreneurship', icon: 'briefcase', description: 'Fundraising, pitch decks, product market fit, strategy, startups' },
+  { name: 'Marketing & Sales', slug: 'marketing-sales', icon: 'trending-up', description: 'SEO, digital advertising, brand identity, user acquisition, growth hacking' },
+  { name: 'Finance & Investment', slug: 'finance-investment', icon: 'dollar-sign', description: 'Wealth management, investing strategies, tax structures' },
+  { name: 'Health & Wellness', slug: 'health-wellness', icon: 'activity', description: 'Custom nutrition, workout planning, sleep optimization, mindfulness' },
+  { name: 'Career Development', slug: 'career-development', icon: 'graduation-cap', description: 'Resume building, interview prep, salary negotiation, career pivots' },
+  { name: 'Personal Development', slug: 'personal-development', icon: 'smile', description: 'Life coaching, productivity, goal setting, mindset' },
+  { name: 'Legal Services', slug: 'legal', icon: 'scale', description: 'Contracts, intellectual property, corporate structuring, legal guidance' },
+  { name: 'Design & Creative', slug: 'design-creative', icon: 'palette', description: 'UI/UX design, graphic design, branding, creative direction' },
+  { name: 'Education & Academics', slug: 'education-academics', icon: 'book', description: 'Tutoring, college applications, academic research, test prep' },
+  { name: 'Real Estate', slug: 'real-estate', icon: 'home', description: 'Property investing, buying/selling strategies, property management' },
+  { name: 'Writing & Content', slug: 'writing-content', icon: 'pen-tool', description: 'Copywriting, content creation, social media content, editing' }
+];
+
 mongoose
   .connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('Successfully connected to MongoDB');
+
+    // Auto-seed categories if empty in newly connected database
+    try {
+      const catCount = await Category.countDocuments();
+      if (catCount === 0) {
+        console.log('[Database] Auto-seeding 12 official categories into database...');
+        await Category.insertMany(OFFICIAL_CATEGORIES);
+        console.log('[Database] Seeded 12 official categories successfully.');
+      }
+    } catch (catErr: any) {
+      console.error('[Database] Category seed check error:', catErr?.message || catErr);
+    }
+
     startExpirationScheduler();
     httpServer.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);

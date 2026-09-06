@@ -404,7 +404,8 @@ router.get('/google', (req, res) => {
   }
 
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    const callbackUrl = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback';
+    const defaultCallback = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+    const callbackUrl = process.env.GOOGLE_REDIRECT_URI || defaultCallback;
 
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + 
       `client_id=${process.env.GOOGLE_CLIENT_ID.trim()}&` + 
@@ -448,9 +449,9 @@ router.get('/google/callback', async (req, res) => {
       return res.status(400).send('Authentication code or state missing');
     }
 
-    const host = req.get('host') || 'localhost:3000';
+    const defaultCallback = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+    const callbackUrl = process.env.GOOGLE_REDIRECT_URI || defaultCallback;
     const tokenUrl = 'https://oauth2.googleapis.com/token';
-    const callbackUrl = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback';
 
     const tokenRes = await fetch(tokenUrl, {
       method: 'POST',

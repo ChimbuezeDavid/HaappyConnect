@@ -45,29 +45,29 @@ export default function SignInWall() {
         {/* Icon */}
         <View
           style={{
-            backgroundColor: '#8b5cf620',
+            backgroundColor: '#05966920',
             padding: 20,
             borderRadius: 999,
             borderWidth: 1,
-            borderColor: '#8b5cf630',
+            borderColor: '#05966930',
             marginBottom: 24,
             position: 'relative',
           }}
         >
-          <Lock size={36} color="#8b5cf6" />
+          <Lock size={36} color="#059669" />
           <View
             style={{
               position: 'absolute',
               top: -4,
               right: -4,
-              backgroundColor: '#8b5cf625',
+              backgroundColor: '#05966925',
               padding: 4,
               borderRadius: 999,
               borderWidth: 1,
-              borderColor: '#8b5cf630',
+              borderColor: '#05966930',
             }}
           >
-            <Sparkles size={14} color="#a78bfa" />
+            <Sparkles size={14} color="#34d399" />
           </View>
         </View>
 
@@ -109,7 +109,7 @@ export default function SignInWall() {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: '#8b5cf6',
+              backgroundColor: '#059669',
               paddingVertical: 16,
               paddingHorizontal: 24,
               borderRadius: 16,

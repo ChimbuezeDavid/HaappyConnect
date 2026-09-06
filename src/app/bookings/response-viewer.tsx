@@ -47,42 +47,25 @@ export default function ResponseViewerScreen() {
       if (!expertResponseUrl || type === 'text') return;
       setLoadingAudio(true);
       try {
-        let AudioModule;
-        try {
-          AudioModule = require('expo-av').Audio;
-        } catch (e) {
-          console.warn('[Audio] Failed to load expo-av Audio module:', e);
-          setLoadingAudio(false);
-          return;
-        }
-
-        await AudioModule.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-        });
-
-        const { sound: newSound } = await AudioModule.Sound.createAsync(
-          { uri: expertResponseUrl },
-          { shouldPlay: false },
-          (status: any) => {
-            if (status.isLoaded && isMounted) {
-              const pos = status.positionMillis || 0;
-              const dur = status.durationMillis || 1;
-              setProgress(pos / dur);
-              setCurrentTime(formatTime(pos));
-              setDuration(formatTime(dur));
-              
-              if (status.didJustFinish) {
-                setIsPlaying(false);
-                setProgress(0);
-                setCurrentTime('0:00');
-              }
+        const { createAudioPlayer } = require('expo-audio');
+        const newPlayer = createAudioPlayer(expertResponseUrl);
+        newPlayer.addListener('playbackStatusUpdate', (status: any) => {
+          if (isMounted) {
+            const pos = (status.currentTime || 0) * 1000;
+            const dur = (status.duration || 1) * 1000;
+            setProgress(dur > 0 ? pos / dur : 0);
+            setCurrentTime(formatTime(pos));
+            setDuration(formatTime(dur));
+            
+            if (!status.playing && status.currentTime >= status.duration && status.duration > 0) {
+              setIsPlaying(false);
+              setProgress(0);
+              setCurrentTime('0:00');
             }
           }
-        );
-
-        soundRef.current = newSound;
-        setSound(newSound);
+        });
+        soundRef.current = newPlayer;
+        setSound(newPlayer);
       } catch (err) {
         console.error('Failed to load expert response audio', err);
       } finally {
@@ -95,23 +78,23 @@ export default function ResponseViewerScreen() {
     return () => {
       isMounted = false;
       if (soundRef.current) {
-        soundRef.current.unloadAsync();
+        soundRef.current.release?.();
       }
     };
   }, [expertResponseUrl]);
 
-  const handlePlayToggle = async () => {
+  const handlePlayToggle = () => {
     try {
       if (!sound) return;
       if (isPlaying) {
-        await sound.pauseAsync();
+        sound.pause();
         setIsPlaying(false);
       } else {
         if (progress >= 0.99) {
-          await sound.setPositionAsync(0);
+          sound.seekTo?.(0);
           setProgress(0);
         }
-        await sound.playAsync();
+        sound.play();
         setIsPlaying(true);
       }
     } catch (err) {
@@ -119,14 +102,14 @@ export default function ResponseViewerScreen() {
     }
   };
 
-  const handleRestart = async () => {
+  const handleRestart = () => {
     try {
       if (!sound) return;
-      await sound.setPositionAsync(0);
+      sound.seekTo?.(0);
       setProgress(0);
       setCurrentTime('0:00');
       if (isPlaying) {
-        await sound.playAsync();
+        sound.play();
       }
     } catch (err) {
       console.error('Restart error', err);
@@ -145,9 +128,9 @@ export default function ResponseViewerScreen() {
             {/* Background Accent */}
             <View className="absolute inset-0 bg-primary-500/5 items-center justify-center">
               {type === 'video' ? (
-                <Video size={72} color="#8b5cf6" style={{ opacity: 0.15 }} />
+                <Video size={72} color="#059669" style={{ opacity: 0.15 }} />
               ) : (
-                <Volume2 size={72} color="#8b5cf6" style={{ opacity: 0.15 }} />
+                <Volume2 size={72} color="#059669" style={{ opacity: 0.15 }} />
               )}
             </View>
 
@@ -164,7 +147,7 @@ export default function ResponseViewerScreen() {
             {/* Playback Controls Overlay Overlay */}
             <View className="items-center justify-center z-10 my-4">
               {loadingAudio ? (
-                <ActivityIndicator size="large" color="#8b5cf6" />
+                <ActivityIndicator size="large" color="#059669" />
               ) : !expertResponseUrl ? (
                 <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">No Audio Advice Available</Text>
               ) : (
@@ -207,7 +190,7 @@ export default function ResponseViewerScreen() {
           <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Advice Details</Text>
           <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-6 shadow-sm dark:shadow-none">
             <View className="flex-row items-center mb-3">
-              <Sparkles size={16} color="#8b5cf6" />
+              <Sparkles size={16} color="#059669" />
               <Text className="text-slate-900 dark:text-white font-bold text-sm ml-2">Expert Transcript</Text>
             </View>
             <Text className="text-slate-700 dark:text-slate-350 text-sm leading-relaxed">

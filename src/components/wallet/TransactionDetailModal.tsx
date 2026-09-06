@@ -146,7 +146,7 @@ export default function TransactionDetailModal({ visible, onClose, transaction }
               {transaction.metadata && transaction.metadata.bankName && (
                 <View className="bg-slate-50 dark:bg-slate-955 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 mt-4">
                   <View className="flex-row items-center mb-2.5">
-                    <Info size={14} color="#8b5cf6" />
+                    <Info size={14} color="#059669" />
                     <Text className="text-xs font-extrabold text-primary-500 uppercase tracking-wider ml-1.5">
                       Payout Bank Details
                     </Text>

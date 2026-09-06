@@ -39,6 +39,7 @@ export interface Profile {
   visibility?: 'Public' | 'Private';
   ratingAverage: number;
   reviewsCount: number;
+  isVerified?: boolean;
   createdAt: string;
   updatedAt: string;
 }

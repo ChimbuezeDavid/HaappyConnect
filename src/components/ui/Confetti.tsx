@@ -4,12 +4,12 @@ import { View, Animated, StyleSheet, Dimensions } from 'react-native';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const CONFETTI_COLORS = [
-  '#8b5cf6', // violet
-  '#ec4899', // pink
+  '#059669', // emerald dark
+  '#10b981', // emerald mint
+  '#f59e0b', // amber gold
+  '#d97706', // warm amber
   '#3b82f6', // blue
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#ef4444', // red
+  '#065f46', // deep emerald
 ];
 
 interface Particle {

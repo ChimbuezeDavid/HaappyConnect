@@ -25,4 +25,7 @@ const BookingSchema = new Schema<IBooking>(
   { timestamps: true }
 );
 
+BookingSchema.index({ expert: 1, status: 1, scheduledAt: 1 });
+BookingSchema.index({ seeker: 1, status: 1 });
+
 export const Booking = model<IBooking>('Booking', BookingSchema);

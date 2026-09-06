@@ -25,6 +25,7 @@ export interface IProfile extends Document {
   categories: Types.ObjectId[];
   ratingAverage: number;
   reviewsCount: number;
+  isVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,8 +56,13 @@ const ProfileSchema = new Schema<IProfile>(
     categories: [{ type: Schema.Types.ObjectId, ref: 'Category' }],
     ratingAverage: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
+    isVerified: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
+
+ProfileSchema.index({ ratingAverage: -1, reviewsCount: -1 });
+ProfileSchema.index({ isVerified: 1, createdAt: -1 });
+ProfileSchema.index({ categories: 1 });
 
 export const Profile = model<IProfile>('Profile', ProfileSchema);

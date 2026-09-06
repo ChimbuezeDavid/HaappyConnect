@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { Camera } from 'expo-camera';
-import { requestRecordingPermissionsAsync } from 'expo-audio';
 import { PhoneOff, VideoOff, MicOff, AlertCircle } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
+import { requestCameraPermission, requestAudioPermission } from '@/services/permissions';
 
 // Animated pulsing timer component (replaces NativeWind animate-pulse which crashes via css-interop)
 function PulsingTimer({ text, color }: { text: string; color: string }) {
@@ -70,10 +70,10 @@ export default function CallScreen() {
         setHasAudioPermission(true);
         return;
       }
-      const cameraStatus = await Camera.requestCameraPermissionsAsync();
-      setHasCameraPermission(cameraStatus.granted);
-      const audioStatus = await requestRecordingPermissionsAsync();
-      setHasAudioPermission(audioStatus.granted);
+      const cameraGranted = await requestCameraPermission();
+      setHasCameraPermission(cameraGranted);
+      const audioGranted = await requestAudioPermission();
+      setHasAudioPermission(audioGranted);
     };
 
     requestPermissions();
@@ -160,8 +160,8 @@ export default function CallScreen() {
   if (hasCameraPermission === null || hasAudioPermission === null) {
     return (
       <View className="flex-1 bg-slate-950 justify-center items-center">
-        <ActivityIndicator size="large" color="#8b5cf6" />
-        <Text className="text-slate-400 text-xs mt-3">Initializing calling environment...</Text>
+        <ActivityIndicator size="large" color="#059669" />
+        <Text className="text-slate-400 text-xs mt-3">Initializing consultation calling environment...</Text>
       </View>
     );
   }
@@ -172,18 +172,18 @@ export default function CallScreen() {
         <AlertCircle size={48} color="#ef4444" />
         <Text className="text-white font-extrabold text-lg mt-4 text-center">Permissions Required</Text>
         <Text className="text-slate-400 text-sm mt-2 text-center leading-relaxed">
-          Haappy-Connect requires camera and microphone permissions to conduct in-app live consultations. Please enable them in your device settings.
+          HaappyConnect requires camera and microphone permissions to conduct in-app live consultations.
         </Text>
         <TouchableOpacity
           onPress={async () => {
-            const cameraStatus = await Camera.requestCameraPermissionsAsync();
-            setHasCameraPermission(cameraStatus.granted);
-            const audioStatus = await requestRecordingPermissionsAsync();
-            setHasAudioPermission(audioStatus.granted);
+            const cameraGranted = await requestCameraPermission();
+            setHasCameraPermission(cameraGranted);
+            const audioGranted = await requestAudioPermission();
+            setHasAudioPermission(audioGranted);
           }}
           className="mt-6 bg-primary-500 py-3.5 px-8 rounded-2xl"
         >
-          <Text className="text-white font-bold text-sm">Retry Granting Access</Text>
+          <Text className="text-white font-bold text-sm">Grant Camera & Mic Access</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );

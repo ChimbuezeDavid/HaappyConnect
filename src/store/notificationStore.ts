@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export interface AppNotification {
   id: string;
-  type: 'new_question' | 'question_answered' | 'question_declined' | 'new_booking' | 'booking_confirmed' | 'booking_cancelled' | 'booking_completed' | 'deposit_verified';
+  type: 'new_question' | 'question_answered' | 'question_declined' | 'new_booking' | 'booking_confirmed' | 'booking_cancelled' | 'booking_completed' | 'deposit_verified' | 'system';
   title: string;
   body: string;
   data?: Record<string, any>;

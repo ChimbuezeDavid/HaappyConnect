@@ -59,8 +59,9 @@ const getBaseUrl = () => {
 
 export const API_URL = getBaseUrl();
 const TOKEN_KEY = 'haappyconnect_jwt_token';
+const REFRESH_TOKEN_KEY = 'haappyconnect_refresh_token';
 
-// Retrieve token from secure storage
+// Retrieve access token from secure storage
 export const getAuthToken = async (): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
@@ -73,7 +74,7 @@ export const getAuthToken = async (): Promise<string | null> => {
   }
 };
 
-// Set token in secure storage
+// Set access token in secure storage
 export const setAuthToken = async (token: string): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
@@ -86,7 +87,41 @@ export const setAuthToken = async (token: string): Promise<void> => {
   }
 };
 
-// Remove token from secure storage
+// Retrieve refresh token from secure storage
+export const getRefreshToken = async (): Promise<string | null> => {
+  try {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(REFRESH_TOKEN_KEY);
+    }
+    return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+  } catch (error) {
+    console.error('Error reading refresh token', error);
+    return null;
+  }
+};
+
+// Set refresh token in secure storage
+export const setRefreshToken = async (refreshToken: string): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      return;
+    }
+    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+  } catch (error) {
+    console.error('Error saving refresh token', error);
+  }
+};
+
+// Set both auth and refresh tokens
+export const setAuthTokens = async (token: string, refreshToken?: string): Promise<void> => {
+  await setAuthToken(token);
+  if (refreshToken) {
+    await setRefreshToken(refreshToken);
+  }
+};
+
+// Remove access token
 export const removeAuthToken = async (): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
@@ -99,11 +134,42 @@ export const removeAuthToken = async (): Promise<void> => {
   }
 };
 
+// Clear all session tokens
+export const clearAuthTokens = async (): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      return;
+    }
+    await Promise.all([
+      SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {}),
+      SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {}),
+    ]);
+  } catch (error) {
+    console.error('Error clearing auth tokens', error);
+  }
+};
+
+// Concurrent refresh mutex and subscriber queue
+let isRefreshing = false;
+let refreshSubscribers: ((newToken: string | null) => void)[] = [];
+
+const onTokenRefreshed = (newToken: string | null) => {
+  refreshSubscribers.forEach((callback) => callback(newToken));
+  refreshSubscribers = [];
+};
+
+const addRefreshSubscriber = (callback: (newToken: string | null) => void) => {
+  refreshSubscribers.push(callback);
+};
+
 interface RequestOptions extends RequestInit {
   bodyData?: any;
+  isRetryAfterRefresh?: boolean;
 }
 
-export const apiRequest = async (endpoint: string, options: RequestOptions = {}) => {
+export const apiRequest = async (endpoint: string, options: RequestOptions = {}): Promise<any> => {
   const token = await getAuthToken();
   const url = `${API_URL}${endpoint}`;
 
@@ -115,7 +181,7 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
 
   // Set up request timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 seconds timeout
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 seconds timeout
 
   const config: RequestInit = {
     ...options,
@@ -131,9 +197,9 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
     console.log(`[API Request] ${options.method || 'GET'} -> ${url}`);
     const response = await fetch(url, config);
     clearTimeout(timeoutId);
-    
+
     const textData = await response.text();
-    let jsonData;
+    let jsonData: any;
 
     try {
       jsonData = JSON.parse(textData);
@@ -141,20 +207,79 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
       jsonData = { message: textData };
     }
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        try {
-          const { useAuthStore } = require('@/store/authStore');
-          useAuthStore.getState().logout();
+    // Handle 401 Unauthorized with Intelligent Session Recovery (Silent Refresh)
+    if (response.status === 401) {
+      const isAuthRoute =
+        endpoint.includes('/auth/login') ||
+        endpoint.includes('/auth/signup') ||
+        endpoint.includes('/auth/refresh') ||
+        options.isRetryAfterRefresh;
 
-          const { useNotificationStore } = require('@/store/notificationStore');
-          useNotificationStore.getState().addNotification({
-            type: 'question_declined',
-            title: 'Session Expired',
-            body: 'Your login session has expired. Please sign in again.',
+      if (!isAuthRoute) {
+        if (!isRefreshing) {
+          isRefreshing = true;
+          const currentRefreshToken = await getRefreshToken();
+
+          if (currentRefreshToken) {
+            try {
+              console.log('[Auth Session] Access token expired. Attempting silent refresh...');
+              const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken: currentRefreshToken }),
+              });
+
+              if (refreshRes.ok) {
+                const refreshData = await refreshRes.json();
+                console.log('[Auth Session] Silent token refresh successful.');
+                await setAuthTokens(refreshData.token, refreshData.refreshToken);
+                isRefreshing = false;
+                onTokenRefreshed(refreshData.token);
+
+                // Retry the original request with new token
+                return apiRequest(endpoint, { ...options, isRetryAfterRefresh: true });
+              }
+            } catch (refreshErr) {
+              console.warn('[Auth Session] Silent refresh request failed:', refreshErr);
+            }
+          }
+
+          // Refresh token invalid, expired, or missing
+          isRefreshing = false;
+          onTokenRefreshed(null);
+          await clearAuthTokens();
+
+          try {
+            const { useAuthStore } = require('@/store/authStore');
+            useAuthStore.getState().logout();
+
+            const { useNotificationStore } = require('@/store/notificationStore');
+            useNotificationStore.getState().addNotification({
+              type: 'system',
+              title: 'Session Expired',
+              body: 'Your session has expired. Please sign in again.',
+            });
+          } catch (_) {}
+
+          throw new Error('Session expired. Please sign in again.');
+        } else {
+          // If refresh is already underway, enqueue this request to wait for the new token
+          return new Promise((resolve, reject) => {
+            addRefreshSubscriber((newToken) => {
+              if (newToken) {
+                resolve(apiRequest(endpoint, { ...options, isRetryAfterRefresh: true }));
+              } else {
+                reject(new Error('Session expired. Please sign in again.'));
+              }
+            });
           });
-        } catch (_) {}
+        }
       }
+
+      throw new Error(jsonData.error || jsonData.message || `HTTP error ${response.status}`);
+    }
+
+    if (!response.ok) {
       throw new Error(jsonData.error || jsonData.message || `HTTP error ${response.status}`);
     }
 
@@ -162,7 +287,7 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      console.log(`[API Timeout] ${endpoint}: Request timed out after 6000ms`);
+      console.log(`[API Timeout] ${endpoint}: Request timed out after 8000ms`);
       throw new Error('Network timeout. Please check your connection or server status.');
     }
     console.warn(`[API Error] ${endpoint}:`, error.message);
@@ -192,10 +317,28 @@ export const convertUriToBase64 = async (uri: string): Promise<string> => {
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
-  } else {
-    const FileSystem = require('expo-file-system');
+  }
+
+  // Native (Android/iOS)
+  try {
+    // In Expo SDK 54+, legacy methods are imported from expo-file-system/legacy
+    // to avoid deprecation warnings and runtime errors.
+    const FileSystem = require('expo-file-system/legacy');
     return await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: FileSystem.EncodingType?.Base64 || 'base64',
+    });
+  } catch (fsErr) {
+    console.warn('[convertUriToBase64] expo-file-system/legacy read failed, falling back to fetch/blob:', fsErr);
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = (reader.result as string).split(',')[1];
+        resolve(base64data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
   }
 };
@@ -204,18 +347,23 @@ export const convertUriToBase64 = async (uri: string): Promise<string> => {
 export const uploadMedia = async (
   uri: string,
   fileName: string,
-  fileType: string,
+  fileType?: string,
   conversationId?: string
 ): Promise<{ url: string }> => {
   try {
     const base64 = await convertUriToBase64(uri);
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const resolvedFileType =
+      fileType ||
+      (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'mp4' ? 'video/mp4' : ext === 'm4a' ? 'audio/m4a' : 'image/jpeg');
+
     const endpoint = conversationId 
       ? `/chat/conversations/${conversationId}/upload` 
       : '/profile/upload-media';
     return await api.post(endpoint, {
       base64,
       fileName,
-      fileType,
+      fileType: resolvedFileType,
     });
   } catch (error: any) {
     console.error('[Upload Media Error]', error);
@@ -227,14 +375,19 @@ export const uploadMedia = async (
 export const uploadAvatar = async (
   uri: string,
   fileName: string = 'avatar.jpg',
-  fileType: string = 'image/jpeg'
+  fileType?: string
 ): Promise<{ url: string }> => {
   try {
     const base64 = await convertUriToBase64(uri);
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const resolvedFileType =
+      fileType ||
+      (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg');
+
     return await api.post('/profile/upload-avatar', {
       base64,
       fileName,
-      fileType,
+      fileType: resolvedFileType,
     });
   } catch (error: any) {
     console.error('[Upload Avatar Error]', error);

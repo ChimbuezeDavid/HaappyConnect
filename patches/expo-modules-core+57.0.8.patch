@@ -1,0 +1,39 @@
+﻿diff --git a/node_modules/expo-modules-core/android/src/main/cpp/NativeArrayBuffer.cpp b/node_modules/expo-modules-core/android/src/main/cpp/NativeArrayBuffer.cpp
+index 28e8334..6849929 100644
+--- a/node_modules/expo-modules-core/android/src/main/cpp/NativeArrayBuffer.cpp
++++ b/node_modules/expo-modules-core/android/src/main/cpp/NativeArrayBuffer.cpp
+@@ -57,15 +57,6 @@ NativeArrayBuffer::initHybrid(jni::alias_ref<JavaPart::javaobject>,
+ jni::local_ref<NativeArrayBuffer::javaobject>
+ NativeArrayBuffer::newInstance(JSIContext *jsiContext, jsi::Runtime &runtime,
+                                jsi::ArrayBuffer &arrayBuffer) {
+-  auto mutableBuffer = arrayBuffer.tryGetMutableBuffer(runtime);
+-  if (mutableBuffer) {
+-    auto byteBuffer = jni::JByteBuffer::wrapBytes(mutableBuffer->data(), mutableBuffer->size());
+-    byteBuffer->order(jni::JByteOrder::nativeOrder());
+-    auto value = NativeArrayBuffer::newObjectCxxArgs(byteBuffer, std::move(mutableBuffer));
+-    jsiContext->jniDeallocator->addReference(value);
+-    return value;
+-  }
+-
+   size_t size = arrayBuffer.size(runtime);
+   auto byteBuffer = jni::JByteBuffer::allocateDirect(size);
+   byteBuffer->order(jni::JByteOrder::nativeOrder());
+@@ -80,18 +71,6 @@ NativeArrayBuffer::newInstance(JSIContext *jsiContext, jsi::Runtime &runtime,
+                                expo::TypedArray& typedArray) {
+   size_t size = typedArray.byteLength(runtime);
+ 
+-  auto backingBuffer = typedArray.getBuffer(runtime);
+-  auto mutableBuffer = backingBuffer.tryGetMutableBuffer(runtime);
+-  if (mutableBuffer) {
+-    size_t offset = typedArray.byteOffset(runtime);
+-    auto byteBuffer = jni::JByteBuffer::wrapBytes(
+-      mutableBuffer->data() + offset, size);
+-    byteBuffer->order(jni::JByteOrder::nativeOrder());
+-    auto value = NativeArrayBuffer::newObjectCxxArgs(byteBuffer, std::move(mutableBuffer));
+-    jsiContext->jniDeallocator->addReference(value);
+-    return value;
+-  }
+-
+   auto byteBuffer = jni::JByteBuffer::allocateDirect(static_cast<jint>(size));
+   byteBuffer->order(jni::JByteOrder::nativeOrder());
+   memcpy(byteBuffer->getDirectAddress(), typedArray.getRawPointer(runtime), size);

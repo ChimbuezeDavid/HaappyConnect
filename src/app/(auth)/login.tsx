@@ -56,6 +56,29 @@ function XIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+function LinkedInIcon({ size = 18 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.64a1.64 1.64 0 1 0 0 3.28 1.64 1.64 0 0 0 0-3.28z"
+        fill="#0A66C2"
+      />
+    </Svg>
+  );
+}
+
+function AppleIcon({ size = 18 }: { size?: number }) {
+  const isDark = useColorScheme().colorScheme === 'dark';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.62-.77 1.05-1.84.93-2.91-.94.04-2.04.64-2.69 1.41-.58.68-1.1 1.77-.96 2.82 1.05.08 2.1-.55 2.72-1.32z"
+        fill={isDark ? '#e2e8f0' : '#0f172a'}
+      />
+    </Svg>
+  );
+}
+
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,7 +93,7 @@ export default function LoginScreen() {
   const passwordRef = useRef<TextInput>(null);
   const isFormValid = !!email && !!password;
 
-  const handleOAuthLogin = async (provider: 'google' | 'x') => {
+  const handleOAuthLogin = async (provider: 'google' | 'x' | 'linkedin' | 'apple') => {
     try {
       clearError();
       const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
@@ -86,11 +109,12 @@ export default function LoginScreen() {
 
       if (result.type === 'success' && result.url) {
         const parsed = Linking.parse(result.url);
-        const { token, id, email: oEmail, role, isOnboarded } = parsed.queryParams || {};
+        const { token, refreshToken, id, email: oEmail, role, isOnboarded } = parsed.queryParams || {};
         
         if (token) {
           await useAuthStore.getState().loginWithOAuth(
-            token as string, 
+            token as string,
+            (refreshToken as string) || null,
             { id: id as string, email: oEmail as string, role: (role as 'seeker' | 'expert') || 'seeker', isOnboarded: isOnboarded === 'true' },
             null
           );
@@ -130,15 +154,15 @@ export default function LoginScreen() {
                 width: 56,
                 height: 56,
                 borderRadius: 18,
-                backgroundColor: '#8b5cf620',
+                backgroundColor: '#05966920',
                 borderWidth: 1,
-                borderColor: '#8b5cf630',
+                borderColor: '#05966930',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 24,
               }}
             >
-              <LogIn size={28} color="#8b5cf6" />
+              <LogIn size={28} color="#059669" />
             </View>
             <Text
               style={{
@@ -188,14 +212,14 @@ export default function LoginScreen() {
               alignItems: 'center',
               backgroundColor: isDark ? '#0f172a' : '#ffffff',
               borderWidth: 1.5,
-              borderColor: emailFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+              borderColor: emailFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
               borderRadius: 14,
               paddingHorizontal: 16,
               paddingVertical: 14,
               marginBottom: 20,
             }}
           >
-            <Mail size={18} color={emailFocused ? '#8b5cf6' : (isDark ? '#475569' : '#94a3b8')} />
+            <Mail size={18} color={emailFocused ? '#059669' : (isDark ? '#475569' : '#94a3b8')} />
             <TextInput
               value={email}
               onChangeText={(t) => { clearError(); setEmail(t); }}
@@ -227,7 +251,7 @@ export default function LoginScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Forgot password"
               >
-                <Text style={{ color: '#8b5cf6', fontSize: 13, fontWeight: '600' }}>
+                <Text style={{ color: '#059669', fontSize: 13, fontWeight: '600' }}>
                   Forgot Password?
                 </Text>
               </TouchableOpacity>
@@ -239,14 +263,14 @@ export default function LoginScreen() {
               alignItems: 'center',
               backgroundColor: isDark ? '#0f172a' : '#ffffff',
               borderWidth: 1.5,
-              borderColor: passwordFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+              borderColor: passwordFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
               borderRadius: 14,
               paddingHorizontal: 16,
               paddingVertical: 14,
               marginBottom: 28,
             }}
           >
-            <Lock size={18} color={passwordFocused ? '#8b5cf6' : (isDark ? '#475569' : '#94a3b8')} />
+            <Lock size={18} color={passwordFocused ? '#059669' : (isDark ? '#475569' : '#94a3b8')} />
             <TextInput
               ref={passwordRef}
               value={password}
@@ -285,7 +309,7 @@ export default function LoginScreen() {
             accessibilityLabel="Sign in"
             accessibilityState={{ disabled: isLoading || !isFormValid }}
             style={{
-              backgroundColor: isFormValid ? '#8b5cf6' : (isDark ? '#8b5cf640' : '#8b5cf660'),
+              backgroundColor: isFormValid ? '#059669' : (isDark ? '#05966940' : '#05966960'),
               paddingVertical: 18,
               borderRadius: 16,
               flexDirection: 'row',
@@ -299,7 +323,7 @@ export default function LoginScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700', marginRight: 8 }}>
+                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700', marginRight: 8, fontFamily: 'PlusJakartaSans_600SemiBold' }}>
                   Sign In
                 </Text>
                 <ArrowRight size={18} color="#fff" />
@@ -308,13 +332,16 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Social logins */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 20 }}>
-            <View style={{ flex: 1, height: 1, backgroundColor: isDark ? '#1e293b' : '#e2e8f0' }} />
-            <Text style={{ color: isDark ? '#475569' : '#64748b', fontSize: 13, marginHorizontal: 16 }}>or</Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: isDark ? '#1e293b' : '#e2e8f0' }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 18 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: isDark ? '#222D3D' : '#E7E1D8' }} />
+            <Text style={{ color: isDark ? '#64748b' : '#94a3b8', fontSize: 13, marginHorizontal: 16, fontFamily: 'Inter_500Medium' }}>
+              or continue with
+            </Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: isDark ? '#222D3D' : '#E7E1D8' }} />
           </View>
 
-          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 28 }}>
+          {/* 4-provider Social Authentication Grid */}
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
             <TouchableOpacity
               onPress={() => handleOAuthLogin('google')}
               activeOpacity={0.7}
@@ -325,18 +352,67 @@ export default function LoginScreen() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                backgroundColor: isDark ? '#131A22' : '#ffffff',
                 borderWidth: 1,
-                borderColor: isDark ? '#1e293b' : '#cbd5e1',
-                paddingVertical: 14,
+                borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                paddingVertical: 13,
                 borderRadius: 14,
-                minHeight: 52,
-                gap: 10,
+                minHeight: 50,
+                gap: 8,
               }}
             >
               <GoogleIcon size={18} />
-              <Text style={{ color: isDark ? '#e2e8f0' : '#475569', fontWeight: '600', fontSize: 15 }}>Google</Text>
+              <Text style={{ color: isDark ? '#f8fafc' : '#1e293b', fontWeight: '600', fontSize: 14 }}>Google</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleOAuthLogin('linkedin')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in with LinkedIn"
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isDark ? '#131A22' : '#ffffff',
+                borderWidth: 1,
+                borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                paddingVertical: 13,
+                borderRadius: 14,
+                minHeight: 50,
+                gap: 8,
+              }}
+            >
+              <LinkedInIcon size={18} />
+              <Text style={{ color: isDark ? '#f8fafc' : '#1e293b', fontWeight: '600', fontSize: 14 }}>LinkedIn</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+            <TouchableOpacity
+              onPress={() => handleOAuthLogin('apple')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in with Apple"
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isDark ? '#131A22' : '#ffffff',
+                borderWidth: 1,
+                borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                paddingVertical: 13,
+                borderRadius: 14,
+                minHeight: 50,
+                gap: 8,
+              }}
+            >
+              <AppleIcon size={18} />
+              <Text style={{ color: isDark ? '#f8fafc' : '#1e293b', fontWeight: '600', fontSize: 14 }}>Apple</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               onPress={() => handleOAuthLogin('x')}
               activeOpacity={0.7}
@@ -347,23 +423,23 @@ export default function LoginScreen() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                backgroundColor: isDark ? '#131A22' : '#ffffff',
                 borderWidth: 1,
-                borderColor: isDark ? '#1e293b' : '#cbd5e1',
-                paddingVertical: 14,
+                borderColor: isDark ? '#222D3D' : '#E7E1D8',
+                paddingVertical: 13,
                 borderRadius: 14,
-                minHeight: 52,
-                gap: 10,
+                minHeight: 50,
+                gap: 8,
               }}
             >
               <XIcon size={16} />
-              <Text style={{ color: isDark ? '#e2e8f0' : '#475569', fontWeight: '600', fontSize: 15 }}>X (Twitter)</Text>
+              <Text style={{ color: isDark ? '#f8fafc' : '#1e293b', fontWeight: '600', fontSize: 14 }}>X (Twitter)</Text>
             </TouchableOpacity>
           </View>
 
           {/* Sign up link */}
           <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 16 }}>
-            <Text style={{ color: isDark ? '#475569' : '#64748b', fontSize: 14 }}>Don't have an account? </Text>
+            <Text style={{ color: isDark ? '#64748b' : '#64748b', fontSize: 14 }}>Don't have an account? </Text>
             <Link href="/(auth)/register" asChild>
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -371,7 +447,7 @@ export default function LoginScreen() {
                 accessibilityLabel="Sign up"
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={{ color: '#8b5cf6', fontWeight: '700', fontSize: 14 }}>Sign Up</Text>
+                <Text style={{ color: '#059669', fontWeight: '700', fontSize: 14 }}>Sign Up</Text>
               </TouchableOpacity>
             </Link>
           </View>

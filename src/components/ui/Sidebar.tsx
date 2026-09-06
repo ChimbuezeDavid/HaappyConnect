@@ -107,7 +107,7 @@ export default function Sidebar() {
                 <View className="flex-row items-center">
                   <Icon 
                     size={18} 
-                    color={item.isActive ? '#8b5cf6' : (isDark ? '#64748b' : '#94a3b8')} 
+                    color={item.isActive ? '#059669' : (isDark ? '#64748b' : '#94a3b8')} 
                   />
                   <Text className={`font-extrabold text-sm ml-3.5 ${
                     item.isActive 
@@ -119,7 +119,7 @@ export default function Sidebar() {
                 </View>
                 
                 {item.badge !== undefined && (
-                  <View className="bg-violet-500 rounded-full px-2 py-0.5 min-w-[20px] justify-center items-center">
+                  <View className="bg-primary-600 dark:bg-primary-500 rounded-full px-2 py-0.5 min-w-[20px] justify-center items-center shadow-sm shadow-emerald-600/30">
                     <Text className="text-white text-[10px] font-black">{item.badge}</Text>
                   </View>
                 )}
@@ -143,9 +143,9 @@ export default function Sidebar() {
                   isActive ? 'bg-white dark:bg-slate-900 shadow-sm' : ''
                 }`}
               >
-                {mode === 'light' && <Sun size={14} color={isActive ? '#8b5cf6' : '#64748b'} />}
-                {mode === 'dark' && <Moon size={14} color={isActive ? '#8b5cf6' : '#64748b'} />}
-                {mode === 'system' && <Laptop size={14} color={isActive ? '#8b5cf6' : '#64748b'} />}
+                {mode === 'light' && <Sun size={14} color={isActive ? '#059669' : '#64748b'} />}
+                {mode === 'dark' && <Moon size={14} color={isActive ? '#059669' : '#64748b'} />}
+                {mode === 'system' && <Laptop size={14} color={isActive ? '#059669' : '#64748b'} />}
               </TouchableOpacity>
             );
           })}
@@ -155,8 +155,8 @@ export default function Sidebar() {
         {user && (
           <View className="border-t border-slate-200/80 dark:border-slate-800/80 pt-4 flex-row items-center justify-between">
             <View className="flex-row items-center flex-1 mr-2">
-              <View className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-950 justify-center items-center border border-slate-200 dark:border-slate-800">
-                <Text className="text-violet-600 dark:text-violet-400 font-bold text-xs">
+              <View className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950 justify-center items-center border border-emerald-200 dark:border-emerald-800">
+                <Text className="text-emerald-700 dark:text-emerald-400 font-bold text-xs">
                   {(profile?.fullName || user?.email || 'User')
                     .split(' ')
                     .map((n: string) => n[0] || '')

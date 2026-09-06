@@ -34,4 +34,7 @@ const TransactionSchema = new Schema<ITransaction>(
   { timestamps: true }
 );
 
+TransactionSchema.index({ user: 1, createdAt: -1 });
+TransactionSchema.index({ status: 1, type: 1 });
+
 export const Transaction = model<ITransaction>('Transaction', TransactionSchema);

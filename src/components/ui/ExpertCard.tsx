@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Star, MessageSquare, PhoneCall } from 'lucide-react-native';
+import { Star, MessageSquare, PhoneCall, CheckCircle2 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { Profile } from '@/types';
 
@@ -27,11 +27,18 @@ export default function ExpertCard({ expert }: ExpertCardProps) {
       <View className="flex-row items-center mb-4">
         <Image
           source={{ uri: expert.avatarUrl || 'https://via.placeholder.com/150' }}
-          className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800"
+          className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800"
         />
         <View className="flex-1 ml-4 pr-1">
-          <Text className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{expert.fullName}</Text>
-          <Text className="text-slate-500 dark:text-slate-400 text-sm mt-0.5" numberOfLines={1}>
+          <View className="flex-row items-center space-x-1.5">
+            <Text className="text-lg font-bold text-slate-900 dark:text-white tracking-tight flex-shrink font-display" numberOfLines={1}>
+              {expert.fullName}
+            </Text>
+            {expert.isVerified && (
+              <CheckCircle2 size={16} color="#059669" fill="#10B981" />
+            )}
+          </View>
+          <Text className="text-slate-500 dark:text-slate-400 text-sm mt-0.5 font-sans" numberOfLines={1}>
             {expert.headline}
           </Text>
           
@@ -75,13 +82,13 @@ export default function ExpertCard({ expert }: ExpertCardProps) {
         <View className="flex-row items-center">
           <MessageSquare size={13} color={isDark ? '#94a3b8' : '#64748b'} />
           <Text className="text-slate-500 dark:text-slate-400 text-xs ml-1.5">Text Question</Text>
-          <Text className="text-slate-900 dark:text-white font-extrabold text-sm ml-1.5">₦{expert.textQuestionPrice}</Text>
+          <Text className="text-slate-900 dark:text-white font-extrabold text-sm ml-1.5">₦{(expert.textQuestionPrice || 0).toLocaleString()}</Text>
         </View>
 
         <View className="flex-row items-center">
           <PhoneCall size={13} color={isDark ? '#94a3b8' : '#64748b'} />
           <Text className="text-slate-500 dark:text-slate-400 text-xs ml-1.5">Live Call</Text>
-          <Text className="text-slate-900 dark:text-white font-extrabold text-sm ml-1.5">₦{expert.hourlyRate}/hr</Text>
+          <Text className="text-slate-900 dark:text-white font-extrabold text-sm ml-1.5">₦{(expert.hourlyRate || 0).toLocaleString()}/hr</Text>
         </View>
       </View>
     </TouchableOpacity>

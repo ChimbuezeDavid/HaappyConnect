@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useChatStore } from '@/store/chatStore';
 import CustomHeader from '@/components/ui/CustomHeader';
 import PricingTierCard from '@/components/ui/PricingTierCard';
-import { Star, MessageSquare, Video, PhoneCall, AlertTriangle } from 'lucide-react-native';
+import { Star, MessageSquare, Video, PhoneCall, AlertTriangle, Mic, CheckCircle2 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 export default function ExpertProfileDetailScreen() {
@@ -48,15 +48,15 @@ export default function ExpertProfileDetailScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-slate-55 dark:bg-slate-950 justify-center items-center" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: isDark ? '#0B0F14' : '#FAF8F5' }}>
+        <ActivityIndicator size="large" color="#059669" />
       </View>
     );
   }
 
   if (!expert) {
     return (
-      <View className="flex-1 bg-slate-55 dark:bg-slate-950 justify-center items-center px-6" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
+      <View className="flex-1 justify-center items-center px-6" style={{ backgroundColor: isDark ? '#0B0F14' : '#FAF8F5' }}>
         <AlertTriangle size={36} color="#ef4444" />
         <Text className="text-slate-900 dark:text-white text-base mt-2">Expert profile not found</Text>
       </View>
@@ -101,7 +101,7 @@ export default function ExpertProfileDetailScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-955" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
+    <View className="flex-1" style={{ backgroundColor: isDark ? '#0B0F14' : '#FAF8F5' }}>
       <View className="flex-1 w-full max-w-3xl self-center">
         <CustomHeader
           title="Expert Details"
@@ -110,9 +110,9 @@ export default function ExpertProfileDetailScreen() {
             (user?.id || (user as any)?._id) !== expertUserId ? (
               <TouchableOpacity
                 onPress={handleMessageExpert}
-                className="bg-violet-100 dark:bg-violet-950 p-2.5 rounded-2xl border border-violet-200 dark:border-violet-850"
+                className="bg-emerald-100 dark:bg-emerald-950 p-2.5 rounded-2xl border border-emerald-200 dark:border-emerald-850"
               >
-                <MessageSquare size={18} color="#8b5cf6" />
+                <MessageSquare size={18} color="#059669" />
               </TouchableOpacity>
             ) : undefined
           }
@@ -125,10 +125,15 @@ export default function ExpertProfileDetailScreen() {
             source={{ uri: expert.avatarUrl || 'https://via.placeholder.com/150' }}
             className="w-24 h-24 rounded-3xl bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 mb-4"
           />
-          <Text className="text-2xl font-black text-slate-900 dark:text-white text-center tracking-tight">
-            {expert.fullName}
-          </Text>
-          <Text className="text-slate-600 dark:text-slate-400 text-sm mt-1 text-center font-medium px-4">
+          <View className="flex-row items-center justify-center space-x-1.5">
+            <Text className="text-2xl font-black text-slate-900 dark:text-white text-center tracking-tight font-display">
+              {expert.fullName}
+            </Text>
+            {expert.isVerified && (
+              <CheckCircle2 size={20} color="#059669" fill="#10B981" />
+            )}
+          </View>
+          <Text className="text-slate-600 dark:text-slate-400 text-sm mt-1 text-center font-medium px-4 font-sans">
             {expert.headline}
           </Text>
 
@@ -153,15 +158,15 @@ export default function ExpertProfileDetailScreen() {
 
         {/* Pricing Tiers / Service Packages */}
         <View className="px-6 py-6 border-b border-slate-200 dark:border-slate-900" style={{ borderBottomColor: isDark ? '#1e293b' : '#e2e8f0', borderBottomWidth: 1 }}>
-          <Text className="text-slate-550 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">Choose Service Type</Text>
+          <Text className="text-slate-550 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">Choose Consultation Type</Text>
 
           {/* Pricing Tier 1: Text Question */}
           <PricingTierCard
-            title="Text Message Advice"
-            price={expert.textQuestionPrice.toString()}
-            description="Submit a text question and receive a detailed written answer from the expert within 72 hours."
-            icon={<MessageSquare size={20} color="#8b5cf6" />}
-            actionLabel="Ask Question"
+            title="Written Consultation Review"
+            price={expert.textQuestionPrice.toLocaleString()}
+            description="Submit a detailed question and receive an in-depth written response from the mentor within 72 hours."
+            icon={<MessageSquare size={20} color="#059669" />}
+            actionLabel="Ask Written Question"
             onPress={() => {
               if (isGuest) {
                 Alert.alert(
@@ -183,13 +188,41 @@ export default function ExpertProfileDetailScreen() {
             }}
           />
 
-          {/* Pricing Tier 2: Video response */}
+          {/* Pricing Tier 2: Async Voice Note Memo */}
+          <PricingTierCard
+            title="Async Voice Note Memo"
+            price={(expert.videoResponsePrice > 0 ? Math.round(expert.videoResponsePrice * 0.75) : Math.round(expert.textQuestionPrice * 1.5)).toLocaleString()}
+            description="Receive high-value spoken consultation advice directly from the mentor with actionable voice memos."
+            icon={<Mic size={20} color="#059669" />}
+            actionLabel="Request Voice Memo"
+            onPress={() => {
+              if (isGuest) {
+                Alert.alert(
+                  'Sign In Required',
+                  'Please sign in or create an account to request voice note advice.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Sign In', onPress: () => {
+                      router.replace('/(auth)/login');
+                    }}
+                  ]
+                );
+                return;
+              }
+              router.push({
+                pathname: '/seeker/ask-question',
+                params: { expertId: expert._id, initialType: 'voice' },
+              });
+            }}
+          />
+
+          {/* Pricing Tier 3: Video response */}
           <PricingTierCard
             title="Personalized Video Response"
-            price={expert.videoResponsePrice.toString()}
-            description="Submit a request and receive a custom, recorded video response answering your queries."
-            icon={<Video size={20} color="#8b5cf6" />}
-            actionLabel="Request Video"
+            price={expert.videoResponsePrice.toLocaleString()}
+            description="Submit your brief and receive a comprehensive, screen-shared or recorded video advisory breakdown."
+            icon={<Video size={20} color="#059669" />}
+            actionLabel="Request Video Response"
             onPress={() => {
               if (isGuest) {
                 Alert.alert(
@@ -211,13 +244,13 @@ export default function ExpertProfileDetailScreen() {
             }}
           />
 
-          {/* Pricing Tier 3: Live Consultation */}
+          {/* Pricing Tier 4: Live Consultation */}
           <PricingTierCard
-            title="Live scheduled Call"
-            price={expert.hourlyRate.toString()}
-            description="Book a live 1:1 face-to-face video consultation directly on their calendar slot."
-            icon={<PhoneCall size={20} color="#8b5cf6" />}
-            actionLabel="Book Video Call"
+            title="1:1 Live Scheduled Call"
+            price={expert.hourlyRate.toLocaleString()}
+            description="Book a live 1:1 consultation session directly on their calendar slot."
+            icon={<PhoneCall size={20} color="#059669" />}
+            actionLabel="Book 1:1 Live Call"
             onPress={() => {
               if (isGuest) {
                 Alert.alert(

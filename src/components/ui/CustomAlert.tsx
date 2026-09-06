@@ -21,7 +21,7 @@ function getAlertIcon(title: string, isDark: boolean) {
   if (lowerTitle.includes('sure') || lowerTitle.includes('confirm') || lowerTitle.includes('logout') || lowerTitle.includes('exit')) {
     return <HelpCircle size={size} color="#3b82f6" />;
   }
-  return <Info size={size} color="#8b5cf6" />;
+  return <Info size={size} color="#059669" />;
 }
 
 export default function CustomAlertContainer() {
@@ -135,7 +135,7 @@ export default function CustomAlertContainer() {
               const isDestructive = btn.style === 'destructive';
               const isCancel = btn.style === 'cancel';
               
-              let btnBg = '#8b5cf6'; // default primary
+              let btnBg = '#059669'; // default primary
               let textColor = '#ffffff';
               let borderStyle = {};
 

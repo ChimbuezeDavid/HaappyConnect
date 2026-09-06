@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 html, body, #root {
-  background-color: #020617; /* bg-slate-950 */
+  background-color: #0B0F14; /* Obsidian dark default */
   color: #f8fafc;
   margin: 0;
   padding: 0;
@@ -12,35 +12,31 @@ html, body, #root {
 }
 
 :root {
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-    Segoe UI Symbol, Noto Color Emoji;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
-  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
-  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-display: 'PlusJakartaSans_700Bold', 'PlusJakartaSans_600SemiBold', system-ui, sans-serif;
+  --font-sans: 'Inter_400Regular', 'Inter_500Medium', 'Inter_600SemiBold', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Web Autofill Theme Variables (Default to Light Mode) */
-  --autofill-bg: #ffffff;
+  /* Web Autofill Theme Variables (Default to Light Warm Alabaster) */
+  --autofill-bg: #FAF8F5;
   --autofill-color: #0f172a;
 }
 
 /* System Dark Mode Preference Fallback */
 @media (prefers-color-scheme: dark) {
   :root {
-    --autofill-bg: #020617;
+    --autofill-bg: #0B0F14;
     --autofill-color: #ffffff;
   }
 }
 
 /* Surgical theme updates for HTML dark/light overrides */
 html.dark {
-  --autofill-bg: #020617;
+  --autofill-bg: #0B0F14;
   --autofill-color: #ffffff;
 }
 
 html.light {
-  --autofill-bg: #ffffff;
+  --autofill-bg: #FAF8F5;
   --autofill-color: #0f172a;
 }
 
@@ -73,37 +69,43 @@ select:focus {
 /* Root & scrollable containers */
 html.dark body,
 html.dark #root {
-  background-color: #020617 !important;
+  background-color: #0B0F14 !important;
 }
 
-/* Slate-50 (#f8fafc) screen backgrounds → near-black */
+/* Warm alabaster / slate screen backgrounds → near-black obsidian */
+html.dark div[style*="background-color: rgb(250, 248, 245)"],
 html.dark div[style*="background-color: rgb(248, 250, 252)"],
 html.dark div[style*="background-color: rgba(248, 250, 252"],
+html.dark div[style*="backgroundColor: rgb(250, 248, 245)"],
 html.dark div[style*="backgroundColor: rgb(248, 250, 252)"],
 html.dark div[style*="backgroundColor: rgba(248, 250, 252"] {
-  background-color: #020617 !important;
+  background-color: #0B0F14 !important;
 }
 
-/* White (#fff) card/header backgrounds → slate-900 */
+/* White (#fff) card/header backgrounds → obsidian card #131A22 */
 html.dark div[style*="background-color: rgb(255, 255, 255)"],
 html.dark div[style*="background-color: rgba(255, 255, 255"],
 html.dark div[style*="backgroundColor: rgb(255, 255, 255)"],
 html.dark div[style*="backgroundColor: rgba(255, 255, 255"] {
-  background-color: #0f172a !important;
+  background-color: #131A22 !important;
 }
 
-/* Slate-100 (#f1f5f9) chip/input backgrounds → slate-800 */
+/* Sub-panel/input backgrounds → #1B2430 */
+html.dark div[style*="background-color: rgb(243, 239, 234)"],
 html.dark div[style*="background-color: rgb(241, 245, 249)"],
+html.dark div[style*="backgroundColor: rgb(243, 239, 234)"],
 html.dark div[style*="backgroundColor: rgb(241, 245, 249)"] {
-  background-color: #1e293b !important;
+  background-color: #1B2430 !important;
 }
 
-/* Slate-200 (#e2e8f0) borders → slate-800 */
+/* Borders → #222D3D */
+html.dark div[style*="border-color: rgb(231, 225, 216)"],
 html.dark div[style*="border-color: rgb(226, 232, 240)"],
+html.dark div[style*="borderColor: rgb(231, 225, 216)"],
 html.dark div[style*="borderColor: rgb(226, 232, 240)"],
 html.dark div[style*="border-top-color: rgb(226, 232, 240)"],
 html.dark div[style*="border-bottom-color: rgb(226, 232, 240)"] {
-  border-color: #1e293b !important;
+  border-color: #222D3D !important;
 }
 
 /* Slate-50/2 border → dark */

@@ -110,21 +110,21 @@ export default function ExpertAvailabilityScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-slate-50 dark:bg-slate-955 justify-center items-center">
-        <ActivityIndicator size="large" color="#8b5cf6" />
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: isDark ? '#0B0F14' : '#FAF8F5' }}>
+        <ActivityIndicator size="large" color="#059669" />
       </View>
     );
   }
 
-  const backgroundColor = isDark ? '#020617' : '#f8fafc';
+  const backgroundColor = isDark ? '#0B0F14' : '#FAF8F5';
   const headerStyle = {
-    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    backgroundColor: isDark ? '#131A22' : '#ffffff',
     borderBottomColor: isDark ? '#1e293b' : '#e2e8f0',
     borderBottomWidth: 1,
   };
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-955" style={{ backgroundColor }}>
+    <View className="flex-1" style={{ backgroundColor }}>
       <View style={headerStyle} className="px-6 py-4 flex-row items-center justify-between">
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => router.back()} className="mr-4 p-1">
@@ -150,7 +150,7 @@ export default function ExpertAvailabilityScreen() {
 
       <ScrollView className="flex-1 max-w-2xl w-full self-center px-4 py-6" contentContainerStyle={{ paddingBottom: 60 }}>
         <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 mb-6 flex-row items-start shadow-sm dark:shadow-none">
-          <Clock size={20} color="#8b5cf6" style={{ marginTop: 2 }} />
+          <Clock size={20} color="#059669" style={{ marginTop: 2 }} />
           <View className="ml-4 flex-1">
             <Text className="text-slate-900 dark:text-white font-bold text-sm">Configure Time Windows</Text>
             <Text className="text-slate-500 dark:text-slate-450 text-xs mt-1 leading-relaxed">

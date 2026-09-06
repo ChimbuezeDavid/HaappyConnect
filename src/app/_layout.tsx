@@ -1,18 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
-import { getAuthToken, removeAuthToken } from '@/lib/api';
+import { getAuthToken, getRefreshToken, clearAuthTokens } from '@/lib/api';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'nativewind';
 import { useThemeStore } from '@/store/themeStore';
 import { useChatStore } from '@/store/chatStore';
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import '../global.css';
 import { Platform, Alert } from 'react-native';
 import ToastNotificationContainer from '@/components/ui/ToastNotification';
 import { showCustomAlert } from '@/store/alertStore';
 import CustomAlertContainer from '@/components/ui/CustomAlert';
 import RingingOverlay from '@/components/ui/RingingOverlay';
+import PermissionPrimerModal from '@/components/ui/PermissionPrimerModal';
+import { SplashScreenOverlay } from '@/components/ui/SplashScreenOverlay';
 import Constants from 'expo-constants';
 
 // Globally polyfill React Native's Alert.alert to render our custom HCI dialogs
@@ -38,17 +53,29 @@ try {
     });
   }
 } catch (e) {
-  console.warn('[Notifications] Failed to initialize setNotificationHandler in Expo Go:', e);
+  console.warn('[Notifications] Failed to initialize setNotificationHandler:', e);
 }
 
-// Keep splash screen visible while we load auth state
-SplashScreen.preventAutoHideAsync();
+// Immediately dismiss any splash screen so the app loads directly
+SplashScreen.hideAsync().catch(() => {});
 
 export default function RootLayout() {
   const { token, user, loadUser, isLoading, isGuest } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const segments = useSegments() as unknown as string[];
+
+  // Load custom typography fonts
+  const [fontsLoaded, fontError] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   // NativeWind Theme hooks
   const { colorScheme, setColorScheme } = useColorScheme();
@@ -59,7 +86,7 @@ export default function RootLayout() {
     loadTheme();
   }, []);
 
-  // Register Expo Push Notifications
+  // Register Expo Push Notifications (only if previously granted)
   useEffect(() => {
     if (!token || !user) return;
 
@@ -71,15 +98,9 @@ export default function RootLayout() {
 
         const Notifications = require('expo-notifications');
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
 
+        // Respect user autonomy: only register push token if user has explicitly granted permission
         if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
-
-        if (finalStatus !== 'granted') {
-          console.warn('[Push Notification] Permission not granted.');
           return;
         }
 
@@ -125,41 +146,41 @@ export default function RootLayout() {
     }
   }, [colorScheme]);
 
-  // Try to restore user session on startup
+  // Try to restore user session on startup while showing animated splash screen
   useEffect(() => {
     let active = true;
 
     const initializeAuth = async () => {
-      // Safety timer: hide splash screen after 2.5 seconds regardless of network response
-      const safetyTimeout = setTimeout(() => {
-        if (active) {
-          console.warn('[Auth Init] Safety timeout triggered: hiding splash screen');
-          setIsReady(true);
-        }
-      }, 2500);
+      const startTime = Date.now();
+      const minDisplayDuration = 2000; // 2 seconds minimum splash duration for branding & DB check
 
       try {
         const savedToken = await getAuthToken();
-        if (savedToken && active) {
-          useAuthStore.setState({ token: savedToken });
+        const savedRefreshToken = await getRefreshToken();
+
+        if ((savedToken || savedRefreshToken) && active) {
+          useAuthStore.setState({ token: savedToken, refreshToken: savedRefreshToken });
           
-          // Race loadUser() against a 2-second timeout to avoid launch delays on slow/dormant networks
+          // Verify with database
           await Promise.race([
             loadUser(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 2000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 3000))
           ]);
         }
       } catch (e) {
         console.warn('Failed or timed out restoring session:', e);
         if (active) {
-          await removeAuthToken();
-          useAuthStore.setState({ token: null, user: null, profile: null, isGuest: false });
+          await clearAuthTokens();
+          useAuthStore.setState({ token: null, refreshToken: null, user: null, profile: null, isGuest: false });
         }
       } finally {
-        clearTimeout(safetyTimeout);
-        if (active) {
-          setIsReady(true);
-        }
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, minDisplayDuration - elapsed);
+        setTimeout(() => {
+          if (active) {
+            setIsReady(true);
+          }
+        }, remaining);
       }
     };
 
@@ -182,21 +203,9 @@ export default function RootLayout() {
     };
   }, [token]);
 
-  // Hide splash screen once auth state is resolved
-  useEffect(() => {
-    if (isReady && !isLoading) {
-      // Delay hiding the splash screen to allow the initial routing replacement
-      // to complete rendering, avoiding any millisecond welcome page flickers.
-      const timer = setTimeout(() => {
-        SplashScreen.hideAsync();
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [isReady, isLoading]);
-
   // Handle routing based on session state
   useEffect(() => {
-    if (!isReady || isLoading) return;
+    if (!isReady || isLoading || (!fontsLoaded && !fontError)) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
@@ -223,20 +232,21 @@ export default function RootLayout() {
         }
       }
     }
-  }, [token, user, isReady, segments, isGuest, isLoading]);
+  }, [token, user, isReady, segments, isGuest, isLoading, fontsLoaded, fontError]);
 
   const isDark = colorScheme === 'dark';
 
   const headerStyle = {
-    backgroundColor: isDark ? '#0f172a' : '#ffffff',
-    borderBottomColor: isDark ? '#1e293b' : '#e2e8f0',
+    backgroundColor: isDark ? '#131A22' : '#FAF8F5',
+    borderBottomColor: isDark ? '#222D3D' : '#E7E1D8',
     borderBottomWidth: 1,
     shadowColor: 'transparent',
   };
-  const headerTintColor = isDark ? '#ffffff' : '#0f172a';
+  const headerTintColor = isDark ? '#F8FAFC' : '#0F172A';
   const headerTitleStyle = {
-    color: isDark ? '#ffffff' : '#0f172a',
-    fontWeight: 'bold' as const,
+    color: isDark ? '#F8FAFC' : '#0F172A',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 17,
   };
 
   // CRITICAL: Always render the Stack navigator.
@@ -330,6 +340,8 @@ export default function RootLayout() {
       <ToastNotificationContainer />
       <CustomAlertContainer />
       <RingingOverlay />
+      <PermissionPrimerModal />
+      <SplashScreenOverlay isVisible={!isReady || isLoading || (!fontsLoaded && !fontError)} />
     </SafeAreaProvider>
   );
 }

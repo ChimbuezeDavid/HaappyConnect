@@ -24,3 +24,10 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     return res.status(401).json({ error: 'Authentication failed: invalid token' });
   }
 };
+
+export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Access denied: Admin privileges required' });
+  }
+  next();
+};

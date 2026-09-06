@@ -22,6 +22,7 @@ import questionRoutes from './routes/question';
 import walletRoutes from './routes/wallet';
 import reviewRoutes from './routes/review';
 import chatRoutes from './routes/chat';
+import adminRoutes from './routes/admin';
 
 dotenv.config();
 
@@ -43,6 +44,18 @@ if (!fs.existsSync(uploadsPath)) {
 }
 app.use('/uploads', express.static(uploadsPath));
 
+// Serve Admin Web App Extension
+const adminPublicPath = fs.existsSync(path.join(__dirname, '../public/admin'))
+  ? path.join(__dirname, '../public/admin')
+  : path.join(process.cwd(), 'public/admin');
+
+if (fs.existsSync(adminPublicPath)) {
+  app.use('/admin', express.static(adminPublicPath));
+  app.get(['/admin', '/admin/*'], (req, res) => {
+    res.sendFile(path.join(adminPublicPath, 'index.html'));
+  });
+}
+
 // Logger middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
@@ -63,6 +76,7 @@ app.use('/api/question', questionRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/review', reviewRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Socket.io Setup
 const io = initSocket(httpServer);

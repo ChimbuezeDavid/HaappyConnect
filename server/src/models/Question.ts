@@ -31,4 +31,7 @@ const QuestionSchema = new Schema<IQuestion>(
   { timestamps: true }
 );
 
+QuestionSchema.index({ expert: 1, status: 1, expiresAt: 1 });
+QuestionSchema.index({ seeker: 1, status: 1 });
+
 export const Question = model<IQuestion>('Question', QuestionSchema);

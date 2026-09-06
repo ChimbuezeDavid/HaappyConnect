@@ -123,9 +123,9 @@ export default function ForgotPasswordScreen() {
                 width: 56,
                 height: 56,
                 borderRadius: 18,
-                backgroundColor: step === 3 ? '#10b98120' : '#8b5cf620',
+                backgroundColor: step === 3 ? '#10b98120' : '#05966920',
                 borderWidth: 1,
-                borderColor: step === 3 ? '#10b98130' : '#8b5cf630',
+                borderColor: step === 3 ? '#10b98130' : '#05966930',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 24,
@@ -134,7 +134,7 @@ export default function ForgotPasswordScreen() {
               {step === 3 ? (
                 <CheckCircle2 size={28} color="#10b981" />
               ) : (
-                <Key size={28} color="#8b5cf6" />
+                <Key size={28} color="#059669" />
               )}
             </View>
             <Text
@@ -206,14 +206,14 @@ export default function ForgotPasswordScreen() {
                   alignItems: 'center',
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
                   borderWidth: 1.5,
-                  borderColor: emailFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                  borderColor: emailFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
                   borderRadius: 14,
                   paddingHorizontal: 16,
                   paddingVertical: 14,
                   marginBottom: 28,
                 }}
               >
-                <Mail size={18} color={emailFocused ? '#8b5cf6' : (isDark ? '#475569' : '#94a3b8')} />
+                <Mail size={18} color={emailFocused ? '#059669' : (isDark ? '#475569' : '#94a3b8')} />
                 <TextInput
                   value={email}
                   onChangeText={(t) => { setError(null); setEmail(t); }}
@@ -237,7 +237,7 @@ export default function ForgotPasswordScreen() {
                 disabled={isLoading || !isStep1Valid}
                 activeOpacity={0.85}
                 style={{
-                  backgroundColor: isStep1Valid ? '#8b5cf6' : (isDark ? '#8b5cf640' : '#8b5cf660'),
+                  backgroundColor: isStep1Valid ? '#059669' : (isDark ? '#05966940' : '#05966960'),
                   paddingVertical: 18,
                   borderRadius: 16,
                   flexDirection: 'row',
@@ -273,14 +273,14 @@ export default function ForgotPasswordScreen() {
                   alignItems: 'center',
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
                   borderWidth: 1.5,
-                  borderColor: codeFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                  borderColor: codeFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
                   borderRadius: 14,
                   paddingHorizontal: 16,
                   paddingVertical: 14,
                   marginBottom: 20,
                 }}
               >
-                <Key size={18} color={codeFocused ? '#8b5cf6' : (isDark ? '#475569' : '#94a3b8')} />
+                <Key size={18} color={codeFocused ? '#059669' : (isDark ? '#475569' : '#94a3b8')} />
                 <TextInput
                   ref={codeRef}
                   value={code}
@@ -309,14 +309,14 @@ export default function ForgotPasswordScreen() {
                   alignItems: 'center',
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
                   borderWidth: 1.5,
-                  borderColor: passwordFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                  borderColor: passwordFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
                   borderRadius: 14,
                   paddingHorizontal: 16,
                   paddingVertical: 14,
                   marginBottom: 20,
                 }}
               >
-                <Lock size={18} color={passwordFocused ? '#8b5cf6' : (isDark ? '#475569' : '#94a3b8')} />
+                <Lock size={18} color={passwordFocused ? '#059669' : (isDark ? '#475569' : '#94a3b8')} />
                 <TextInput
                   ref={passwordRef}
                   value={password}
@@ -352,14 +352,14 @@ export default function ForgotPasswordScreen() {
                   alignItems: 'center',
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
                   borderWidth: 1.5,
-                  borderColor: confirmPasswordFocused ? '#8b5cf6' : (isDark ? '#1e293b' : '#cbd5e1'),
+                  borderColor: confirmPasswordFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
                   borderRadius: 14,
                   paddingHorizontal: 16,
                   paddingVertical: 14,
                   marginBottom: 28,
                 }}
               >
-                <Lock size={18} color={confirmPasswordFocused ? '#8b5cf6' : (isDark ? '#475569' : '#94a3b8')} />
+                <Lock size={18} color={confirmPasswordFocused ? '#059669' : (isDark ? '#475569' : '#94a3b8')} />
                 <TextInput
                   ref={confirmPasswordRef}
                   value={confirmPassword}
@@ -390,7 +390,7 @@ export default function ForgotPasswordScreen() {
                 disabled={isLoading || !isStep2Valid}
                 activeOpacity={0.85}
                 style={{
-                  backgroundColor: isStep2Valid ? '#8b5cf6' : (isDark ? '#8b5cf640' : '#8b5cf660'),
+                  backgroundColor: isStep2Valid ? '#059669' : (isDark ? '#05966940' : '#05966960'),
                   paddingVertical: 18,
                   borderRadius: 16,
                   flexDirection: 'row',

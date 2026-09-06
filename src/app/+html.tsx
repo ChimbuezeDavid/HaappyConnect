@@ -1,5 +1,6 @@
-﻿import { ScrollViewStyleReset } from 'expo-router/html';
+import { ScrollViewStyleReset } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 /**
  * Web-only HTML document template for Expo Router.
@@ -25,7 +26,10 @@ export default function Root({ children }: PropsWithChildren) {
 
         <ScrollViewStyleReset />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

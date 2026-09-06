@@ -45,7 +45,7 @@ export default function WelcomeScreen() {
       title: 'Ask Anything',
       subtitle: 'Get Answered',
       description:
-        'Text, voice, or video — submit your question and pay only when the expert responds.',
+        'Text, voice, or video, submit your question and pay only when the expert responds.',
       icon: <MessageSquare size={32} color="#0ea5e9" />,
       accentColor: '#0ea5e9',
     },

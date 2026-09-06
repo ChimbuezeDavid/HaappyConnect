@@ -30,7 +30,7 @@ export default function MessagesScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const isDesktop = width >= 1024;
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';

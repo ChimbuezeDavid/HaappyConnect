@@ -62,7 +62,7 @@ export default function ProfileScreen() {
   const isDark = colorScheme === 'dark';
 
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const isDesktop = width >= 1024;
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
 
   useEffect(() => {

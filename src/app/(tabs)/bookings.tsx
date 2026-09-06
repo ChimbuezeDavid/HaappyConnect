@@ -22,7 +22,7 @@ export default function BookingsScreen() {
     promptComplete?: string;
   }>();
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const isDesktop = width >= 1024;
   // Allow deep-linking to a specific sub-tab via ?tab=calls or ?tab=questions
   const [activeTab, setActiveTab] = useState<'calls' | 'questions'>(
     tab === 'questions' ? 'questions' : 'calls'

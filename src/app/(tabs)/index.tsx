@@ -52,7 +52,7 @@ export default function DiscoverScreen() {
   const isDark = colorScheme === 'dark';
 
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const isDesktop = width >= 1024;
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [experts, setExperts] = useState<Profile[]>([]);

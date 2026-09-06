@@ -19,7 +19,7 @@ export default function SearchScreen() {
   const isDark = colorScheme === 'dark';
 
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const isDesktop = width >= 1024;
 
   // 1. Fetch categories on mount
   useEffect(() => {

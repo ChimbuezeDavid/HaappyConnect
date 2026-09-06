@@ -16,7 +16,7 @@ export default function TabLayout() {
   const isDark = colorScheme === 'dark';
 
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const isDesktop = width >= 1024;
 
   const conversations = useChatStore((state) => state.conversations);
   const fetchConversations = useChatStore((state) => state.fetchConversations);

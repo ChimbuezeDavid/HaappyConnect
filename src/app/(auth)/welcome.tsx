@@ -25,7 +25,7 @@ interface Slide {
 
 export default function WelcomeScreen() {
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const isDesktop = width >= 1024;
   const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);

@@ -14,7 +14,7 @@ export default function ExpertProfileDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isGuest, user } = useAuthStore();
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const isDesktop = width >= 1024;
   const router = useRouter();
   const [expert, setExpert] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);

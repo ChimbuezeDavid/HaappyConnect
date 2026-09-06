@@ -76,7 +76,7 @@ export default function WalletScreen() {
   const isDark = colorScheme === 'dark';
 
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' || width >= 768;
+  const isDesktop = width >= 1024;
 
   const loadData = async (refresh = true) => {
     if (isGuest || !token) return;

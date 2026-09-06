@@ -28,6 +28,14 @@ const getBaseUrl = () => {
 
   let url = process.env.EXPO_PUBLIC_API_URL;
   if (url) {
+    // Strip trailing slashes
+    url = url.replace(/\/+$/, '');
+
+    // Ensure /api prefix is present
+    if (!url.endsWith('/api')) {
+      url = `${url}/api`;
+    }
+
     // If running on Android emulator and the URL points to localhost, dynamically map it to 10.0.2.2
     if (Platform.OS === 'android' && isEmulator && (url.includes('localhost') || url.includes('127.0.0.1'))) {
       const updatedUrl = url.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
@@ -171,7 +179,9 @@ interface RequestOptions extends RequestInit {
 
 export const apiRequest = async (endpoint: string, options: RequestOptions = {}): Promise<any> => {
   const token = await getAuthToken();
-  const url = `${API_URL}${endpoint}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const cleanBase = API_URL.replace(/\/+$/, '');
+  const url = `${cleanBase}${cleanEndpoint}`;
 
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');

@@ -56,6 +56,14 @@ if (fs.existsSync(adminPublicPath)) {
   });
 }
 
+// Normalize duplicate slashes in request URLs
+app.use((req, res, next) => {
+  if (req.url.includes('//')) {
+    req.url = req.url.replace(/\/{2,}/g, '/');
+  }
+  next();
+});
+
 // Logger middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
@@ -63,20 +71,20 @@ app.use((req, res, next) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
+app.get(['/health', '/api/health'], (req, res) => {
   res.json({ status: 'ok', message: 'Haappy-Connect API is running' });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/expert', expertRoutes);
-app.use('/api/booking', bookingRoutes);
-app.use('/api/question', questionRoutes);
-app.use('/api/wallet', walletRoutes);
-app.use('/api/review', reviewRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/admin', adminRoutes);
+// API Routes (supports both /api/path and /path)
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/profile', '/profile'], profileRoutes);
+app.use(['/api/expert', '/expert'], expertRoutes);
+app.use(['/api/booking', '/booking'], bookingRoutes);
+app.use(['/api/question', '/question'], questionRoutes);
+app.use(['/api/wallet', '/wallet'], walletRoutes);
+app.use(['/api/review', '/review'], reviewRoutes);
+app.use(['/api/chat', '/chat'], chatRoutes);
+app.use(['/api/admin', '/admin'], adminRoutes);
 
 // Socket.io Setup
 const io = initSocket(httpServer);

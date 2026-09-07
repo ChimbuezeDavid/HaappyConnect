@@ -8,6 +8,8 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
+  StyleSheet,
 } from 'react-native';
 import { Search, X, ChevronRight, ArrowLeft, Check, Globe, MapPin } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
@@ -145,22 +147,21 @@ export default function CountryCityPickerModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 justify-end bg-black/60"
+        className="flex-1 justify-center items-center bg-black/70 px-4"
       >
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         <View
           style={{
             backgroundColor: isDark ? '#0F172A' : '#FAF8F5',
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
-            maxHeight: '85%',
+            maxHeight: '80%',
           }}
-          className="w-full p-5 border-t border-slate-200 dark:border-slate-800"
+          className="w-full max-w-md p-5 rounded-[28px] border border-slate-200 dark:border-slate-800 shadow-2xl"
         >
           {/* Header */}
           <View className="flex-row items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">

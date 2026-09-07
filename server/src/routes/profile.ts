@@ -30,6 +30,27 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// PATCH /api/profile/availability
+router.patch('/availability', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { availabilityImmediate, availabilityNote } = req.body;
+    const profile = await Profile.findOne({ user: req.userId });
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    if (availabilityImmediate !== undefined) profile.availabilityImmediate = availabilityImmediate;
+    if (availabilityNote !== undefined) profile.availabilityNote = availabilityNote;
+    await profile.save();
+    res.json({ 
+      success: true, 
+      availabilityImmediate: profile.availabilityImmediate, 
+      availabilityNote: profile.availabilityNote 
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error updating availability' });
+  }
+});
+
 // Create/Update profile (Onboarding)
 router.post('/setup', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -162,7 +183,8 @@ router.post('/upload-avatar', authenticate, async (req: AuthRequest, res: Respon
     fs.writeFileSync(filePath, buffer);
 
     const host = req.get('host');
-    const fileUrl = `${req.protocol}://${host}/uploads/${uniqueFileName}`;
+    const proto = (req.headers['x-forwarded-proto'] as string) || (req.secure ? 'https' : req.protocol);
+    const fileUrl = `${proto}://${host}/uploads/${uniqueFileName}`;
 
     res.json({ url: fileUrl });
   } catch (error: any) {
@@ -189,7 +211,8 @@ router.post('/upload-media', authenticate, async (req: AuthRequest, res: Respons
     fs.writeFileSync(filePath, buffer);
 
     const host = req.get('host');
-    const fileUrl = `${req.protocol}://${host}/uploads/${uniqueFileName}`;
+    const proto = (req.headers['x-forwarded-proto'] as string) || (req.secure ? 'https' : req.protocol);
+    const fileUrl = `${proto}://${host}/uploads/${uniqueFileName}`;
 
     res.json({ url: fileUrl });
   } catch (error: any) {

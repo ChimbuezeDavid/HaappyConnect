@@ -53,6 +53,7 @@ interface AuthState {
     role?: 'seeker' | 'expert';
   }) => Promise<void>;
   loginWithOAuth: (token: string, refreshToken: string | null, user: User, profile?: Profile | null) => Promise<void>;
+  updateLocalProfile: (updates: Partial<Profile>) => void;
   clearError: () => void;
 }
 
@@ -66,6 +67,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
 
   clearError: () => set({ error: null }),
+  updateLocalProfile: (updates: Partial<Profile>) => {
+    const current = get().profile;
+    if (current) {
+      set({ profile: { ...current, ...updates } });
+    }
+  },
   setGuest: (isGuest) => set({ isGuest, token: null, refreshToken: null, user: null, profile: null }),
 
   signup: async (email, password, role) => {
@@ -185,16 +192,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     } catch (error: any) {
-      // If loading fails, clear invalid tokens
-      await clearAuthTokens();
-      set({
-        token: null,
-        refreshToken: null,
-        user: null,
-        profile: null,
-        isGuest: false,
-        isLoading: false,
-      });
+      console.warn('[AuthStore] loadUser warning:', error.message || error);
+      const isAuthUnauthorized =
+        error?.status === 401 ||
+        error?.message?.includes('401') ||
+        error?.message?.includes('Unauthorized') ||
+        error?.message?.includes('invalid token') ||
+        error?.message?.includes('Session expired');
+
+      if (isAuthUnauthorized) {
+        // Genuine authentication rejection — wipe invalid session
+        await clearAuthTokens();
+        set({
+          token: null,
+          refreshToken: null,
+          user: null,
+          profile: null,
+          isGuest: false,
+          isLoading: false,
+        });
+      } else {
+        // Transient network error / timeout / offline / cold-start:
+        // Retain session tokens so user is not logged out!
+        set({ isLoading: false });
+      }
     }
   },
 

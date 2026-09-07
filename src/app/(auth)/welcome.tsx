@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,10 +27,26 @@ export default function WelcomeScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
   const router = useRouter();
+  const { token, user } = useAuthStore();
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  // Immediate fail-safe: authenticated users must NEVER see the welcome screen
+  useEffect(() => {
+    if (token) {
+      if (user && !user.isOnboarded) {
+        router.replace('/(onboarding)/role-selection');
+      } else {
+        router.replace('/(tabs)');
+      }
+    }
+  }, [token, user]);
+
+  if (token) {
+    return null;
+  }
 
   const slides: Slide[] = [
     {

@@ -27,6 +27,10 @@ import {
   Briefcase,
   HelpCircle,
   Check,
+  Eye,
+  EyeOff,
+  Lock,
+  Sliders,
 } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -56,6 +60,12 @@ export default function ExpertVerificationScreen() {
   const [mentorshipStatement, setMentorshipStatement] = useState('');
   const [certifications, setCertifications] = useState<CertificationItem[]>([]);
 
+  // Public visibility toggles (what seekers can see)
+  const [showCertifications, setShowCertifications] = useState(true);
+  const [showExperience, setShowExperience] = useState(true);
+  const [showPortfolio, setShowPortfolio] = useState(true);
+  const [showMentorshipStatement, setShowMentorshipStatement] = useState(true);
+
   // Temp cert modal/inputs
   const [certTitle, setCertTitle] = useState('');
   const [certIssuer, setCertIssuer] = useState('');
@@ -78,6 +88,12 @@ export default function ExpertVerificationScreen() {
         setPortfolioUrl(data.verificationData.portfolioUrl || '');
         setMentorshipStatement(data.verificationData.mentorshipStatement || '');
         setCertifications(data.verificationData.certifications || []);
+      }
+      if (data.publicAccreditation) {
+        setShowCertifications(data.publicAccreditation.showCertifications !== false);
+        setShowExperience(data.publicAccreditation.showExperience !== false);
+        setShowPortfolio(data.publicAccreditation.showPortfolio !== false);
+        setShowMentorshipStatement(data.publicAccreditation.showMentorshipStatement !== false);
       }
     } catch (err: any) {
       console.warn('Failed to fetch verification status:', err);
@@ -123,6 +139,12 @@ export default function ExpertVerificationScreen() {
         yearsOfExperience: Number(yearsOfExperience) || 0,
         portfolioUrl,
         mentorshipStatement,
+        publicAccreditation: {
+          showCertifications,
+          showExperience,
+          showPortfolio,
+          showMentorshipStatement,
+        },
       });
 
       setVerificationStatus('pending');
@@ -449,6 +471,164 @@ export default function ExpertVerificationScreen() {
             <Text className="text-slate-400 text-[11px] mt-1.5 ml-1">
               Documents are encrypted and exclusively reviewed by vetted administrators.
             </Text>
+          </View>
+
+          {/* 4. Seeker Profile Visibility Controls */}
+          <View className="mb-8">
+            <View className="flex-row items-center mb-1">
+              <Sliders size={16} color="#059669" style={{ marginRight: 6 }} />
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                4. Public Profile Visibility Controls
+              </Text>
+            </View>
+            <Text className="text-slate-500 dark:text-slate-400 text-xs mb-4">
+              Select which verified credentials and cross-examination answers are displayed to seekers on your public profile:
+            </Text>
+
+            {/* Certifications Toggle */}
+            <TouchableOpacity
+              onPress={() => setShowCertifications(!showCertifications)}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+                borderColor: isDark ? '#222D3D' : '#E2E8F0',
+              }}
+              className="rounded-2xl p-4 mb-2.5 flex-row justify-between items-center border"
+            >
+              <View className="flex-1 mr-3">
+                <Text className="text-sm font-bold text-slate-900 dark:text-white">
+                  Show Licenses & Certifications
+                </Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Displays your verified credentials and issuing authorities to seekers.
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: showCertifications ? '#059669' : (isDark ? '#334155' : '#CBD5E1'),
+                }}
+                className="w-12 h-7 rounded-full justify-center px-1"
+              >
+                <View
+                  style={{
+                    transform: [{ translateX: showCertifications ? 20 : 0 }],
+                  }}
+                  className="w-5 h-5 rounded-full bg-white shadow-sm"
+                />
+              </View>
+            </TouchableOpacity>
+
+            {/* Experience Toggle */}
+            <TouchableOpacity
+              onPress={() => setShowExperience(!showExperience)}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+                borderColor: isDark ? '#222D3D' : '#E2E8F0',
+              }}
+              className="rounded-2xl p-4 mb-2.5 flex-row justify-between items-center border"
+            >
+              <View className="flex-1 mr-3">
+                <Text className="text-sm font-bold text-slate-900 dark:text-white">
+                  Show Years of Industry Experience
+                </Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Displays your total years of active career experience on your profile.
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: showExperience ? '#059669' : (isDark ? '#334155' : '#CBD5E1'),
+                }}
+                className="w-12 h-7 rounded-full justify-center px-1"
+              >
+                <View
+                  style={{
+                    transform: [{ translateX: showExperience ? 20 : 0 }],
+                  }}
+                  className="w-5 h-5 rounded-full bg-white shadow-sm"
+                />
+              </View>
+            </TouchableOpacity>
+
+            {/* Portfolio Link Toggle */}
+            <TouchableOpacity
+              onPress={() => setShowPortfolio(!showPortfolio)}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+                borderColor: isDark ? '#222D3D' : '#E2E8F0',
+              }}
+              className="rounded-2xl p-4 mb-2.5 flex-row justify-between items-center border"
+            >
+              <View className="flex-1 mr-3">
+                <Text className="text-sm font-bold text-slate-900 dark:text-white">
+                  Show Portfolio / LinkedIn Link
+                </Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Allows seekers to inspect your public portfolio or professional profile.
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: showPortfolio ? '#059669' : (isDark ? '#334155' : '#CBD5E1'),
+                }}
+                className="w-12 h-7 rounded-full justify-center px-1"
+              >
+                <View
+                  style={{
+                    transform: [{ translateX: showPortfolio ? 20 : 0 }],
+                  }}
+                  className="w-5 h-5 rounded-full bg-white shadow-sm"
+                />
+              </View>
+            </TouchableOpacity>
+
+            {/* Mentorship Statement Toggle */}
+            <TouchableOpacity
+              onPress={() => setShowMentorshipStatement(!showMentorshipStatement)}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+                borderColor: isDark ? '#222D3D' : '#E2E8F0',
+              }}
+              className="rounded-2xl p-4 mb-2.5 flex-row justify-between items-center border"
+            >
+              <View className="flex-1 mr-3">
+                <Text className="text-sm font-bold text-slate-900 dark:text-white">
+                  Show Mentorship Background Statement
+                </Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Displays your advisory expertise and track record to prospective seekers.
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: showMentorshipStatement ? '#059669' : (isDark ? '#334155' : '#CBD5E1'),
+                }}
+                className="w-12 h-7 rounded-full justify-center px-1"
+              >
+                <View
+                  style={{
+                    transform: [{ translateX: showMentorshipStatement ? 20 : 0 }],
+                  }}
+                  className="w-5 h-5 rounded-full bg-white shadow-sm"
+                />
+              </View>
+            </TouchableOpacity>
+
+            {/* Government ID Privacy Guarantee Badge */}
+            <View className="bg-slate-500/10 border border-slate-500/20 rounded-2xl p-3.5 flex-row items-center mt-2">
+              <Lock size={16} color="#059669" style={{ marginRight: 10 }} />
+              <View className="flex-1">
+                <Text className="text-xs font-bold text-slate-900 dark:text-white">
+                  Government ID & Legal Documents
+                </Text>
+                <Text className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Strictly Private to the Executive Admin Board for compliance and identity verification. Never accessible to seekers.
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* Submit CTA */}

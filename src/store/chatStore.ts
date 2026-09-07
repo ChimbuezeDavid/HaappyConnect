@@ -276,11 +276,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isLoadingMessages: false
       }));
 
-      // Acknowledge read status
-      const { socket } = get();
-      if (socket) {
-        socket.emit('markAsRead', { conversationId });
-      }
+      // Optimistically clear unread count for this conversation
+      set((state) => ({
+        conversations: state.conversations.map((c) =>
+          c._id === conversationId ? { ...c, unreadCount: 0 } : c
+        ),
+      }));
+
+      // Acknowledge read status via both guaranteed REST and Socket
+      get().markAsRead(conversationId);
     } catch (err: any) {
       set({ error: err.message || 'Failed to fetch messages', isLoadingMessages: false });
     }
@@ -302,13 +306,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendMessage: async (conversationId, content, media) => {
-    // 1. Optimistic / Socket dispatch if socket is connected
-    const { socket } = get();
-    if (socket && socket.connected) {
-      socket.emit('sendMessage', { conversationId, content, media });
-    }
-
-    // 2. Guaranteed database persistence via REST API
+    // Guaranteed single-source database persistence via REST API
+    // Server saves once and broadcasts to room via socket io.to(id).emit('messageReceived')
     try {
       const savedMessage = await api.post(`/chat/conversations/${conversationId}/messages`, {
         content,
@@ -322,6 +321,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       get().fetchConversations();
     } catch (err: any) {
       console.warn('[ChatStore] REST message persistence warning:', err.message);
+      throw err;
     }
   },
 
@@ -347,8 +347,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   markAsRead: (conversationId) => {
+    // 1. Optimistically zero the unread count in local state
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c._id === conversationId ? { ...c, unreadCount: 0 } : c
+      ),
+    }));
+
+    // 2. Guaranteed REST persistence to update database
+    api.post(`/chat/conversations/${conversationId}/read`, {}).catch((err) => {
+      console.warn('[ChatStore] REST markAsRead warning:', err.message);
+    });
+
+    // 3. Emit real-time socket event
     const { socket } = get();
-    if (socket) {
+    if (socket && socket.connected) {
       socket.emit('markAsRead', { conversationId });
     }
   },

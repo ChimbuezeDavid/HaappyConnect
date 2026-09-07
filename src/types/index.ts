@@ -21,8 +21,12 @@ export interface Profile {
   bio: string;
   headline: string;
   hourlyRate: number;
+  callPricePerMinute?: number;
+  minCallMinutes?: number;
   textQuestionPrice: number;
   videoResponsePrice: number;
+  responseRate?: number;
+  avgResponseHours?: number;
   categories: Category[];
   username?: string;
   location?: string;
@@ -40,6 +44,23 @@ export interface Profile {
   ratingAverage: number;
   reviewsCount: number;
   isVerified?: boolean;
+  verificationStatus?: 'unsubmitted' | 'pending' | 'approved' | 'rejected';
+  verificationData?: {
+    idDocumentUrl?: string;
+    certifications?: Array<{ title: string; issuer: string; year: string; proofUrl?: string }>;
+    yearsOfExperience?: number;
+    portfolioUrl?: string;
+    mentorshipStatement?: string;
+    submittedAt?: string;
+    reviewedAt?: string;
+    adminNotes?: string;
+  };
+  publicAccreditation?: {
+    showCertifications?: boolean;
+    showExperience?: boolean;
+    showPortfolio?: boolean;
+    showMentorshipStatement?: boolean;
+  };
   createdAt: string;
   updatedAt: string;
 }

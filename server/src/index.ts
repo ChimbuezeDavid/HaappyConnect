@@ -13,6 +13,12 @@ import { startExpirationScheduler } from './utils/scheduler';
 import { Conversation } from './models/Conversation';
 import { Message } from './models/Message';
 import { Category } from './models/Category';
+import { User } from './models/User';
+import { Question } from './models/Question';
+import { Booking } from './models/Booking';
+import { Profile } from './models/Profile';
+import { sendPushNotification } from './utils/push';
+import { sendConsultationNoticeEmail } from './services/email';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -149,6 +155,50 @@ io.on('connection', (socket) => {
       if (conversation.blockedBy && conversation.blockedBy.length > 0) {
         socket.emit('error', { message: 'Cannot send message: This conversation is blocked' });
         return;
+      }
+
+      // Check paid consultation requirement: any user messaging an expert must have an active paid consultation
+      const senderUser = await User.findById(userId);
+      const otherUserId = conversation.participants.find((p) => p.toString() !== userId);
+      const otherUser = await User.findById(otherUserId);
+
+      if (otherUser?.role === 'expert') {
+        const isReplyingExpert = await Question.exists({
+          expert: userId,
+          seeker: otherUserId,
+          status: 'pending'
+        }) || await Booking.exists({
+          expert: userId,
+          seeker: otherUserId,
+          status: { $in: ['pending', 'confirmed'] }
+        });
+
+        if (!isReplyingExpert) {
+          const activeQuestion = await Question.findOne({
+            seeker: userId,
+            expert: otherUserId,
+            status: 'pending',
+          });
+
+          const now = Date.now();
+          const activeBooking = await Booking.findOne({
+            seeker: userId,
+            expert: otherUserId,
+            status: 'confirmed',
+            scheduledAt: {
+              $gte: new Date(now - 2 * 60 * 60 * 1000),
+              $lte: new Date(now + 24 * 60 * 60 * 1000)
+            }
+          });
+
+          if (!activeQuestion && !activeBooking) {
+            socket.emit('error', {
+              message: 'Paid consultation required. You cannot message an expert without an active consultation.',
+              requiresConsultation: true,
+            });
+            return;
+          }
+        }
       }
 
       const message = new Message({
@@ -326,6 +376,98 @@ mongoose
     }
 
     startExpirationScheduler();
+
+    // Start automated consultation call notification scheduler
+    setInterval(async () => {
+      try {
+        const now = new Date();
+        const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+        const fiveMinutesAhead = new Date(now.getTime() + 5 * 60 * 1000);
+
+        const pendingCallBookings = await Booking.find({
+          status: 'confirmed',
+          scheduledAt: { $gte: tenMinutesAgo, $lte: fiveMinutesAhead },
+          notifiedAt: { $exists: false }
+        })
+          .populate('seeker', 'email pushToken')
+          .populate('expert', 'email pushToken');
+
+        for (const booking of pendingCallBookings) {
+          booking.notifiedAt = new Date();
+          await booking.save();
+
+          const seekerProfile = await Profile.findOne({ user: (booking.seeker as any)._id });
+          const expertProfile = await Profile.findOne({ user: (booking.expert as any)._id });
+
+          const seekerName = seekerProfile?.fullName || 'Seeker';
+          const expertName = expertProfile?.fullName || 'Expert';
+
+          console.log(`[Call Scheduler] Notifying call starting for booking: ${booking._id}`);
+
+          // Emit incomingCall to both participants
+          io.to(`user:${(booking.seeker as any)._id.toString()}`).emit('incomingCall', {
+            bookingId: booking._id.toString(),
+            callerId: (booking.expert as any)._id.toString(),
+            callerName: expertName,
+            meetingLink: booking.meetingLink,
+            durationMinutes: String(booking.durationMinutes)
+          });
+
+          io.to(`user:${(booking.expert as any)._id.toString()}`).emit('incomingCall', {
+            bookingId: booking._id.toString(),
+            callerId: (booking.seeker as any)._id.toString(),
+            callerName: seekerName,
+            meetingLink: booking.meetingLink,
+            durationMinutes: String(booking.durationMinutes)
+          });
+
+          // Send push notifications
+          if ((booking.seeker as any)?.pushToken) {
+            sendPushNotification(
+              (booking.seeker as any).pushToken,
+              'Consultation Call Starting Now',
+              `Your 1:1 Video Session with ${expertName} is starting now. Tap to join!`,
+              { bookingId: booking._id.toString(), meetingLink: booking.meetingLink }
+            ).catch(() => {});
+          }
+
+          if ((booking.expert as any)?.pushToken) {
+            sendPushNotification(
+              (booking.expert as any).pushToken,
+              'Consultation Call Starting Now',
+              `Your 1:1 Video Session with ${seekerName} is starting now. Tap to join!`,
+              { bookingId: booking._id.toString(), meetingLink: booking.meetingLink }
+            ).catch(() => {});
+          }
+
+          // Send email notifications
+          if ((booking.seeker as any)?.email) {
+            sendConsultationNoticeEmail({
+              toEmail: (booking.seeker as any).email,
+              recipientName: seekerName,
+              senderName: expertName,
+              type: 'booking',
+              sessionDetails: `Your scheduled 1:1 Video Consultation is ready right now. Meeting link: ${booking.meetingLink || 'Open Haappy app to enter room'}`,
+              actionUrl: booking.meetingLink || 'https://haappy.org/bookings',
+            }).catch(() => {});
+          }
+
+          if ((booking.expert as any)?.email) {
+            sendConsultationNoticeEmail({
+              toEmail: (booking.expert as any).email,
+              recipientName: expertName,
+              senderName: seekerName,
+              type: 'booking',
+              sessionDetails: `Your scheduled 1:1 Video Consultation with client ${seekerName} is starting now. Meeting link: ${booking.meetingLink || 'Open Haappy app to enter room'}`,
+              actionUrl: booking.meetingLink || 'https://haappy.org/bookings',
+            }).catch(() => {});
+          }
+        }
+      } catch (cronErr) {
+        console.warn('[Call Scheduler Error]:', cronErr);
+      }
+    }, 30000);
+
     httpServer.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });

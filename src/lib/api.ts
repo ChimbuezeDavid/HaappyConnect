@@ -69,11 +69,38 @@ export const API_URL = getBaseUrl();
 const TOKEN_KEY = 'haappyconnect_jwt_token';
 const REFRESH_TOKEN_KEY = 'haappyconnect_refresh_token';
 
-// Retrieve access token from secure storage
+// Web cookie helpers for cross-session and cross-update persistence
+const getCookie = (name: string): string | null => {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return decodeURIComponent(parts.pop()?.split(';').shift() || '');
+  return null;
+};
+
+const setCookie = (name: string, val: string, days = 180) => {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  const maxAge = days * 24 * 60 * 60;
+  document.cookie = `${name}=${encodeURIComponent(val)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+};
+
+const deleteCookie = (name: string) => {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+};
+
+// Retrieve access token from secure storage with web cookie recovery
 export const getAuthToken = async (): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
-      return localStorage.getItem(TOKEN_KEY);
+      let token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+      if (!token) {
+        token = getCookie('haappy_token');
+        if (token && typeof localStorage !== 'undefined') {
+          localStorage.setItem(TOKEN_KEY, token);
+        }
+      }
+      return token;
     }
     return await SecureStore.getItemAsync(TOKEN_KEY);
   } catch (error) {
@@ -82,11 +109,14 @@ export const getAuthToken = async (): Promise<string | null> => {
   }
 };
 
-// Set access token in secure storage
+// Set access token in secure storage and persistent cookie
 export const setAuthToken = async (token: string): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.setItem(TOKEN_KEY, token);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(TOKEN_KEY, token);
+      }
+      setCookie('haappy_token', token, 30);
       return;
     }
     await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -95,11 +125,18 @@ export const setAuthToken = async (token: string): Promise<void> => {
   }
 };
 
-// Retrieve refresh token from secure storage
+// Retrieve refresh token from secure storage with web cookie recovery
 export const getRefreshToken = async (): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
-      return localStorage.getItem(REFRESH_TOKEN_KEY);
+      let refreshToken = typeof localStorage !== 'undefined' ? localStorage.getItem(REFRESH_TOKEN_KEY) : null;
+      if (!refreshToken) {
+        refreshToken = getCookie('haappy_refresh_token');
+        if (refreshToken && typeof localStorage !== 'undefined') {
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        }
+      }
+      return refreshToken;
     }
     return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
   } catch (error) {
@@ -108,11 +145,14 @@ export const getRefreshToken = async (): Promise<string | null> => {
   }
 };
 
-// Set refresh token in secure storage
+// Set refresh token in secure storage and persistent cookie
 export const setRefreshToken = async (refreshToken: string): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      }
+      setCookie('haappy_refresh_token', refreshToken, 180);
       return;
     }
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
@@ -133,7 +173,10 @@ export const setAuthTokens = async (token: string, refreshToken?: string): Promi
 export const removeAuthToken = async (): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.removeItem(TOKEN_KEY);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(TOKEN_KEY);
+      }
+      deleteCookie('haappy_token');
       return;
     }
     await SecureStore.deleteItemAsync(TOKEN_KEY);
@@ -146,8 +189,12 @@ export const removeAuthToken = async (): Promise<void> => {
 export const clearAuthTokens = async (): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+      }
+      deleteCookie('haappy_token');
+      deleteCookie('haappy_refresh_token');
       return;
     }
     await Promise.all([

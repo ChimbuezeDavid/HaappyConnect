@@ -11,6 +11,7 @@ import { Availability } from '../models/Availability';
 import { sendPushNotification } from '../utils/push';
 import { sendConsultationNoticeEmail } from '../services/email';
 import { getIO } from '../socket';
+import { getSystemSettings } from '../models/SystemSettings';
 
 const router = Router();
 
@@ -80,6 +81,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Insufficient wallet balance. Please deposit funds first.' });
     }
 
+    const jitsiDomain = process.env.JITSI_DOMAIN || 'fairmeeting.net';
+    const roomName = `haappy-connect-${Math.random().toString(36).substring(2, 9)}`;
+
     const booking = new Booking({
       seeker: req.userId,
       expert: expertId,
@@ -87,7 +91,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       price,
       scheduledAt: new Date(scheduledAt),
       durationMinutes,
-      meetingLink: `https://meet.jit.si/haappy-connect-${Math.random().toString(36).substring(2, 9)}`
+      meetingLink: `https://${jitsiDomain}/${roomName}`
     });
 
     await booking.save();
@@ -244,12 +248,14 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
       }
 
       const expertProfile = await Profile.findOne({ user: booking.expert });
+      const settings = await getSystemSettings();
+      const feeRatio = (100 - settings.platformFeePercentage) / 100;
       const transaction = new Transaction({
         user: booking.expert,
-        amount: booking.price * 0.8, // 80% to expert, 20% platform fee
+        amount: booking.price * feeRatio,
         type: 'charge',
         status: 'success',
-        description: `Earnings: Completed live call booking`,
+        description: `Earnings: Completed live call booking (${100 - settings.platformFeePercentage}% payout)`,
         metadata: { bookingId: booking._id }
       });
       await transaction.save();
@@ -434,6 +440,89 @@ router.get('/availability/:expertId', async (req, res) => {
     res.json(freeSlots);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error calculating availability' });
+  }
+});
+
+// POST /booking/:id/start-call - Trigger call ringing & notifications for both parties
+router.post('/:id/start-call', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+      .populate('seeker', 'email pushToken')
+      .populate('expert', 'email pushToken');
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking record not found' });
+    }
+
+    const isSeeker = (booking.seeker as any)._id.toString() === req.userId;
+    const isExpert = (booking.expert as any)._id.toString() === req.userId;
+    if (!isSeeker && !isExpert) {
+      return res.status(403).json({ error: 'Not authorized for this consultation' });
+    }
+
+    const partner = isSeeker ? (booking.expert as any) : (booking.seeker as any);
+    const caller = isSeeker ? (booking.seeker as any) : (booking.expert as any);
+
+    const callerProfile = await Profile.findOne({ user: req.userId });
+    const partnerProfile = await Profile.findOne({ user: partner._id });
+
+    const callerName = callerProfile?.fullName || 'Consultation Partner';
+    const partnerName = partnerProfile?.fullName || 'Client';
+
+    booking.notifiedAt = new Date();
+    await booking.save();
+
+    // 1. Emit real-time incomingCall event to partner and caller
+    try {
+      const io = getIO();
+      io.to(`user:${partner._id.toString()}`).emit('incomingCall', {
+        bookingId: booking._id.toString(),
+        callerId: req.userId,
+        callerName,
+        meetingLink: booking.meetingLink,
+        durationMinutes: String(booking.durationMinutes)
+      });
+      io.to(`user:${req.userId}`).emit('incomingCall', {
+        bookingId: booking._id.toString(),
+        callerId: req.userId,
+        callerName: partnerName,
+        meetingLink: booking.meetingLink,
+        durationMinutes: String(booking.durationMinutes)
+      });
+    } catch (socketErr) {
+      console.warn('[Socket] Could not emit incomingCall:', socketErr);
+    }
+
+    // 2. Send in-app push notification
+    if (partner?.pushToken) {
+      sendPushNotification(
+        partner.pushToken,
+        'Live Video Call Starting Now',
+        `${callerName} has joined your 1:1 Video Consultation. Tap to enter!`,
+        { bookingId: booking._id.toString(), meetingLink: booking.meetingLink }
+      ).catch(() => {});
+    }
+
+    // 3. Send email notification
+    if (partner?.email) {
+      sendConsultationNoticeEmail({
+        toEmail: partner.email,
+        recipientName: partnerName,
+        senderName: callerName,
+        type: 'booking',
+        sessionDetails: `Your 1:1 consultation is ready right now. Meeting link: ${booking.meetingLink || 'Open Haappy app to join'}`,
+        actionUrl: booking.meetingLink || 'https://haappy.org/bookings',
+      }).catch(() => {});
+    }
+
+    res.json({
+      success: true,
+      message: 'Call started and notifications dispatched to both parties',
+      meetingLink: booking.meetingLink,
+      durationMinutes: booking.durationMinutes
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error starting call' });
   }
 });
 

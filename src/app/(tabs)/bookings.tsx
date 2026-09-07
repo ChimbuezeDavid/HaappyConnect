@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Linking, Alert, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, RefreshControl, Linking, Alert, Platform, useWindowDimensions, Image } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '@/lib/api';
@@ -11,6 +11,7 @@ import { useColorScheme } from 'nativewind';
 import SubmitReviewModal from '@/components/review/SubmitReviewModal';
 import { useChatStore } from '@/store/chatStore';
 import { requestAudioPermission } from '@/services/permissions';
+import { getAvatarUrl } from '@/lib/avatar';
 
 export default function BookingsScreen() {
   const { user, token, isGuest } = useAuthStore();
@@ -27,6 +28,7 @@ export default function BookingsScreen() {
   const [activeTab, setActiveTab] = useState<'calls' | 'questions'>(
     tab === 'questions' ? 'questions' : 'calls'
   );
+  const [queueFilter, setQueueFilter] = useState<'all' | 'action_required' | 'history'>('all');
 
   const handleStartChat = async (participantId: string, relatedToModel?: 'Booking' | 'Question', relatedToId?: string) => {
     try {
@@ -276,10 +278,22 @@ export default function BookingsScreen() {
 
   const isExpert = user?.role === 'expert';
 
+  const filteredBookings = bookings.filter((b) => {
+    if (queueFilter === 'action_required') return b.status === 'confirmed' || b.status === 'pending';
+    if (queueFilter === 'history') return b.status === 'completed' || b.status === 'cancelled';
+    return true;
+  });
+
+  const filteredQuestions = questions.filter((q) => {
+    if (queueFilter === 'action_required') return q.status === 'pending';
+    if (queueFilter === 'history') return q.status === 'answered' || q.status === 'declined' || q.status === 'refunded';
+    return true;
+  });
+
   return (
     <View className={`flex-1 w-full ${isDesktop ? 'px-8' : 'max-w-2xl self-center px-4'}`} style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
       {/* Tab Switcher */}
-      <View className={`flex-row my-4 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none ${isDesktop ? 'max-w-sm' : 'mx-4'}`}>
+      <View className={`flex-row my-4 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none ${isDesktop ? 'max-w-md' : 'mx-4'}`}>
         <TouchableOpacity
           onPress={() => setActiveTab('calls')}
           className={`flex-1 flex-row items-center justify-center py-3 rounded-xl ${
@@ -290,6 +304,13 @@ export default function BookingsScreen() {
           <Text className={`font-semibold ml-2 text-sm ${activeTab === 'calls' ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`}>
             Live Calls
           </Text>
+          <View className={`ml-2 px-2 py-0.5 rounded-full ${
+            activeTab === 'calls' ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'
+          }`}>
+            <Text className={`text-[10px] font-bold ${activeTab === 'calls' ? 'text-white' : 'text-slate-500'}`}>
+              {bookings.length}
+            </Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -300,7 +321,60 @@ export default function BookingsScreen() {
         >
           <MessageSquare size={16} color={activeTab === 'questions' ? '#fff' : '#64748b'} />
           <Text className={`font-semibold ml-2 text-sm ${activeTab === 'questions' ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`}>
-            Written Questions
+            Written Q&A
+          </Text>
+          <View className={`ml-2 px-2 py-0.5 rounded-full ${
+            activeTab === 'questions' ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'
+          }`}>
+            <Text className={`text-[10px] font-bold ${activeTab === 'questions' ? 'text-white' : 'text-slate-500'}`}>
+              {questions.length}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Triage Sub-filters */}
+      <View className={`flex-row items-center mb-4 px-1 gap-2 ${isDesktop ? 'max-w-md' : 'mx-4'}`}>
+        <TouchableOpacity
+          onPress={() => setQueueFilter('all')}
+          className={`px-3 py-1.5 rounded-full border ${
+            queueFilter === 'all'
+              ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+          }`}
+        >
+          <Text className={`text-xs font-bold ${queueFilter === 'all' ? 'text-white dark:text-slate-900' : 'text-slate-600 dark:text-slate-400'}`}>
+            All ({activeTab === 'calls' ? bookings.length : questions.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setQueueFilter('action_required')}
+          className={`px-3 py-1.5 rounded-full border ${
+            queueFilter === 'action_required'
+              ? 'bg-emerald-600 border-emerald-600'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+          }`}
+        >
+          <Text className={`text-xs font-bold ${queueFilter === 'action_required' ? 'text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+            Action Required ({
+              activeTab === 'calls'
+                ? bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length
+                : questions.filter(q => q.status === 'pending').length
+            })
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setQueueFilter('history')}
+          className={`px-3 py-1.5 rounded-full border ${
+            queueFilter === 'history'
+              ? 'bg-slate-700 border-slate-700'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+          }`}
+        >
+          <Text className={`text-xs font-bold ${queueFilter === 'history' ? 'text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+            History
           </Text>
         </TouchableOpacity>
       </View>
@@ -318,43 +392,52 @@ export default function BookingsScreen() {
         >
           {activeTab === 'calls' ? (
             /* LIVE CALLS LIST */
-            bookings.length === 0 ? (
+            filteredBookings.length === 0 ? (
               <View className="items-center justify-center py-16 bg-white dark:bg-slate-900/30 rounded-3xl border border-slate-200 dark:border-slate-850 border-dashed">
                 <Calendar size={36} color={isDark ? '#475569' : '#94a3b8'} />
-                <Text className="text-slate-500 dark:text-slate-400 text-base mt-3">No live calls scheduled yet</Text>
+                <Text className="text-slate-500 dark:text-slate-400 text-base mt-3">No live calls in this view</Text>
               </View>
             ) : (
               <View className={isDesktop ? "flex-row flex-wrap justify-between" : ""}>
-              {bookings.map((booking) => {
+              {filteredBookings.map((booking) => {
                 const isCurrentUserExpert = booking.expert === user?.id || (booking.expert as any)?._id === user?.id || (booking.expert as any)?.id === user?.id;
                 const isCurrentUserSeeker = booking.seeker === user?.id || (booking.seeker as any)?._id === user?.id || (booking.seeker as any)?.id === user?.id;
-                const partnerName = isCurrentUserExpert ? booking.seekerProfile?.fullName : booking.expertProfile?.fullName;
+                const partnerAvatar = isCurrentUserExpert ? booking.seekerProfile?.avatarUrl : booking.expertProfile?.avatarUrl;
+                const partnerName = isCurrentUserExpert
+                  ? booking.seekerProfile?.fullName || 'Client'
+                  : booking.expertProfile?.fullName || 'Expert';
                 const formattedDate = new Date(booking.scheduledAt).toLocaleString();
 
                 return (
                   <View key={booking._id} style={isDesktop ? { width: '49%' } : undefined} className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none">
-                    {/* Header Row: Partner Name, Role Badge, Status Badge */}
+                    {/* Header Row: Partner Avatar & Name, Role Badge, Status Badge */}
                     <View className="flex-row justify-between items-start mb-3.5">
-                      <View className="flex-1 mr-2">
-                        <View className="flex-row items-center flex-wrap gap-2">
-                          <Text className="text-slate-900 dark:text-white font-extrabold text-base tracking-tight">{partnerName}</Text>
-                          {isExpert && (
-                            <View
-                              className="px-2 py-0.5 rounded-full border bg-emerald-500/10 border-emerald-500/20"
-                            >
-                              <Text
-                                className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400"
+                      <View className="flex-row items-center flex-1 mr-2">
+                        <Image
+                          source={{ uri: getAvatarUrl(partnerAvatar, partnerName) }}
+                          className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 mr-3 border border-slate-200 dark:border-slate-800"
+                        />
+                        <View className="flex-1">
+                          <View className="flex-row items-center flex-wrap gap-2">
+                            <Text className="text-slate-900 dark:text-white font-extrabold text-base tracking-tight">{partnerName}</Text>
+                            {isExpert && (
+                              <View
+                                className="px-2 py-0.5 rounded-full border bg-emerald-500/10 border-emerald-500/20"
                               >
-                                {isCurrentUserExpert ? 'Client Request' : 'My Booking'}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        <View className="flex-row items-center gap-1.5 mt-1">
-                          <Calendar size={12} color={isDark ? '#64748b' : '#94a3b8'} />
-                          <Text className="text-slate-400 dark:text-slate-500 text-xs">
-                            {formattedDate}
-                          </Text>
+                                <Text
+                                  className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400"
+                                >
+                                  {isCurrentUserExpert ? 'Client Request' : 'My Booking'}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          <View className="flex-row items-center gap-1.5 mt-1">
+                            <Calendar size={12} color={isDark ? '#64748b' : '#94a3b8'} />
+                            <Text className="text-slate-400 dark:text-slate-500 text-xs">
+                              {formattedDate}
+                            </Text>
+                          </View>
                         </View>
                       </View>
 
@@ -407,7 +490,7 @@ export default function BookingsScreen() {
                       </View>
                     </View>
 
-                    {/* Conference Jitsi Meeting Button */}
+                    {/* Conference Meeting Button */}
                     {booking.status === 'confirmed' && booking.meetingLink && (
                       <TouchableOpacity
                         onPress={() => {
@@ -416,18 +499,24 @@ export default function BookingsScreen() {
                             ? (typeof booking.seeker === 'string' ? booking.seeker : (booking.seeker as any)?._id || (booking.seeker as any)?.id)
                             : (typeof booking.expert === 'string' ? booking.expert : (booking.expert as any)?._id || (booking.expert as any)?.id);
 
-                          useChatStore.getState().startCallInvite(
-                            booking._id,
-                            partnerId,
-                            booking.meetingLink || '',
-                            booking.durationMinutes.toString(),
-                            partnerProfile?.fullName || 'Consultation Session'
-                          );
+                          api.post(`/booking/${booking._id}/start-call`, {}).catch(() => {});
+
+                          router.push({
+                            pathname: '/bookings/call' as any,
+                            params: {
+                              meetingLink: booking.meetingLink || '',
+                              durationMinutes: booking.durationMinutes.toString(),
+                              partnerName: partnerProfile?.fullName || 'Consultation Session',
+                              bookingId: booking._id,
+                              expertId: isCurrentUserExpert ? user?.id : partnerId,
+                              scheduledAt: booking.scheduledAt ? new Date(booking.scheduledAt).toISOString() : '',
+                            }
+                          });
                         }}
-                        className="w-full bg-emerald-500 py-3.5 rounded-2xl flex-row justify-center items-center mb-3 shadow-lg shadow-emerald-500"
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-2xl flex-row justify-center items-center mb-3 shadow-sm"
                       >
-                        <Text className="text-white font-bold text-sm mr-2">Join Video Call</Text>
-                        <ExternalLink size={16} color="#fff" />
+                        <Video size={16} color="#fff" style={{ marginRight: 8 }} />
+                        <Text className="text-white font-bold text-sm mr-2">Join Video Call Room</Text>
                       </TouchableOpacity>
                     )}
 
@@ -442,7 +531,9 @@ export default function BookingsScreen() {
                         }}
                         className="w-full bg-slate-100 dark:bg-slate-800 py-3 rounded-2xl flex-row justify-center items-center mb-3 border border-slate-200 dark:border-slate-700/50"
                       >
-                        <Text className="text-slate-700 dark:text-slate-350 font-bold text-xs mr-2">Chat with Partner</Text>
+                        <Text className="text-slate-700 dark:text-slate-350 font-bold text-xs mr-2">
+                          {isCurrentUserExpert ? 'Chat with Client' : 'Chat with Mentor'}
+                        </Text>
                         <MessageSquare size={14} color={isDark ? '#94a3b8' : '#475569'} />
                       </TouchableOpacity>
                     )}
@@ -512,14 +603,14 @@ export default function BookingsScreen() {
             )
           ) : (
             /* WRITTEN QUESTIONS LIST */
-            questions.length === 0 ? (
+            filteredQuestions.length === 0 ? (
               <View className="items-center justify-center py-16 bg-white dark:bg-slate-900/30 rounded-3xl border border-slate-200 dark:border-slate-850 border-dashed">
                 <MessageSquare size={36} color={isDark ? '#475569' : '#94a3b8'} />
-                <Text className="text-slate-500 dark:text-slate-400 text-base mt-3">No questions submitted yet</Text>
+                <Text className="text-slate-500 dark:text-slate-400 text-base mt-3">No written questions in this view</Text>
               </View>
             ) : (
               <View className={isDesktop ? "flex-row flex-wrap justify-between" : ""}>
-              {questions.map((question) => {
+              {filteredQuestions.map((question) => {
                 const isCurrentUserExpert = question.expert === user?.id || (question.expert as any)?._id === user?.id || (question.expert as any)?.id === user?.id;
                 const isCurrentUserSeeker = question.seeker === user?.id || (question.seeker as any)?._id === user?.id || (question.seeker as any)?.id === user?.id;
                 const partnerName = isCurrentUserExpert ? question.seekerProfile?.fullName : question.expertProfile?.fullName;

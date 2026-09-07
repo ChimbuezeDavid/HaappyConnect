@@ -813,23 +813,26 @@ export default function OnboardingWizard() {
               </View>
 
               {/* Preferred Communication Style */}
-              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-3">Preferred Communication Style</Text>
+              <View className="mb-2">
+                <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-1">Preferred Consultation Format (Optional)</Text>
+                <Text className="text-slate-400 text-xs mb-3">You can choose between text advice, video responses, or live calls for every consultation.</Text>
+              </View>
               <View 
                 style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
                 className="flex-row p-1.5 rounded-2xl"
               >
-                {(['Text', 'Voice', 'Video', 'Any'] as const).map((style) => (
+                {(['Any', 'Text', 'Voice', 'Video'] as const).map((style) => (
                   <TouchableOpacity
                     key={style}
                     onPress={() => draft.updateDraft({ communicationStyle: style })}
                     style={{
-                      backgroundColor: draft.communicationStyle === style ? '#059669' : 'transparent',
+                      backgroundColor: (draft.communicationStyle || 'Any') === style ? '#059669' : 'transparent',
                     }}
                     className="flex-1 items-center justify-center py-3 rounded-xl"
                   >
                     <Text
                       className={`font-semibold text-xs ${
-                        draft.communicationStyle === style ? 'text-white' : 'text-slate-500 dark:text-slate-400'
+                        (draft.communicationStyle || 'Any') === style ? 'text-white' : 'text-slate-500 dark:text-slate-400'
                       }`}
                     >
                       {style}

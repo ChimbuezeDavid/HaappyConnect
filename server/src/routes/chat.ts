@@ -4,6 +4,8 @@ import { Conversation } from '../models/Conversation';
 import { Message } from '../models/Message';
 import { Profile } from '../models/Profile';
 import { User } from '../models/User';
+import { Question } from '../models/Question';
+import { Booking } from '../models/Booking';
 import { getIO } from '../socket';
 import fs from 'fs';
 import path from 'path';
@@ -74,6 +76,74 @@ router.get('/conversations', authenticate, async (req: AuthRequest, res: Respons
   }
 });
 
+// GET /api/chat/conversations/:id/consultation-status - Verify if seeker has active paid consultation with this expert
+router.get('/conversations/:id/consultation-status', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const conversation = await Conversation.findOne({
+      _id: id,
+      participants: req.userId
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const currentUser = await User.findById(req.userId);
+    const otherUserId = conversation.participants.find(p => p.toString() !== req.userId);
+    const otherUser = await User.findById(otherUserId);
+    const otherProfile = await Profile.findOne({ user: otherUserId });
+
+    // If the recipient is an expert, no free communication allowed (for seekers OR other experts)
+    if (otherUser?.role === 'expert') {
+      // Check if currentUser is the hired expert replying to a consultation
+      const isReplyingExpert = await Question.exists({
+        expert: req.userId,
+        seeker: otherUserId,
+        status: { $in: ['pending', 'answered'] }
+      }) || await Booking.exists({
+        expert: req.userId,
+        seeker: otherUserId,
+        status: { $in: ['pending', 'confirmed'] }
+      });
+
+      if (isReplyingExpert) {
+        return res.json({ isGated: false, reason: 'expert_reply' });
+      }
+
+      // Any user (seeker OR another expert) contacting an expert must have paid consultation
+      const activeQuestion = await Question.findOne({
+        seeker: req.userId,
+        expert: otherUserId,
+        status: { $in: ['pending', 'answered'] }
+      }).sort({ createdAt: -1 });
+
+      const activeBooking = await Booking.findOne({
+        seeker: req.userId,
+        expert: otherUserId,
+        status: { $in: ['pending', 'confirmed'] }
+      }).sort({ createdAt: -1 });
+
+      const hasActiveConsultation = !!(activeQuestion || activeBooking);
+
+      return res.json({
+        isGated: !hasActiveConsultation,
+        expertProfileId: otherProfile?._id,
+        expertName: otherProfile?.fullName || 'Expert',
+        textQuestionPrice: otherProfile?.textQuestionPrice || 5000,
+        videoResponsePrice: otherProfile?.videoResponsePrice || 10000,
+        hourlyRate: otherProfile?.hourlyRate || 25000,
+        activeQuestionId: activeQuestion?._id,
+        activeBookingId: activeBooking?._id
+      });
+    }
+
+    res.json({ isGated: false });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Error checking consultation status' });
+  }
+});
+
 // GET /api/chat/conversations/:id/messages - Get messages for a specific conversation (paginated)
 router.get('/conversations/:id/messages', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -105,6 +175,122 @@ router.get('/conversations/:id/messages', authenticate, async (req: AuthRequest,
   }
 });
 
+// POST /api/chat/conversations/:id/read - Guaranteed REST endpoint to mark conversation as read
+router.post('/conversations/:id/read', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const conversation = await Conversation.findOne({
+      _id: id,
+      participants: req.userId
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found or unauthorized' });
+    }
+
+    // Clear unread count for current user
+    const ucObj = conversation.unreadCounts.find(uc => uc.user.toString() === req.userId);
+    if (ucObj) {
+      ucObj.count = 0;
+    }
+    await conversation.save();
+
+    // Mark messages as read by current user
+    await Message.updateMany(
+      { conversationId: id, senderId: { $ne: req.userId }, readBy: { $ne: req.userId } },
+      { $addToSet: { readBy: req.userId } }
+    );
+
+    // Broadcast read event to active room & user
+    try {
+      const io = getIO();
+      io.to(id).emit('messagesRead', { conversationId: id, userId: req.userId });
+      io.to(`user:${req.userId}`).emit('conversationUpdated', {
+        conversationId: id,
+        unreadCounts: conversation.unreadCounts
+      });
+    } catch (_) {}
+
+    res.json({ success: true, conversationId: id });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Error marking messages as read' });
+  }
+});
+
+// GET /api/chat/conversations/:id/consultation-status - Verify active paid consultation requirement
+router.get('/conversations/:id/consultation-status', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const conversation = await Conversation.findOne({
+      _id: id,
+      participants: req.userId
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const otherUserId = conversation.participants.find(p => p.toString() !== req.userId);
+    if (!otherUserId) {
+      return res.json({ isGated: false });
+    }
+
+    const otherUser = await User.findById(otherUserId);
+    if (otherUser?.role !== 'expert') {
+      return res.json({ isGated: false });
+    }
+
+    const expertProfile = await Profile.findOne({ user: otherUserId });
+
+    const isReplyingExpert = await Question.exists({
+      expert: req.userId,
+      seeker: otherUserId,
+      status: 'pending'
+    }) || await Booking.exists({
+      expert: req.userId,
+      seeker: otherUserId,
+      status: { $in: ['pending', 'confirmed'] }
+    });
+
+    if (isReplyingExpert) {
+      return res.json({ isGated: false });
+    }
+
+    const activeQuestion = await Question.findOne({
+      seeker: req.userId,
+      expert: otherUserId,
+      status: 'pending'
+    });
+
+    const now = Date.now();
+    const activeBooking = await Booking.findOne({
+      seeker: req.userId,
+      expert: otherUserId,
+      status: 'confirmed',
+      scheduledAt: {
+        $gte: new Date(now - 2 * 60 * 60 * 1000),
+        $lte: new Date(now + 24 * 60 * 60 * 1000)
+      }
+    });
+
+    const isGated = !activeQuestion && !activeBooking;
+
+    return res.json({
+      isGated,
+      expertProfileId: expertProfile?._id,
+      expertName: expertProfile?.fullName || 'Expert Mentor',
+      textQuestionPrice: expertProfile?.textQuestionPrice || 5000,
+      videoResponsePrice: expertProfile?.videoResponsePrice || 10000,
+      callPricePerMinute: expertProfile?.callPricePerMinute || 500,
+      hourlyRate: expertProfile?.hourlyRate || 30000,
+      hasActiveQuestion: !!activeQuestion,
+      hasActiveBooking: !!activeBooking
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Error checking consultation status' });
+  }
+});
+
 // POST /api/chat/conversations/:id/messages - Post a new message with direct database persistence
 router.post('/conversations/:id/messages', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -126,6 +312,50 @@ router.post('/conversations/:id/messages', authenticate, async (req: AuthRequest
 
     if (conversation.blockedBy && conversation.blockedBy.length > 0) {
       return res.status(403).json({ error: 'Cannot send message: This conversation is blocked' });
+    }
+
+    // Paid Consultation Gate: Ensure no free chat with experts from any user (seekers OR other experts)
+    const currentUser = await User.findById(req.userId);
+    const otherUserId = conversation.participants.find(p => p.toString() !== req.userId);
+    const otherUser = await User.findById(otherUserId);
+
+    if (otherUser?.role === 'expert') {
+      const isReplyingExpert = await Question.exists({
+        expert: req.userId,
+        seeker: otherUserId,
+        status: 'pending'
+      }) || await Booking.exists({
+        expert: req.userId,
+        seeker: otherUserId,
+        status: { $in: ['pending', 'confirmed'] }
+      });
+
+      if (!isReplyingExpert) {
+        const activeQuestion = await Question.findOne({
+          seeker: req.userId,
+          expert: otherUserId,
+          status: 'pending'
+        });
+
+        const now = Date.now();
+        const activeBooking = await Booking.findOne({
+          seeker: req.userId,
+          expert: otherUserId,
+          status: 'confirmed',
+          scheduledAt: {
+            $gte: new Date(now - 2 * 60 * 60 * 1000),
+            $lte: new Date(now + 24 * 60 * 60 * 1000)
+          }
+        });
+
+        if (!activeQuestion && !activeBooking) {
+          return res.status(402).json({
+            error: 'Paid consultation required. You cannot message an expert without an active consultation.',
+            requiresConsultation: true,
+            expertUserId: otherUserId
+          });
+        }
+      }
     }
 
     const message = new Message({
@@ -262,7 +492,8 @@ router.post('/conversations/:id/media', authenticate, async (req: AuthRequest, r
     fs.writeFileSync(filePath, buffer);
 
     const host = req.get('host');
-    const fileUrl = `${req.protocol}://${host}/uploads/${uniqueFileName}`;
+    const proto = (req.headers['x-forwarded-proto'] as string) || (req.secure ? 'https' : req.protocol);
+    const fileUrl = `${proto}://${host}/uploads/${uniqueFileName}`;
 
     res.json({ url: fileUrl });
   } catch (error: any) {

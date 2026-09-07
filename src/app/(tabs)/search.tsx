@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Image, ActivityIndicator, useWindowDimensions, Platform, Modal, Pressable, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '@/lib/api';
 import { Profile, Category } from '@/types';
-import { Search, Star, Sparkles, CheckCircle2 } from 'lucide-react-native';
+import { Search, Star, Sparkles, CheckCircle2, SlidersHorizontal, X, Check, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
+import { getAvatarUrl } from '@/lib/avatar';
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -15,11 +16,35 @@ export default function SearchScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [results, setResults] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<'rating' | 'speed' | 'price_low' | 'price_high'>('rating');
+
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
+
+  // Compute filtered and sorted results
+  const filteredResults = useMemo(() => {
+    let list = [...results];
+    if (verifiedOnly) {
+      list = list.filter((e) => e.isVerified);
+    }
+    if (sortBy === 'rating') {
+      list.sort((a, b) => (b.ratingAverage || 0) - (a.ratingAverage || 0) || (b.reviewsCount || 0) - (a.reviewsCount || 0));
+    } else if (sortBy === 'speed') {
+      list.sort((a, b) => (a.avgResponseHours || 4) - (b.avgResponseHours || 4));
+    } else if (sortBy === 'price_low') {
+      list.sort((a, b) => (a.textQuestionPrice || 0) - (b.textQuestionPrice || 0));
+    } else if (sortBy === 'price_high') {
+      list.sort((a, b) => (b.textQuestionPrice || 0) - (a.textQuestionPrice || 0));
+    }
+    return list;
+  }, [results, verifiedOnly, sortBy]);
+
+  const activeFiltersCount = (verifiedOnly ? 1 : 0) + (sortBy !== 'rating' ? 1 : 0);
 
   // 1. Fetch categories on mount
   useEffect(() => {
@@ -90,17 +115,39 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {/* Search Input Container */}
-      <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3.5 mb-4 shadow-sm dark:shadow-none">
-        <Search size={20} color={isDark ? '#94a3b8' : '#64748b'} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search by name, bio, or startup headline..."
-          placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-          className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
-          autoCorrect={false}
-        />
+      {/* Search Input & Filter Button Container */}
+      <View className="flex-row items-center gap-2.5 mb-4">
+        <View className="flex-1 flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3.5 shadow-sm dark:shadow-none">
+          <Search size={20} color={isDark ? '#94a3b8' : '#64748b'} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search by name, bio, or startup headline..."
+            placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+            className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
+            autoCorrect={false}
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery('')} className="p-1">
+              <X size={16} color={isDark ? '#94a3b8' : '#64748b'} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <TouchableOpacity
+          onPress={() => setFilterModalVisible(true)}
+          className={`p-3.5 rounded-2xl border flex-row items-center justify-center relative ${
+            activeFiltersCount > 0
+              ? 'bg-emerald-500/10 border-emerald-500'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none'
+          }`}
+          activeOpacity={0.8}
+        >
+          <SlidersHorizontal size={20} color={activeFiltersCount > 0 ? '#059669' : isDark ? '#94a3b8' : '#64748b'} />
+          {activeFiltersCount > 0 && (
+            <View className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute top-2 right-2 border-2 border-white dark:border-slate-900" />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Category Pills Row */}
@@ -143,26 +190,38 @@ export default function SearchScreen() {
       </View>
 
       {/* Results Header */}
-      <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider mb-4">
-        {isLoading ? 'Searching...' : `Found ${results.length} experts`}
-      </Text>
+      <View className="flex-row justify-between items-center mb-4">
+        <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+          {isLoading ? 'Searching...' : `Found ${filteredResults.length} experts`}
+        </Text>
+        {activeFiltersCount > 0 && (
+          <TouchableOpacity
+            onPress={() => {
+              setVerifiedOnly(false);
+              setSortBy('rating');
+            }}
+          >
+            <Text className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">Reset filters</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Results List */}
       {isLoading ? (
         <View className="flex-1 justify-center items-center py-20">
           <ActivityIndicator color="#059669" size="large" />
         </View>
-      ) : results.length === 0 ? (
+      ) : filteredResults.length === 0 ? (
         <View className="flex-1 justify-center items-center py-16">
           <Sparkles size={40} color={isDark ? '#475569' : '#94a3b8'} />
           <Text className="text-slate-500 dark:text-slate-400 text-base mt-3 text-center px-6">
-            No experts match your search query. Try another term or category.
+            No experts match your search or filter criteria.
           </Text>
         </View>
       ) : (
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
           <View className={isDesktop ? "flex-row flex-wrap gap-4" : ""}>
-            {results.map((expert) => (
+            {filteredResults.map((expert) => (
               <TouchableOpacity
                 key={expert._id}
                 onPress={() => router.push({ pathname: '/expert/[id]', params: { id: expert._id } })}
@@ -170,7 +229,7 @@ export default function SearchScreen() {
                 style={isDesktop ? { width: width >= 1440 ? '31.8%' : '48.5%', marginBottom: 16 } : { marginBottom: 16 }}
               >
                 <Image
-                  source={{ uri: expert.avatarUrl || 'https://via.placeholder.com/150' }}
+                  source={{ uri: getAvatarUrl(expert.avatarUrl, expert.fullName) }}
                   className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800"
                 />
                 <View className="flex-1 ml-4 pr-2">
@@ -200,6 +259,113 @@ export default function SearchScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* Filter Dialog Modal with Outside Backdrop Dismiss */}
+      <Modal
+        visible={filterModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/70 justify-center items-center px-4">
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setFilterModalVisible(false)} />
+          <View className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full">
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-5 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <View>
+                <Text className="text-xl font-black text-slate-900 dark:text-white">Filter & Sort</Text>
+                <Text className="text-xs text-slate-400 mt-0.5">Refine mentor marketplace results</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setFilterModalVisible(false)}
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800"
+              >
+                <X size={16} color={isDark ? '#cbd5e1' : '#64748b'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Verified Mentors Toggle */}
+            <TouchableOpacity
+              onPress={() => setVerifiedOnly(!verifiedOnly)}
+              activeOpacity={0.8}
+              className="flex-row items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 mb-5"
+            >
+              <View className="flex-row items-center flex-1 mr-3">
+                <View className="p-2 rounded-xl bg-emerald-500/10 mr-3">
+                  <CheckCircle2 size={20} color="#059669" />
+                </View>
+                <View>
+                  <Text className="text-sm font-bold text-slate-900 dark:text-white">Verified Mentors Only</Text>
+                  <Text className="text-xs text-slate-400">Show accredited & reviewed leaders</Text>
+                </View>
+              </View>
+              <View
+                className={`w-6 h-6 rounded-full border items-center justify-center ${
+                  verifiedOnly ? 'bg-emerald-600 border-emerald-600' : 'border-slate-300 dark:border-slate-600'
+                }`}
+              >
+                {verifiedOnly && <Check size={14} color="#fff" />}
+              </View>
+            </TouchableOpacity>
+
+            {/* Sort Options */}
+            <Text className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">Sort By</Text>
+            <View className="gap-2 mb-6">
+              {[
+                { id: 'rating', label: 'Highest Rated & Reviews', icon: Star },
+                { id: 'speed', label: 'Fastest Response Speed', icon: Zap },
+                { id: 'price_low', label: 'Question Price: Low to High', icon: Sparkles },
+                { id: 'price_high', label: 'Question Price: High to Low', icon: Sparkles },
+              ].map((opt) => {
+                const isSelected = sortBy === opt.id;
+                const IconComponent = opt.icon;
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    onPress={() => setSortBy(opt.id as any)}
+                    className={`flex-row items-center justify-between p-3.5 rounded-2xl border ${
+                      isSelected
+                        ? 'bg-emerald-500/10 border-emerald-500 dark:bg-emerald-500/15'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    <View className="flex-row items-center">
+                      <IconComponent size={16} color={isSelected ? '#059669' : isDark ? '#94a3b8' : '#64748b'} style={{ marginRight: 10 }} />
+                      <Text
+                        className={`text-sm font-bold ${
+                          isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </Text>
+                    </View>
+                    {isSelected && <Check size={16} color="#059669" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Actions */}
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => {
+                  setVerifiedOnly(false);
+                  setSortBy('rating');
+                }}
+                className="flex-1 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 items-center"
+              >
+                <Text className="font-bold text-sm text-slate-600 dark:text-slate-400">Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setFilterModalVisible(false)}
+                className="flex-1 bg-emerald-600 py-3.5 rounded-2xl items-center shadow-md shadow-emerald-600/20"
+              >
+                <Text className="font-bold text-sm text-white">Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

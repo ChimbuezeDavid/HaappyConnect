@@ -10,6 +10,7 @@ import { User } from '../models/User';
 import { sendPushNotification } from '../utils/push';
 import { sendConsultationNoticeEmail } from '../services/email';
 import { getIO } from '../socket';
+import { getSystemSettings } from '../models/SystemSettings';
 
 const router = Router();
 
@@ -84,9 +85,11 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Insufficient wallet balance. Please deposit funds first.' });
     }
 
-    // Expires in 72 hours
+    // Dynamic SLA duration (default 7 days escrow hold)
+    const settings = await getSystemSettings();
+    const slaDays = settings.responseSlaDays || 7;
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 72);
+    expiresAt.setDate(expiresAt.getDate() + slaDays);
 
     const question = new Question({
       seeker: req.userId,
@@ -236,13 +239,15 @@ router.patch('/:id/answer', authenticate, async (req: AuthRequest, res: Response
       await escrowTx.save();
     }
 
-    // Credit expert (earnings)
+    // Credit expert (earnings minus platform fee)
+    const settings = await getSystemSettings();
+    const feeRatio = (100 - settings.platformFeePercentage) / 100;
     const transaction = new Transaction({
       user: question.expert,
-      amount: question.price * 0.8, // 80% to expert, 20% platform fee
+      amount: question.price * feeRatio,
       type: 'charge',
       status: 'success',
-      description: `Earnings: Answered ${question.type} question`,
+      description: `Earnings: Answered ${question.type} question (${100 - settings.platformFeePercentage}% payout)`,
       metadata: { questionId: question._id }
     });
     await transaction.save();

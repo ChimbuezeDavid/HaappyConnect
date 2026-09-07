@@ -61,7 +61,37 @@ router.get('/:id', async (req, res) => {
     if (!profile) {
       return res.status(404).json({ error: 'Expert profile not found' });
     }
-    res.json(profile);
+
+    const profileObj: any = profile.toObject();
+
+    // Sanitize verification data for public seeker view
+    if (profileObj.verificationData) {
+      // Sensitive ID document is strictly confidential between expert & admin
+      delete profileObj.verificationData.idDocumentUrl;
+      delete profileObj.verificationData.adminNotes;
+
+      const pa = profileObj.publicAccreditation || {
+        showCertifications: true,
+        showExperience: true,
+        showPortfolio: true,
+        showMentorshipStatement: true,
+      };
+
+      if (!pa.showCertifications) {
+        profileObj.verificationData.certifications = [];
+      }
+      if (!pa.showExperience) {
+        delete profileObj.verificationData.yearsOfExperience;
+      }
+      if (!pa.showPortfolio) {
+        delete profileObj.verificationData.portfolioUrl;
+      }
+      if (!pa.showMentorshipStatement) {
+        delete profileObj.verificationData.mentorshipStatement;
+      }
+    }
+
+    res.json(profileObj);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error fetching expert detail' });
   }
@@ -77,7 +107,13 @@ router.get('/verification/status', authenticate, async (req: any, res: any) => {
     res.json({
       isVerified: profile.isVerified,
       verificationStatus: profile.verificationStatus || 'unsubmitted',
-      verificationData: profile.verificationData || null
+      verificationData: profile.verificationData || null,
+      publicAccreditation: profile.publicAccreditation || {
+        showCertifications: true,
+        showExperience: true,
+        showPortfolio: true,
+        showMentorshipStatement: true,
+      },
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error fetching verification status' });
@@ -92,7 +128,8 @@ router.post('/verification/submit', authenticate, async (req: any, res: any) => 
       certifications,
       yearsOfExperience,
       portfolioUrl,
-      mentorshipStatement
+      mentorshipStatement,
+      publicAccreditation,
     } = req.body;
 
     const profile = await Profile.findOne({ user: req.userId });
@@ -111,13 +148,23 @@ router.post('/verification/submit', authenticate, async (req: any, res: any) => 
       adminNotes: ''
     };
 
+    if (publicAccreditation && typeof publicAccreditation === 'object') {
+      profile.publicAccreditation = {
+        showCertifications: publicAccreditation.showCertifications !== false,
+        showExperience: publicAccreditation.showExperience !== false,
+        showPortfolio: publicAccreditation.showPortfolio !== false,
+        showMentorshipStatement: publicAccreditation.showMentorshipStatement !== false,
+      };
+    }
+
     await profile.save();
 
     res.json({
       message: 'Verification application submitted successfully for review.',
       isVerified: profile.isVerified,
       verificationStatus: profile.verificationStatus,
-      verificationData: profile.verificationData
+      verificationData: profile.verificationData,
+      publicAccreditation: profile.publicAccreditation,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error submitting verification' });

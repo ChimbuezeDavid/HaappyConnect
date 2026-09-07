@@ -1,8 +1,9 @@
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Star, MessageSquare, PhoneCall, CheckCircle2 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { Profile } from '@/types';
+import AvatarImage from '@/components/ui/AvatarImage';
 
 interface ExpertCardProps {
   expert: Profile;
@@ -25,8 +26,9 @@ export default function ExpertCard({ expert }: ExpertCardProps) {
     >
       {/* Header Info */}
       <View className="flex-row items-center mb-4">
-        <Image
-          source={{ uri: expert.avatarUrl || 'https://via.placeholder.com/150' }}
+        <AvatarImage
+          avatarUrl={expert.avatarUrl}
+          fullName={expert.fullName}
           className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800"
         />
         <View className="flex-1 ml-4 pr-1">

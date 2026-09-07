@@ -25,8 +25,8 @@ async function checkExpiredItems() {
 
     for (const question of expiredQuestions) {
       try {
-        console.log(`[Scheduler] Expiring question: ${question._id}`);
-        question.status = 'declined';
+        console.log(`[Scheduler] Expiring question past SLA: ${question._id}`);
+        question.status = 'refunded';
         await question.save();
 
         // Release the escrow hold
@@ -37,7 +37,7 @@ async function checkExpiredItems() {
 
         if (escrowTx) {
           escrowTx.status = 'failed';
-          escrowTx.description = 'Expired question hold release';
+          escrowTx.description = 'SLA expired consultation hold released to wallet';
           await escrowTx.save();
         } else {
           // Fallback: Credit seeker directly via refund
@@ -46,7 +46,7 @@ async function checkExpiredItems() {
             amount: question.price,
             type: 'refund',
             status: 'success',
-            description: 'Refund: Expired question'
+            description: 'Refund: Consultation expired past 7-day SLA'
           });
           await refundTx.save();
         }
@@ -54,16 +54,31 @@ async function checkExpiredItems() {
         // Notify seeker via Sockets and Push
         try {
           getIO().to(`user:${question.seeker}`).emit('notification', {
-            type: 'question_declined',
-            title: 'Question Expired ⏰',
-            body: 'Your question has expired unanswered. Your funds have been refunded to your wallet.',
+            type: 'question_refunded',
+            title: 'Consultation Auto-Refunded 💸',
+            body: 'Your question passed the SLA response window without an answer. Your full payment has been refunded to your wallet.',
             data: { questionId: question._id }
           });
           
           await sendPushNotification(
             question.seeker.toString(),
-            'Question Expired ⏰',
-            'Your question has expired unanswered. Your funds have been refunded to your wallet.',
+            'Consultation Auto-Refunded 💸',
+            'Your question passed the SLA response window without an answer. Your full payment has been refunded to your wallet.',
+            { questionId: question._id.toString() }
+          );
+
+          // Also notify expert about the missed SLA
+          getIO().to(`user:${question.expert}`).emit('notification', {
+            type: 'question_sla_missed',
+            title: 'Consultation SLA Expired ⚠️',
+            body: 'A consultation request expired unanswered and has been auto-refunded to the client.',
+            data: { questionId: question._id }
+          });
+
+          await sendPushNotification(
+            question.expert.toString(),
+            'Consultation SLA Expired ⚠️',
+            'A consultation request expired unanswered and has been auto-refunded to the client.',
             { questionId: question._id.toString() }
           );
         } catch (notifyErr) {

@@ -32,7 +32,9 @@ export default function PricingTierCard({
           </View>
         </View>
 
-        <Text className="text-primary-600 dark:text-primary-400 font-extrabold text-lg">₦{price}</Text>
+        <Text className="text-primary-600 dark:text-primary-400 font-extrabold text-lg">
+          {price.startsWith('₦') ? price : `₦${price}`}
+        </Text>
       </View>
 
       <TouchableOpacity

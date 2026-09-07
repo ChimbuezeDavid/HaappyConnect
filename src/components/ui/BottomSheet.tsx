@@ -22,15 +22,12 @@ export default function BottomSheet({ visible, title, onClose, children }: Botto
     >
       <TouchableWithoutFeedback onPress={onClose}>
         {/* Backdrop */}
-        <View className="flex-1 bg-slate-950/80 justify-end">
+        <View className="flex-1 bg-slate-950/80 justify-center items-center px-4">
           <TouchableWithoutFeedback>
-            {/* Sheet Content Container */}
-            <View className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 rounded-t-[32px] p-6 pb-12 shadow-2xl">
-              {/* Drag indicator handle decoration */}
-              <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-800 rounded-full self-center mb-6" />
-
+            {/* Dialog Content Container */}
+            <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[28px] p-6 shadow-2xl max-w-md w-full">
               {/* Title & Close Header */}
-              <View className="flex-row items-center justify-between mb-6">
+              <View className="flex-row items-center justify-between mb-5">
                 <Text className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">{title}</Text>
                 <TouchableOpacity
                   onPress={onClose}

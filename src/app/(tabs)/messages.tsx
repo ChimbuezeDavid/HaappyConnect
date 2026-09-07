@@ -23,7 +23,7 @@ import SignInWall from '@/components/ui/SignInWall';
 export default function MessagesScreen() {
   const router = useRouter();
   const { conversationId } = useLocalSearchParams<{ conversationId?: string }>();
-  const { conversations, fetchConversations, isLoadingConversations } = useChatStore();
+  const { conversations, fetchConversations, isLoadingConversations, markAsRead } = useChatStore();
   const { user, isGuest } = useAuthStore();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -139,6 +139,7 @@ export default function MessagesScreen() {
     return (
       <TouchableOpacity
         onPress={() => {
+          markAsRead(item._id);
           if (isDesktop) {
             setSelectedConversationId(item._id);
           } else {

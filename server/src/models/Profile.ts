@@ -20,8 +20,12 @@ export interface IProfile extends Document {
   bio: string;
   headline: string;
   hourlyRate: number;
+  callPricePerMinute?: number;
+  minCallMinutes?: number;
   textQuestionPrice: number;
   videoResponsePrice: number;
+  responseRate?: number;
+  avgResponseHours?: number;
   categories: Types.ObjectId[];
   ratingAverage: number;
   reviewsCount: number;
@@ -36,6 +40,12 @@ export interface IProfile extends Document {
     submittedAt?: Date;
     reviewedAt?: Date;
     adminNotes?: string;
+  };
+  publicAccreditation?: {
+    showCertifications?: boolean;
+    showExperience?: boolean;
+    showPortfolio?: boolean;
+    showMentorshipStatement?: boolean;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -62,8 +72,12 @@ const ProfileSchema = new Schema<IProfile>(
     bio: { type: String, default: '' },
     headline: { type: String, default: '' },
     hourlyRate: { type: Number, default: 0 },
+    callPricePerMinute: { type: Number, default: 500 },
+    minCallMinutes: { type: Number, default: 15 },
     textQuestionPrice: { type: Number, default: 0 },
     videoResponsePrice: { type: Number, default: 0 },
+    responseRate: { type: Number, default: 98 },
+    avgResponseHours: { type: Number, default: 4 },
     categories: [{ type: Schema.Types.ObjectId, ref: 'Category' }],
     ratingAverage: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
@@ -87,6 +101,12 @@ const ProfileSchema = new Schema<IProfile>(
       submittedAt: { type: Date },
       reviewedAt: { type: Date },
       adminNotes: { type: String, default: '' }
+    },
+    publicAccreditation: {
+      showCertifications: { type: Boolean, default: true },
+      showExperience: { type: Boolean, default: true },
+      showPortfolio: { type: Boolean, default: true },
+      showMentorshipStatement: { type: Boolean, default: true },
     },
   },
   { timestamps: true }

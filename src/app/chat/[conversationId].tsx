@@ -6,6 +6,9 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  Pressable,
+  StyleSheet,
+  Linking,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +21,7 @@ import { useColorScheme } from 'nativewind';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useChatStore, ChatMessage } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
+import { api } from '@/lib/api';
 import {
   ChevronLeft,
   MoreVertical,
@@ -30,7 +34,10 @@ import {
   Check,
   CheckCheck,
   ShieldAlert,
-  X
+  Lock,
+  X,
+  ExternalLink,
+  Globe
 } from 'lucide-react-native';
 import { useAudioPlayer, useAudioRecorder, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
@@ -151,6 +158,71 @@ function VoiceMessageBubble({ uri, isSender }: { uri: string; isSender: boolean 
   );
 }
 
+// Helper to extract URLs
+function extractUrls(text: string): string[] {
+  const matches = text.match(/(https?:\/\/[^\s]+)/g);
+  return matches ? Array.from(new Set(matches)) : [];
+}
+
+// Rich Link Preview Card
+function RichLinkCard({ url, isSender }: { url: string; isSender: boolean }) {
+  let hostname = '';
+  try {
+    hostname = new URL(url).hostname;
+  } catch (_) {
+    hostname = url.replace(/^https?:\/\//, '').split('/')[0];
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={() => Linking.openURL(url)}
+      activeOpacity={0.8}
+      className={`mt-2 p-2.5 rounded-xl border flex-row items-center ${
+        isSender
+          ? 'bg-emerald-700/70 border-emerald-500/50'
+          : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+      }`}
+    >
+      <View className={`p-1.5 rounded-lg mr-2.5 ${isSender ? 'bg-emerald-800' : 'bg-slate-200 dark:bg-slate-700'}`}>
+        <Globe size={14} color={isSender ? '#fff' : '#059669'} />
+      </View>
+      <View className="flex-1 mr-2">
+        <Text className={`text-xs font-bold ${isSender ? 'text-white' : 'text-slate-900 dark:text-white'}`} numberOfLines={1}>
+          {hostname}
+        </Text>
+        <Text className={`text-[10px] ${isSender ? 'text-emerald-200' : 'text-slate-500 dark:text-slate-400'}`} numberOfLines={1}>
+          {url}
+        </Text>
+      </View>
+      <ExternalLink size={14} color={isSender ? '#a7f3d0' : '#64748b'} />
+    </TouchableOpacity>
+  );
+}
+
+// Clickable Message Content with Inlined Links
+function FormattedMessageText({ content, isSender }: { content: string; isSender: boolean }) {
+  const parts = content.split(/(https?:\/\/[^\s]+)/g);
+
+  return (
+    <Text className={`text-sm leading-relaxed ${isSender ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+      {parts.map((part, i) => {
+        if (part.match(/^https?:\/\//)) {
+          return (
+            <Text
+              key={i}
+              onPress={() => Linking.openURL(part)}
+              className={`font-semibold underline ${isSender ? 'text-emerald-100' : 'text-primary-600 dark:text-primary-400'}`}
+            >
+              {part}
+            </Text>
+          );
+        }
+        return part;
+      })}
+    </Text>
+  );
+}
+
 interface ChatRoomScreenProps {
   conversationIdProp?: string;
   isInlineProp?: boolean;
@@ -185,6 +257,25 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
   const [reportReason, setReportReason] = useState('');
   const [imageViewerUri, setImageViewerUri] = useState<string | null>(null);
 
+  // Consultation Gating State
+  const [consultationStatus, setConsultationStatus] = useState<{
+    isGated: boolean;
+    expertProfileId?: string;
+    expertName?: string;
+    textQuestionPrice?: number;
+    videoResponsePrice?: number;
+    callPricePerMinute?: number;
+    hourlyRate?: number;
+  }>({ isGated: false });
+
+  const checkConsultationStatus = async () => {
+    if (!conversationId) return;
+    try {
+      const data = await api.get(`/chat/conversations/${conversationId}/consultation-status`);
+      setConsultationStatus(data);
+    } catch (_) {}
+  };
+
   // Audio Recording State
   const [audioPermission, setAudioPermission] = useState<{ granted: boolean } | null>(null);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -211,6 +302,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
   useEffect(() => {
     if (conversationId) {
       fetchMessages(conversationId);
+      checkConsultationStatus();
     }
     return () => {
       clearActiveChat();
@@ -218,11 +310,41 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
     };
   }, [conversationId]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputText.trim() || !conversationId) return;
-    sendMessage(conversationId, inputText.trim());
-    setInputText('');
-    setTyping(conversationId, false);
+
+    if (consultationStatus.isGated) {
+      Alert.alert(
+        'Paid Consultation Required',
+        `Direct communication with ${consultationStatus.expertName || 'this mentor'} requires booking an active consultation.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'View Services',
+            onPress: () => {
+              if (consultationStatus.expertProfileId) {
+                router.push({
+                  pathname: '/expert/[id]',
+                  params: { id: consultationStatus.expertProfileId }
+                } as any);
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    try {
+      await sendMessage(conversationId, inputText.trim());
+      setInputText('');
+      setTyping(conversationId, false);
+    } catch (err: any) {
+      if (err.message?.includes('consultation')) {
+        checkConsultationStatus();
+        Alert.alert('Paid Consultation Required', err.message);
+      }
+    }
   };
 
   const handleInputChange = (text: string) => {
@@ -400,15 +522,14 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
             </View>
           )}
 
-          {/* Text Content */}
+          {/* Text Content & Rich Link Cards */}
           {item.content && (
-            <Text
-              className={`text-sm leading-relaxed ${
-                isSender ? 'text-white' : 'text-slate-900 dark:text-white'
-              }`}
-            >
-              {item.content}
-            </Text>
+            <View>
+              <FormattedMessageText content={item.content} isSender={isSender} />
+              {extractUrls(item.content).map((url, idx) => (
+                <RichLinkCard key={`${item._id}-link-${idx}`} url={url} isSender={isSender} />
+              ))}
+            </View>
           )}
 
           {/* Timestamp & Read receipts */}
@@ -546,6 +667,55 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
         />
       )}
 
+      {/* Paid Consultation Gating Banner */}
+      {consultationStatus.isGated && (
+        <View className="mx-4 mb-3 p-4 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 rounded-3xl shadow-sm">
+          <View className="flex-row items-center mb-1">
+            <Lock size={15} color="#d97706" style={{ marginRight: 6 }} />
+            <Text className="text-amber-800 dark:text-amber-300 font-extrabold text-xs uppercase tracking-wider">
+              Paid Consultation Required
+            </Text>
+          </View>
+          <Text className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed mb-3">
+            Direct communication with {consultationStatus.expertName || 'this mentor'} requires booking an active consultation.
+          </Text>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={() => {
+                if (consultationStatus.expertProfileId) {
+                  router.push({
+                    pathname: '/expert/[id]',
+                    params: { id: consultationStatus.expertProfileId, tab: 'ask' }
+                  } as any);
+                }
+              }}
+              className="flex-1 bg-emerald-600 py-2.5 px-3 rounded-xl items-center"
+              activeOpacity={0.85}
+            >
+              <Text className="text-white text-xs font-bold" numberOfLines={1}>
+                Ask (₦{consultationStatus.textQuestionPrice?.toLocaleString() || '5,000'})
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                if (consultationStatus.expertProfileId) {
+                  router.push({
+                    pathname: '/seeker/book-call',
+                    params: { expertId: consultationStatus.expertProfileId }
+                  } as any);
+                }
+              }}
+              className="flex-1 bg-slate-900 dark:bg-white py-2.5 px-3 rounded-xl items-center"
+              activeOpacity={0.85}
+            >
+              <Text className="text-white dark:text-slate-900 text-xs font-bold" numberOfLines={1}>
+                Book Call (₦{consultationStatus.callPricePerMinute?.toLocaleString() || '500'}/min)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Input Bar */}
       {conversation?.isBlocked ? (
         <View className="p-4 border-t border-slate-100 dark:border-slate-900 bg-slate-50 dark:bg-slate-900/40 justify-center items-center">
@@ -556,13 +726,15 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
       ) : (
         <View className="py-4 px-4 flex-row items-center border-t border-slate-150 dark:border-slate-900 bg-white dark:bg-slate-950 shadow-lg">
           {/* Attachment Button */}
-          <TouchableOpacity
-            onPress={handlePickImage}
-            className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full mr-2.5 shadow-sm"
-            activeOpacity={0.8}
-          >
-            <ImageIcon size={18} color={isDark ? '#34d399' : '#059669'} />
-          </TouchableOpacity>
+          {!consultationStatus.isGated && (
+            <TouchableOpacity
+              onPress={handlePickImage}
+              className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full mr-2.5 shadow-sm"
+              activeOpacity={0.8}
+            >
+              <ImageIcon size={18} color={isDark ? '#34d399' : '#059669'} />
+            </TouchableOpacity>
+          )}
 
           {/* Micro-recording overlay */}
           {isRecording ? (
@@ -577,31 +749,38 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
             <TextInput
               value={inputText}
               onChangeText={handleInputChange}
-              placeholder="Type a message..."
-              placeholderTextColor="#94a3b8"
+              editable={!consultationStatus.isGated}
+              placeholder={consultationStatus.isGated ? "Paid consultation required to message..." : "Type a message..."}
+              placeholderTextColor={consultationStatus.isGated ? "#f59e0b" : "#94a3b8"}
               multiline
-              className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-950 dark:text-white rounded-2xl px-4 py-3 text-sm max-h-24 shadow-inner"
+              className={`flex-1 bg-slate-50 dark:bg-slate-900 border ${
+                consultationStatus.isGated
+                  ? 'border-amber-500/30 opacity-70'
+                  : 'border-slate-200 dark:border-slate-800'
+              } text-slate-950 dark:text-white rounded-2xl px-4 py-3 text-sm max-h-24 shadow-inner`}
             />
           )}
 
           {/* Media Send Buttons */}
-          {inputText.trim().length > 0 ? (
-            <TouchableOpacity
-              onPress={handleSend}
-              className="p-3 bg-emerald-600 rounded-full ml-2.5 shadow-md shadow-emerald-600/20"
-              activeOpacity={0.8}
-            >
-              <Send size={18} color="#fff" />
-            </TouchableOpacity>
-          ) : (
-            !isRecording && (
+          {!consultationStatus.isGated && (
+            inputText.trim().length > 0 ? (
               <TouchableOpacity
-                onPress={handleStartRecording}
-                className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full ml-2.5 shadow-sm"
+                onPress={handleSend}
+                className="p-3 bg-emerald-600 rounded-full ml-2.5 shadow-md shadow-emerald-600/20"
                 activeOpacity={0.8}
               >
-                <Mic size={18} color={isDark ? '#34d399' : '#059669'} />
+                <Send size={18} color="#fff" />
               </TouchableOpacity>
+            ) : (
+              !isRecording && (
+                <TouchableOpacity
+                  onPress={handleStartRecording}
+                  className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full ml-2.5 shadow-sm"
+                  activeOpacity={0.8}
+                >
+                  <Mic size={18} color={isDark ? '#34d399' : '#059669'} />
+                </TouchableOpacity>
+              )
             )
           )}
         </View>
@@ -639,15 +818,24 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
       </Modal>
 
       {/* Report Modal */}
-      <Modal visible={reportModalVisible} transparent={true} animationType="slide">
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="bg-white dark:bg-slate-900 rounded-t-3xl p-6 border-t border-slate-200 dark:border-slate-800">
+      <Modal 
+        visible={reportModalVisible} 
+        transparent={true} 
+        animationType="fade"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/70 justify-center items-center px-4">
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setReportModalVisible(false)} />
+          <View className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full">
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-slate-900 dark:text-white font-extrabold text-base">
                 Report User
               </Text>
-              <TouchableOpacity onPress={() => setReportModalVisible(false)} className="p-1">
-                <X size={20} color="#64748b" />
+              <TouchableOpacity 
+                onPress={() => setReportModalVisible(false)} 
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800"
+              >
+                <X size={16} color={isDark ? '#cbd5e1' : '#64748b'} />
               </TouchableOpacity>
             </View>
             <Text className="text-slate-400 text-xs mb-3">
@@ -660,7 +848,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
               placeholderTextColor="#94a3b8"
               multiline
               numberOfLines={4}
-              className="bg-slate-100 dark:bg-slate-800 text-slate-955 dark:text-white rounded-2xl p-3 text-sm min-h-[100px] mb-5 align-top"
+              className="bg-slate-100 dark:bg-slate-800 text-slate-955 dark:text-white rounded-2xl p-3.5 text-sm min-h-[100px] mb-5 align-top"
             />
             <TouchableOpacity
               onPress={handleReportSubmit}

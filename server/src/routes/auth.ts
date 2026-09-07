@@ -311,6 +311,8 @@ const appendQueryParams = (url: string, params: Record<string, string | boolean>
 
 // Helper to safely redirect back to app or browser
 const renderAuthRedirect = (res: Response, targetUrl: string) => {
+  const isCustomScheme = !targetUrl.startsWith('http://') && !targetUrl.startsWith('https://');
+
   if (!isCustomScheme) {
     const webHtml = `<!DOCTYPE html>
 <html lang="en">

@@ -1,8 +1,16 @@
 import { Resend } from 'resend';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const SENDER_EMAIL = process.env.SENDER_EMAIL || 'HaappyConnect <onboarding@resend.dev>';
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@haappy.org';
+const DEFAULT_SENDER = process.env.SENDER_EMAIL || 'Haappy <onboarding@resend.dev>';
+
+// 1. Non-reply address for automated transactional notifications (e.g. 'Haappy <no-reply@haappy.org>')
+export const NO_REPLY_EMAIL = process.env.NO_REPLY_EMAIL || DEFAULT_SENDER;
+
+// 2. Support desk sender address shown to customers (e.g. 'Haappy Support <support@haappy.org>')
+export const SUPPORT_SENDER_EMAIL = process.env.SUPPORT_SENDER_EMAIL || (process.env.SUPPORT_EMAIL ? `Haappy Support <${process.env.SUPPORT_EMAIL}>` : DEFAULT_SENDER);
+
+// 3. Destination inbox where user support tickets are delivered to the team
+export const SUPPORT_DESTINATION_EMAIL = process.env.SUPPORT_EMAIL || 'support@haappy.org';
 
 const resendClient = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
@@ -17,7 +25,7 @@ export async function sendPasswordResetEmail(toEmail: string, resetCode: string)
 
   try {
     const { data, error } = await resendClient.emails.send({
-      from: SENDER_EMAIL,
+      from: NO_REPLY_EMAIL,
       to: [toEmail],
       subject: 'Reset Your Haappy Password',
       html: `
@@ -88,8 +96,8 @@ export async function sendSupportTicketEmail(params: {
   try {
     // A) Send ticket alert to Haappy Support team
     await resendClient.emails.send({
-      from: SENDER_EMAIL,
-      to: [SUPPORT_EMAIL],
+      from: SUPPORT_SENDER_EMAIL,
+      to: [SUPPORT_DESTINATION_EMAIL],
       replyTo: fromUserEmail,
       subject: `[Haappy Support - ${category}] ${subject}`,
       html: `
@@ -124,8 +132,9 @@ export async function sendSupportTicketEmail(params: {
 
     // B) Send automated receipt confirmation back to user
     await resendClient.emails.send({
-      from: SENDER_EMAIL,
+      from: SUPPORT_SENDER_EMAIL,
       to: [fromUserEmail],
+      replyTo: SUPPORT_DESTINATION_EMAIL,
       subject: `We've received your request: ${subject}`,
       html: `
         <!DOCTYPE html>
@@ -196,7 +205,7 @@ export async function sendConsultationNoticeEmail(params: {
 
   try {
     await resendClient.emails.send({
-      from: SENDER_EMAIL,
+      from: NO_REPLY_EMAIL,
       to: [toEmail],
       subject: subjectMap[type],
       html: `
@@ -263,7 +272,7 @@ export async function sendExpertVerificationStatusEmail(params: {
 
   try {
     await resendClient.emails.send({
-      from: SENDER_EMAIL,
+      from: NO_REPLY_EMAIL,
       to: [toEmail],
       subject,
       html: `

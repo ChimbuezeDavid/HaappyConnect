@@ -3,6 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { Conversation } from '../models/Conversation';
 import { Message } from '../models/Message';
 import { Profile } from '../models/Profile';
+import { User } from '../models/User';
 import { getIO } from '../socket';
 import fs from 'fs';
 import path from 'path';
@@ -21,10 +22,24 @@ router.get('/conversations', authenticate, async (req: AuthRequest, res: Respons
       })
       .sort({ updatedAt: -1 });
 
+    // Deduplicate so each peer appears only once in the chat list (single chat per peer)
+    const seenPeers = new Set<string>();
+    const uniqueConversations: typeof conversations = [];
+
+    for (const conv of conversations) {
+      const otherUserId = conv.participants.find(p => p.toString() !== req.userId)?.toString();
+      if (!otherUserId) continue;
+      if (!seenPeers.has(otherUserId)) {
+        seenPeers.add(otherUserId);
+        uniqueConversations.push(conv);
+      }
+    }
+
     const populatedConversations = await Promise.all(
-      conversations.map(async (conv) => {
+      uniqueConversations.map(async (conv) => {
         const otherUserId = conv.participants.find(p => p.toString() !== req.userId);
         const otherProfile = await Profile.findOne({ user: otherUserId });
+        const otherUser = await User.findById(otherUserId);
         const myUnreadObj = conv.unreadCounts.find(uc => uc.user.toString() === req.userId);
         
         return {
@@ -39,12 +54,14 @@ router.get('/conversations', authenticate, async (req: AuthRequest, res: Respons
             userId: otherProfile.user,
             fullName: otherProfile.fullName,
             avatarUrl: otherProfile.avatarUrl,
-            headline: otherProfile.headline
+            headline: otherProfile.headline,
+            isExpert: otherUser?.role === 'expert'
           } : {
             userId: otherUserId,
             fullName: 'User',
             avatarUrl: '',
-            headline: ''
+            headline: '',
+            isExpert: otherUser?.role === 'expert'
           },
           updatedAt: conv.updatedAt
         };
@@ -159,18 +176,10 @@ router.post('/conversations', authenticate, async (req: AuthRequest, res: Respon
       return res.status(400).json({ error: 'Cannot start a conversation with yourself' });
     }
 
-    // Build filter to check existing
-    const filter: any = {
+    // Always find or return the single canonical conversation between these two users
+    let conversation = await Conversation.findOne({
       participants: { $all: [req.userId, participantId] }
-    };
-    if (relatedToModel && relatedToId) {
-      filter['relatedTo.modelType'] = relatedToModel;
-      filter['relatedTo.id'] = relatedToId;
-    } else {
-      filter['relatedTo.id'] = { $exists: false };
-    }
-
-    let conversation = await Conversation.findOne(filter);
+    }).sort({ updatedAt: -1 });
 
     if (!conversation) {
       conversation = new Conversation({
@@ -182,9 +191,14 @@ router.post('/conversations', authenticate, async (req: AuthRequest, res: Respon
         relatedTo: relatedToModel && relatedToId ? { modelType: relatedToModel, id: relatedToId } : undefined
       });
       await conversation.save();
+    } else if (relatedToModel && relatedToId) {
+      // Update active context pointer without creating a duplicate thread
+      conversation.relatedTo = { modelType: relatedToModel, id: relatedToId };
+      await conversation.save();
     }
 
     const otherProfile = await Profile.findOne({ user: participantId });
+    const otherUser = await User.findById(participantId);
     const myUnreadObj = conversation.unreadCounts.find(uc => uc.user.toString() === req.userId);
 
     res.status(201).json({
@@ -199,12 +213,14 @@ router.post('/conversations', authenticate, async (req: AuthRequest, res: Respon
         userId: otherProfile.user,
         fullName: otherProfile.fullName,
         avatarUrl: otherProfile.avatarUrl,
-        headline: otherProfile.headline
+        headline: otherProfile.headline,
+        isExpert: otherUser?.role === 'expert'
       } : {
         userId: participantId,
         fullName: 'User',
         avatarUrl: '',
-        headline: ''
+        headline: '',
+        isExpert: otherUser?.role === 'expert'
       },
       updatedAt: conversation.updatedAt
     });

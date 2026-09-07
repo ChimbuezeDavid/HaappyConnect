@@ -184,10 +184,22 @@ export default function MessagesScreen() {
               >
                 {item.otherProfile.fullName}
               </Text>
-              {typeLabel && (
-                <View className="ml-2 bg-emerald-100 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
-                  <Text className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold uppercase tracking-wider">
-                    {typeLabel}
+              {item.otherProfile.isExpert !== undefined && (
+                <View
+                  className={`ml-2 px-2 py-0.5 rounded-full border ${
+                    item.otherProfile.isExpert
+                      ? 'bg-emerald-500/10 border-emerald-500/20'
+                      : 'bg-slate-500/10 border-slate-500/20'
+                  }`}
+                >
+                  <Text
+                    className={`text-[9px] font-bold uppercase tracking-wider ${
+                      item.otherProfile.isExpert
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    {item.otherProfile.isExpert ? 'Expert' : 'Seeker'}
                   </Text>
                 </View>
               )}

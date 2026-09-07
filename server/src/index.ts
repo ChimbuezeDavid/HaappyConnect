@@ -24,6 +24,7 @@ import walletRoutes from './routes/wallet';
 import reviewRoutes from './routes/review';
 import chatRoutes from './routes/chat';
 import adminRoutes from './routes/admin';
+import supportRoutes from './routes/support';
 
 dotenv.config();
 
@@ -91,6 +92,7 @@ app.use(['/api/wallet', '/wallet'], walletRoutes);
 app.use(['/api/review', '/review'], reviewRoutes);
 app.use(['/api/chat', '/chat'], chatRoutes);
 app.use(['/api/admin', '/admin'], adminRoutes);
+app.use(['/api/support', '/support'], supportRoutes);
 
 // Socket.io Setup
 const io = initSocket(httpServer);

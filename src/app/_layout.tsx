@@ -320,6 +320,12 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="support"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="expert/edit-profile"
           options={{
             presentation: 'modal',

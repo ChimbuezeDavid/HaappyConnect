@@ -7,6 +7,7 @@ import { Profile } from '../models/Profile';
 import { Booking } from '../models/Booking';
 import { Question } from '../models/Question';
 import { Transaction } from '../models/Transaction';
+import { sendExpertVerificationStatusEmail } from '../services/email';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkeyforhaappyconnect';
@@ -383,6 +384,19 @@ router.post('/verifications/:id/review', authenticate, requireAdmin, async (req:
     }
 
     await profile.save();
+
+    // Send email notification to expert via Resend
+    try {
+      const expertUser = await User.findById(profile.user);
+      if (expertUser && expertUser.email) {
+        sendExpertVerificationStatusEmail({
+          toEmail: expertUser.email,
+          expertName: profile.fullName,
+          status: action === 'approve' ? 'verified' : 'rejected',
+          notes: adminNotes
+        });
+      }
+    } catch (_) {}
 
     return res.json({
       message: `Expert verification ${action === 'approve' ? 'approved' : 'rejected'} successfully`,

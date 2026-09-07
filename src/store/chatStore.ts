@@ -33,6 +33,7 @@ export interface Conversation {
     fullName: string;
     avatarUrl: string;
     headline: string;
+    isExpert?: boolean;
   };
   updatedAt: string;
 }

@@ -35,6 +35,7 @@ import {
   MessageSquare,
   PhoneCall,
   Lock,
+  LifeBuoy,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SignInWall from '@/components/ui/SignInWall';
@@ -312,6 +313,82 @@ export default function ProfileScreen() {
               }}
             >
               Change password or reset via email code
+            </Text>
+          </View>
+        </View>
+        <ChevronRight size={16} color={isDark ? '#475569' : '#94A3B8'} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderSupportCard = () => (
+    <View
+      style={{
+        backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+        borderColor: isDark ? '#222D3D' : '#E7E1D8',
+        borderWidth: 1,
+        borderRadius: 20,
+        padding: 18,
+        marginBottom: 16,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 11,
+          fontFamily: 'PlusJakartaSans_700Bold',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          color: isDark ? '#64748B' : '#94A3B8',
+          marginBottom: 12,
+        }}
+      >
+        Help & Concierge
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => router.push('/support' as any)}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor: isDark ? '#0B0F14' : '#F8FAFC',
+          borderColor: isDark ? '#222D3D' : '#E2E8F0',
+          borderWidth: 1,
+          borderRadius: 16,
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <View
+            style={{
+              backgroundColor: isDark ? '#10B98120' : '#05966915',
+              padding: 9,
+              borderRadius: 12,
+              marginRight: 12,
+            }}
+          >
+            <LifeBuoy size={16} color={isDark ? '#34D399' : '#059669'} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'PlusJakartaSans_600SemiBold',
+                color: isDark ? '#F8FAFC' : '#0F172A',
+              }}
+            >
+              Haappy Support Desk
+            </Text>
+            <Text
+              style={{
+                fontSize: 11,
+                color: isDark ? '#64748B' : '#94A3B8',
+                marginTop: 2,
+                fontFamily: 'Inter_400Regular',
+              }}
+            >
+              Submit inquiries, report issues & get email support
             </Text>
           </View>
         </View>
@@ -843,6 +920,7 @@ export default function ProfileScreen() {
           <View style={{ width: 360 }}>
             {renderIdentityCard()}
             {renderSecurityCard()}
+            {renderSupportCard()}
             {renderThemeCard()}
             {renderLogoutCard()}
           </View>
@@ -857,6 +935,7 @@ export default function ProfileScreen() {
           {renderIdentityCard()}
           {renderManagementHub()}
           {renderSecurityCard()}
+          {renderSupportCard()}
           {renderThemeCard()}
           {renderLogoutCard()}
         </View>

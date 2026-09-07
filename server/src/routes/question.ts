@@ -6,7 +6,10 @@ import { Transaction } from '../models/Transaction';
 import { Review } from '../models/Review';
 import { Conversation } from '../models/Conversation';
 import { Message } from '../models/Message';
+import { User } from '../models/User';
 import { sendPushNotification } from '../utils/push';
+import { sendConsultationNoticeEmail } from '../services/email';
+import { getIO } from '../socket';
 
 const router = Router();
 
@@ -97,26 +100,52 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     await question.save();
 
-    // Auto-create conversation when a question is sent
-    const conv = new Conversation({
-      participants: [req.userId, expertId],
-      unreadCounts: [
-        { user: req.userId, count: 0 },
-        { user: expertId, count: 1 }
-      ],
-      relatedTo: { modelType: 'Question', id: question._id }
-    });
-    await conv.save();
+    // Use the single unified conversation between seeker and expert
+    let conv = await Conversation.findOne({
+      participants: { $all: [req.userId, expertId] }
+    }).sort({ updatedAt: -1 });
 
+    if (!conv) {
+      conv = new Conversation({
+        participants: [req.userId, expertId],
+        unreadCounts: [
+          { user: req.userId, count: 0 },
+          { user: expertId, count: 0 }
+        ]
+      });
+      await conv.save();
+    }
+
+    const typeLabel = type === 'video' ? '1:1 Video Q&A' : type === 'voice' ? 'Voice Memo Q&A' : 'Written Advice Q&A';
     const message = new Message({
       conversationId: conv._id,
       senderId: req.userId,
-      content: seekerContent
+      content: `[Consultation Question - ${typeLabel}]\n\n${seekerContent}`,
+      readBy: [req.userId]
     });
     await message.save();
 
-    conv.lastMessage = message._id;
+    conv.lastMessage = message._id as any;
+    conv.relatedTo = { modelType: 'Question', id: question._id };
+    conv.unreadCounts.forEach((uc) => {
+      if (uc.user.toString() !== req.userId) {
+        uc.count += 1;
+      }
+    });
     await conv.save();
+
+    // Broadcast message via socket
+    try {
+      const io = getIO();
+      io.to(conv._id.toString()).emit('messageReceived', message);
+      conv.participants.forEach((p) => {
+        io.to(`user:${p.toString()}`).emit('conversationUpdated', {
+          conversationId: conv._id,
+          lastMessage: message,
+          unreadCounts: conv.unreadCounts
+        });
+      });
+    } catch (_) {}
 
     // Create a Seeker debit transaction placeholder as pending hold
     const transaction = new Transaction({
@@ -144,10 +173,23 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       });
       sendPushNotification(
         expertId,
-        'New Question Received ❓',
+        'New Question Received',
         `You have a new ${type} question waiting for your response.`,
         { questionId: question._id }
       );
+
+      // Email notification via Resend
+      const expertUser = await User.findById(expertId);
+      const seekerProfile = await Profile.findOne({ user: req.userId });
+      if (expertUser && expertUser.email) {
+        sendConsultationNoticeEmail({
+          toEmail: expertUser.email,
+          recipientName: expertProfile.fullName,
+          senderName: seekerProfile?.fullName || 'A Client',
+          type: 'question',
+          sessionDetails: `New ${type.toUpperCase()} Consultation Question:\n"${seekerContent.slice(0, 160)}${seekerContent.length > 160 ? '...' : ''}"`
+        });
+      }
     } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error submitting question' });
@@ -210,20 +252,90 @@ router.patch('/:id/answer', authenticate, async (req: AuthRequest, res: Response
       question
     });
 
+    // Post the expert's response into the unified single conversation thread!
+    try {
+      let conv = await Conversation.findOne({
+        participants: { $all: [question.seeker, question.expert] }
+      }).sort({ updatedAt: -1 });
+
+      if (!conv) {
+        conv = new Conversation({
+          participants: [question.seeker, question.expert],
+          unreadCounts: [
+            { user: question.seeker, count: 0 },
+            { user: question.expert, count: 0 }
+          ]
+        });
+        await conv.save();
+      }
+
+      const answerContent = expertResponse
+        ? `[Expert Consultation Response]\n\n${expertResponse}`
+        : `[Expert Consultation Response - ${question.type === 'video' ? 'Video' : 'Audio'} Attachment]`;
+
+      const message = new Message({
+        conversationId: conv._id,
+        senderId: req.userId,
+        content: answerContent,
+        media: expertResponseUrl
+          ? {
+              url: expertResponseUrl,
+              type: question.type === 'video' ? 'video' : 'audio'
+            }
+          : undefined,
+        readBy: [req.userId]
+      });
+      await message.save();
+
+      conv.lastMessage = message._id as any;
+      conv.unreadCounts.forEach((uc) => {
+        if (uc.user.toString() !== req.userId) {
+          uc.count += 1;
+        }
+      });
+      await conv.save();
+
+      const io = getIO();
+      io.to(conv._id.toString()).emit('messageReceived', message);
+      conv.participants.forEach((p) => {
+        io.to(`user:${p.toString()}`).emit('conversationUpdated', {
+          conversationId: conv._id,
+          lastMessage: message,
+          unreadCounts: conv.unreadCounts
+        });
+      });
+    } catch (chatErr) {
+      console.error('Failed to post expert response to unified conversation:', chatErr);
+    }
+
     try {
       const { getIO } = require('../socket');
       getIO().to(`user:${question.seeker}`).emit('notification', {
         type: 'question_answered',
-        title: 'Expert Has Responded! 🎉',
+        title: 'Expert Has Responded!',
         body: 'Your question has been answered. Tap to view the response.',
         data: { questionId: question._id }
       });
       sendPushNotification(
         question.seeker,
-        'Expert Has Responded! 🎉',
-        'Your question has been answered. Tap to view the response.',
+        'Expert Has Responded!',
+        'Your question has been answered. Tap to view the response in your conversation.',
         { questionId: question._id }
       );
+
+      // Email notification via Resend
+      const seekerUser = await User.findById(question.seeker);
+      const seekerProfile = await Profile.findOne({ user: question.seeker });
+      const expertProfile = await Profile.findOne({ user: question.expert });
+      if (seekerUser && seekerUser.email) {
+        sendConsultationNoticeEmail({
+          toEmail: seekerUser.email,
+          recipientName: seekerProfile?.fullName || 'Client',
+          senderName: expertProfile?.fullName || 'Your Expert',
+          type: 'answer',
+          sessionDetails: `Your consultation question has received an official response from ${expertProfile?.fullName || 'your expert'}. Open your messages in Haappy to view the full response and continue the conversation.`
+        });
+      }
     } catch (_) {}
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error answering question' });

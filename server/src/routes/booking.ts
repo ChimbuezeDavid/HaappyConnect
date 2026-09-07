@@ -5,8 +5,12 @@ import { Profile } from '../models/Profile';
 import { Transaction } from '../models/Transaction';
 import { Review } from '../models/Review';
 import { Conversation } from '../models/Conversation';
+import { Message } from '../models/Message';
+import { User } from '../models/User';
 import { Availability } from '../models/Availability';
 import { sendPushNotification } from '../utils/push';
+import { sendConsultationNoticeEmail } from '../services/email';
+import { getIO } from '../socket';
 
 const router = Router();
 
@@ -150,24 +154,79 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
     booking.status = status;
     await booking.save();
 
-    // Auto-create conversation when booking is confirmed
+    // Post confirmation into the unified conversation when booking is confirmed
     if (status === 'confirmed') {
-      const existingConv = await Conversation.findOne({
-        participants: { $all: [booking.seeker, booking.expert] },
-        'relatedTo.modelType': 'Booking',
-        'relatedTo.id': booking._id
-      });
-      if (!existingConv) {
-        const conv = new Conversation({
+      let conv = await Conversation.findOne({
+        participants: { $all: [booking.seeker, booking.expert] }
+      }).sort({ updatedAt: -1 });
+
+      if (!conv) {
+        conv = new Conversation({
           participants: [booking.seeker, booking.expert],
           unreadCounts: [
             { user: booking.seeker, count: 0 },
             { user: booking.expert, count: 0 }
-          ],
-          relatedTo: { modelType: 'Booking', id: booking._id }
+          ]
         });
         await conv.save();
       }
+
+      const scheduledDateStr = new Date(booking.scheduledAt).toLocaleString();
+      const message = new Message({
+        conversationId: conv._id,
+        senderId: req.userId,
+        content: `[1:1 Video Consultation Confirmed]\n\nScheduled for: ${scheduledDateStr}\nDuration: ${booking.durationMinutes} mins\nMeeting Link: ${booking.meetingLink || 'Available in booking details'}`,
+        readBy: [req.userId]
+      });
+      await message.save();
+
+      conv.lastMessage = message._id as any;
+      conv.relatedTo = { modelType: 'Booking', id: booking._id };
+      conv.unreadCounts.forEach((uc) => {
+        if (uc.user.toString() !== req.userId) {
+          uc.count += 1;
+        }
+      });
+      await conv.save();
+
+      try {
+        const io = getIO();
+        io.to(conv._id.toString()).emit('messageReceived', message);
+        conv.participants.forEach((p) => {
+          io.to(`user:${p.toString()}`).emit('conversationUpdated', {
+            conversationId: conv._id,
+            lastMessage: message,
+            unreadCounts: conv.unreadCounts
+          });
+        });
+      } catch (_) {}
+
+      // Email notifications via Resend
+      try {
+        const seekerUser = await User.findById(booking.seeker);
+        const expertUser = await User.findById(booking.expert);
+        const seekerProfile = await Profile.findOne({ user: booking.seeker });
+        const expertProfile = await Profile.findOne({ user: booking.expert });
+
+        if (seekerUser && seekerUser.email) {
+          sendConsultationNoticeEmail({
+            toEmail: seekerUser.email,
+            recipientName: seekerProfile?.fullName || 'Client',
+            senderName: expertProfile?.fullName || 'Expert',
+            type: 'booking',
+            sessionDetails: `Your 1:1 Video Consultation with ${expertProfile?.fullName || 'the expert'} is scheduled for ${scheduledDateStr} (${booking.durationMinutes} minutes).`
+          });
+        }
+        if (expertUser && expertUser.email) {
+          sendConsultationNoticeEmail({
+            toEmail: expertUser.email,
+            recipientName: expertProfile?.fullName || 'Expert',
+            senderName: seekerProfile?.fullName || 'Client',
+            type: 'booking',
+            sessionDetails: `You have a confirmed 1:1 Video Consultation with ${seekerProfile?.fullName || 'your client'} on ${scheduledDateStr} (${booking.durationMinutes} minutes).`
+          });
+        }
+      } catch (_) {}
     }
 
     // Find the original pending transaction

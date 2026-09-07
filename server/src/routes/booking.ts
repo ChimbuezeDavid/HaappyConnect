@@ -50,6 +50,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'ExpertId, scheduled time, and duration are required' });
     }
 
+    if (expertId === req.userId) {
+      return res.status(400).json({ error: 'You cannot book a consultation call with yourself' });
+    }
+
     const expertProfile = await Profile.findOne({ user: expertId });
     if (!expertProfile) {
       return res.status(404).json({ error: 'Expert profile not found' });

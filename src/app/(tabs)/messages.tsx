@@ -113,9 +113,9 @@ export default function MessagesScreen() {
     if (lastMsg.isDeleted) return 'This message was deleted';
     
     if (lastMsg.media) {
-      if (lastMsg.media.type === 'image') return '📷 Image';
-      if (lastMsg.media.type === 'audio') return '🎤 Voice note';
-      if (lastMsg.media.type === 'video') return '🎥 Video message';
+      if (lastMsg.media.type === 'image') return 'Photo';
+      if (lastMsg.media.type === 'audio') return 'Voice note';
+      if (lastMsg.media.type === 'video') return 'Video message';
     }
     return lastMsg.content || '';
   };

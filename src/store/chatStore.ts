@@ -52,7 +52,7 @@ interface ChatState {
   fetchConversations: () => Promise<void>;
   fetchMessages: (conversationId: string, before?: string) => Promise<void>;
   initiateConversation: (participantId: string, relatedToModel?: 'Booking' | 'Question', relatedToId?: string) => Promise<Conversation>;
-  sendMessage: (conversationId: string, content?: string, media?: { url: string; type: 'image' | 'audio' | 'video' }) => void;
+  sendMessage: (conversationId: string, content?: string, media?: { url: string; type: 'image' | 'audio' | 'video' }) => Promise<void>;
   sendMediaMessage: (conversationId: string, base64: string, fileName: string, fileType: 'image' | 'audio' | 'video') => Promise<void>;
   setTyping: (conversationId: string, isTyping: boolean) => void;
   markAsRead: (conversationId: string) => void;
@@ -300,10 +300,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendMessage: (conversationId, content, media) => {
+  sendMessage: async (conversationId, content, media) => {
+    // 1. Optimistic / Socket dispatch if socket is connected
     const { socket } = get();
-    if (socket) {
+    if (socket && socket.connected) {
       socket.emit('sendMessage', { conversationId, content, media });
+    }
+
+    // 2. Guaranteed database persistence via REST API
+    try {
+      const savedMessage = await api.post(`/chat/conversations/${conversationId}/messages`, {
+        content,
+        media
+      });
+      
+      const currentMessages = get().messages;
+      if (!currentMessages.some((m) => m._id === savedMessage._id)) {
+        set({ messages: [savedMessage, ...currentMessages] });
+      }
+      get().fetchConversations();
+    } catch (err: any) {
+      console.warn('[ChatStore] REST message persistence warning:', err.message);
     }
   },
 

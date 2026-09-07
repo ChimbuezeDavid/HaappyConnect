@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { Profile } from '../models/Profile';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { sendPasswordResetEmail } from '../services/email';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkeyforhaappyconnect';
@@ -1116,6 +1117,7 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
 
     console.log(`[PASSWORD RESET] Code for ${email} is ${code}`);
+    await sendPasswordResetEmail(user.email, code);
 
     res.json({ message: 'If that email address exists in our database, we will send a password reset code.' });
   } catch (error: any) {

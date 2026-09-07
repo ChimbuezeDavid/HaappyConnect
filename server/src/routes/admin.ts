@@ -333,4 +333,66 @@ router.get('/consultations', authenticate, requireAdmin, async (_req: AuthReques
   }
 });
 
+// GET /api/admin/verifications - List expert verification applications
+router.get('/verifications', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { status } = req.query;
+    const filter: any = {
+      $or: [
+        { verificationStatus: status ? status : { $in: ['pending', 'approved', 'rejected'] } },
+        { 'verificationData.submittedAt': { $exists: true } }
+      ]
+    };
+
+    const applications = await Profile.find(filter)
+      .populate('user', 'email role createdAt')
+      .populate('categories')
+      .sort({ 'verificationData.submittedAt': -1, updatedAt: -1 })
+      .lean();
+
+    return res.json(applications);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch verification applications' });
+  }
+});
+
+// POST /api/admin/verifications/:id/review - Approve or reject an expert verification
+router.post('/verifications/:id/review', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { action, adminNotes } = req.body; // action: 'approve' | 'reject'
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ error: 'Action must be approve or reject' });
+    }
+
+    const profile = await Profile.findById(req.params.id);
+    if (!profile) {
+      return res.status(404).json({ error: 'Expert profile not found' });
+    }
+
+    if (action === 'approve') {
+      profile.isVerified = true;
+      profile.verificationStatus = 'approved';
+    } else {
+      profile.isVerified = false;
+      profile.verificationStatus = 'rejected';
+    }
+
+    if (profile.verificationData) {
+      profile.verificationData.reviewedAt = new Date();
+      profile.verificationData.adminNotes = adminNotes || '';
+    }
+
+    await profile.save();
+
+    return res.json({
+      message: `Expert verification ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+      isVerified: profile.isVerified,
+      verificationStatus: profile.verificationStatus,
+      profile
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to review verification application' });
+  }
+});
+
 export default router;

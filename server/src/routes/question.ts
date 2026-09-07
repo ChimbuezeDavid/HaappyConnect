@@ -50,6 +50,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'ExpertId, question type, and content are required' });
     }
 
+    if (expertId === req.userId) {
+      return res.status(400).json({ error: 'You cannot submit a consultation question to yourself' });
+    }
+
     if (!['text', 'voice', 'video'].includes(type)) {
       return res.status(400).json({ error: 'Invalid question type' });
     }

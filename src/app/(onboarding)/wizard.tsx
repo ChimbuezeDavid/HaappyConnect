@@ -36,6 +36,7 @@ import {
   Bookmark
 } from 'lucide-react-native';
 import Confetti from '@/components/ui/Confetti';
+import CountryCityPickerModal from '@/components/ui/CountryCityPickerModal';
 
 export default function OnboardingWizard() {
   const router = useRouter();
@@ -52,6 +53,7 @@ export default function OnboardingWizard() {
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   // Focus state variables for inputs
   const [fullNameFocused, setFullNameFocused] = useState(false);
@@ -80,16 +82,29 @@ export default function OnboardingWizard() {
     fetchCategories();
   }, []);
 
-  // Set default username suggestions when Full Name changes
+  // Set default username handle lifted from user email (or fullName fallback)
   useEffect(() => {
-    if (draft.fullName && !draft.username) {
-      const suggested = draft.fullName
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '')
-        .slice(0, 15);
-      draft.updateDraft({ username: `${suggested}` });
+    if (!draft.username) {
+      if (user?.email) {
+        const fromEmail = user.email
+          .split('@')[0]
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '')
+          .slice(0, 18);
+        if (fromEmail) {
+          draft.updateDraft({ username: fromEmail });
+          return;
+        }
+      }
+      if (draft.fullName) {
+        const suggested = draft.fullName
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '')
+          .slice(0, 15);
+        draft.updateDraft({ username: `${suggested}` });
+      }
     }
-  }, [draft.fullName]);
+  }, [user?.email, draft.fullName]);
 
   // Debounced/Triggered handle uniqueness check
   const checkUsernameUniqueness = async (handle: string) => {
@@ -174,21 +189,19 @@ export default function OnboardingWizard() {
 
   const toggleCategorySelection = (catId: string) => {
     if (isExpert) {
-      const selected = draft.categories.includes(catId)
-        ? draft.categories.filter((c) => c !== catId)
-        : [...draft.categories, catId];
+      // Exactly 1 category allowed
+      const selected = draft.categories.includes(catId) ? [] : [catId];
       draft.updateDraft({ categories: selected });
     } else {
-      const selected = draft.interests.includes(catId)
-        ? draft.interests.filter((c) => c !== catId)
-        : [...draft.interests, catId];
+      // Exactly 1 primary interest allowed
+      const selected = draft.interests.includes(catId) ? [] : [catId];
       draft.updateDraft({ interests: selected });
     }
   };
 
   const handleAddCustomInterest = () => {
-    if (customInterest.trim() && !draft.interests.includes(customInterest.trim())) {
-      draft.updateDraft({ interests: [...draft.interests, customInterest.trim()] });
+    if (customInterest.trim()) {
+      draft.updateDraft({ interests: [customInterest.trim()] });
       setCustomInterest('');
     }
   };
@@ -398,28 +411,32 @@ export default function OnboardingWizard() {
               )}
             </View>
 
-            {/* Location */}
+            {/* Location (Country -> City) */}
             <View className="mb-4">
-              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Location (City, Country) *</Text>
-              <View 
+              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Location (Country & City) *</Text>
+              <TouchableOpacity 
+                onPress={() => setPickerVisible(true)}
+                activeOpacity={0.85}
                 style={{
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                  borderColor: locationFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
+                  borderColor: draft.location ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
                   borderWidth: 1.5,
                 }}
-                className="flex-row items-center rounded-2xl px-4 py-3"
+                className="flex-row items-center justify-between rounded-2xl px-4 py-3"
               >
-                <MapPin size={18} color={locationFocused ? '#059669' : (isDark ? '#475569' : '#94a3b8')} />
-                <TextInput
-                  value={draft.location}
-                  onChangeText={(text) => draft.updateDraft({ location: text })}
-                  onFocus={() => setLocationFocused(true)}
-                  onBlur={() => setLocationFocused(false)}
-                  placeholder="Lagos, Nigeria"
-                  placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                  className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
-                />
-              </View>
+                <View className="flex-row items-center flex-1 mr-2">
+                  <MapPin size={18} color="#059669" />
+                  <Text className={`ml-3 text-base ${draft.location ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {draft.location || 'Select Country & City...'}
+                  </Text>
+                </View>
+                <View className="bg-primary-500/10 px-3 py-1 rounded-full">
+                  <Text className="text-primary-600 dark:text-primary-400 text-xs font-bold uppercase">
+                    {draft.location ? 'Change' : 'Select'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <Text className="text-slate-500 text-xs mt-1 ml-1">Select your country first, then choose your city.</Text>
             </View>
 
             {/* Bio */}
@@ -461,12 +478,12 @@ export default function OnboardingWizard() {
 
       case 3:
         if (isExpert) {
-          // Expert Step 3: Professional Details
+          // Expert Step 3: Professional Details (Streamlined - No cognitive overload)
           return (
             <View className="space-y-6">
-              <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Professional Details</Text>
+              <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Professional Focus</Text>
               <Text className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                Tell us about your background and select your primary categories.
+                Tell us your role title and pick your primary expertise category.
               </Text>
 
               {/* Headline */}
@@ -493,32 +510,13 @@ export default function OnboardingWizard() {
                 </View>
               </View>
 
-              {/* Experience Credentials */}
-              <View className="mb-6">
-                <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Credentials / Experience *</Text>
-                <View 
-                  style={{
-                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                    borderColor: experienceFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
-                    borderWidth: 1.5,
-                  }}
-                  className="flex-row items-center rounded-2xl px-4 py-3"
-                >
-                  <Bookmark size={18} color={experienceFocused ? '#059669' : (isDark ? '#94a3b8' : '#64748b')} />
-                  <TextInput
-                    value={draft.experience}
-                    onChangeText={(text) => draft.updateDraft({ experience: text })}
-                    onFocus={() => setExperienceFocused(true)}
-                    onBlur={() => setExperienceFocused(false)}
-                    placeholder="10+ Years Experience / Certified Coach"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
-                  />
-                </View>
+              {/* Category selections (Single category) */}
+              <View className="flex-row justify-between items-center mb-2">
+                <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">Primary Category (Select 1) *</Text>
+                {draft.categories.length > 0 && (
+                  <Text className="text-primary-600 dark:text-primary-400 text-xs font-bold">1 Selected</Text>
+                )}
               </View>
-
-              {/* Category selections */}
-              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-3">Expertise Categories (Select 3+)</Text>
               {loadingCats ? (
                 <ActivityIndicator color="#059669" style={{ paddingVertical: 16 }} />
               ) : (
@@ -532,7 +530,7 @@ export default function OnboardingWizard() {
                         style={{
                           backgroundColor: isSelected ? '#059669' : (isDark ? '#0f172a' : '#ffffff'),
                           borderColor: isSelected ? '#059669' : (isDark ? '#1e293b' : '#e2e8f0'),
-                          borderWidth: 1,
+                          borderWidth: 1.5,
                         }}
                         className="flex-row items-center px-4 py-2.5 rounded-full"
                       >
@@ -545,15 +543,25 @@ export default function OnboardingWizard() {
                   })}
                 </View>
               )}
+
+              {/* In-App Verification Reminder */}
+              <View className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-4 mt-2">
+                <Text className="text-emerald-800 dark:text-emerald-300 font-bold text-xs uppercase tracking-wider">
+                  Accreditation & Document Uploads
+                </Text>
+                <Text className="text-slate-600 dark:text-slate-300 text-xs mt-1 leading-relaxed">
+                  To protect you from cognitive overload, degrees, licenses, and verified certifications can be uploaded directly inside your Consultancy Suite after setup.
+                </Text>
+              </View>
             </View>
           );
         } else {
-          // Seeker Step 3: Interests
+          // Seeker Step 3: Interests (Single primary interest)
           return (
             <View className="space-y-6">
-              <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Select Your Interests</Text>
+              <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Select Your Primary Interest</Text>
               <Text className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                What categories are you hoping to seek help in? Select at least 3.
+                Choose the main category you want to seek advice and mentorship in.
               </Text>
 
               {loadingCats ? (
@@ -1095,9 +1103,9 @@ export default function OnboardingWizard() {
   };
 
   const nextButtonDisabled = 
-    (draft.currentStep === 2 && (!draft.fullName.trim() || !draft.username.trim() || checkingUsername)) ||
-    (draft.currentStep === 3 && isExpert && draft.categories.length < 3) ||
-    (draft.currentStep === 3 && !isExpert && draft.interests.length < 3) ||
+    (draft.currentStep === 2 && (!draft.fullName.trim() || !draft.username.trim() || !draft.location.trim() || checkingUsername)) ||
+    (draft.currentStep === 3 && isExpert && draft.categories.length < 1) ||
+    (draft.currentStep === 3 && !isExpert && draft.interests.length < 1) ||
     (draft.currentStep === 4 && !isExpert && !draft.goals.trim());
 
   return (
@@ -1203,6 +1211,14 @@ export default function OnboardingWizard() {
 
       {/* Confetti Overlay */}
       {showConfetti && <Confetti active={showConfetti} />}
+
+      {/* Country and City Picker Modal */}
+      <CountryCityPickerModal
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        onSelectLocation={(loc) => draft.updateDraft({ location: loc })}
+        initialLocation={draft.location}
+      />
     </KeyboardAvoidingView>
   );
 }

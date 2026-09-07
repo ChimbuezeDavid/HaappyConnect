@@ -26,6 +26,17 @@ export interface IProfile extends Document {
   ratingAverage: number;
   reviewsCount: number;
   isVerified: boolean;
+  verificationStatus?: 'unsubmitted' | 'pending' | 'approved' | 'rejected';
+  verificationData?: {
+    idDocumentUrl?: string;
+    certifications?: Array<{ title: string; issuer: string; year: string; proofUrl?: string }>;
+    yearsOfExperience?: number;
+    portfolioUrl?: string;
+    mentorshipStatement?: string;
+    submittedAt?: Date;
+    reviewedAt?: Date;
+    adminNotes?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,6 +68,26 @@ const ProfileSchema = new Schema<IProfile>(
     ratingAverage: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
     isVerified: { type: Boolean, default: false },
+    verificationStatus: {
+      type: String,
+      enum: ['unsubmitted', 'pending', 'approved', 'rejected'],
+      default: 'unsubmitted'
+    },
+    verificationData: {
+      idDocumentUrl: { type: String, default: '' },
+      certifications: [{
+        title: { type: String, default: '' },
+        issuer: { type: String, default: '' },
+        year: { type: String, default: '' },
+        proofUrl: { type: String, default: '' }
+      }],
+      yearsOfExperience: { type: Number, default: 0 },
+      portfolioUrl: { type: String, default: '' },
+      mentorshipStatement: { type: String, default: '' },
+      submittedAt: { type: Date },
+      reviewedAt: { type: Date },
+      adminNotes: { type: String, default: '' }
+    },
   },
   { timestamps: true }
 );

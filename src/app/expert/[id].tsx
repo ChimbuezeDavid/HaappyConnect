@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useChatStore } from '@/store/chatStore';
 import CustomHeader from '@/components/ui/CustomHeader';
 import PricingTierCard from '@/components/ui/PricingTierCard';
-import { Star, MessageSquare, Video, PhoneCall, AlertTriangle, Mic, CheckCircle2 } from 'lucide-react-native';
+import { Star, MessageSquare, Video, PhoneCall, AlertTriangle, CheckCircle2, Edit3, UserCheck } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 export default function ExpertProfileDetailScreen() {
@@ -65,6 +65,8 @@ export default function ExpertProfileDetailScreen() {
 
   // Extract expert's raw user account ID to route questions/bookings correctly
   const expertUserId = typeof expert.user === 'string' ? expert.user : expert.user?.id || (expert.user as any)?._id || '';
+  const currentUserId = user?.id || (user as any)?._id;
+  const isOwnProfile = Boolean(currentUserId && expertUserId && currentUserId.toString() === expertUserId.toString());
 
   const handleMessageExpert = async () => {
     if (isGuest) {
@@ -78,6 +80,10 @@ export default function ExpertProfileDetailScreen() {
           }}
         ]
       );
+      return;
+    }
+    if (isOwnProfile) {
+      Alert.alert('Restricted', 'You cannot send messages to your own profile.');
       return;
     }
     if (!expertUserId) return;
@@ -107,14 +113,22 @@ export default function ExpertProfileDetailScreen() {
           title="Expert Details"
           showBackButton
           rightElement={
-            (user?.id || (user as any)?._id) !== expertUserId ? (
+            isOwnProfile ? (
+              <TouchableOpacity
+                onPress={() => router.push('/expert/edit-profile')}
+                className="bg-emerald-500/10 dark:bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/30 flex-row items-center"
+              >
+                <Edit3 size={14} color="#059669" style={{ marginRight: 4 }} />
+                <Text className="text-emerald-700 dark:text-emerald-400 font-bold text-xs">Edit Profile</Text>
+              </TouchableOpacity>
+            ) : (
               <TouchableOpacity
                 onPress={handleMessageExpert}
                 className="bg-emerald-100 dark:bg-emerald-950 p-2.5 rounded-2xl border border-emerald-200 dark:border-emerald-850"
               >
                 <MessageSquare size={18} color="#059669" />
               </TouchableOpacity>
-            ) : undefined
+            )
           }
         />
 
@@ -158,119 +172,116 @@ export default function ExpertProfileDetailScreen() {
 
         {/* Pricing Tiers / Service Packages */}
         <View className="px-6 py-6 border-b border-slate-200 dark:border-slate-900" style={{ borderBottomColor: isDark ? '#1e293b' : '#e2e8f0', borderBottomWidth: 1 }}>
-          <Text className="text-slate-550 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">Choose Consultation Type</Text>
+          <Text className="text-slate-550 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-4">
+            {isOwnProfile ? 'Your Consultation Services' : 'Choose Consultation Type'}
+          </Text>
 
-          {/* Pricing Tier 1: Text Question */}
-          <PricingTierCard
-            title="Written Consultation Review"
-            price={expert.textQuestionPrice.toLocaleString()}
-            description="Submit a detailed question and receive an in-depth written response from the mentor within 72 hours."
-            icon={<MessageSquare size={20} color="#059669" />}
-            actionLabel="Ask Written Question"
-            onPress={() => {
-              if (isGuest) {
-                Alert.alert(
-                  'Sign In Required',
-                  'Please sign in or create an account to submit questions to experts.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Sign In', onPress: () => {
-                      router.replace('/(auth)/login');
-                    }}
-                  ]
-                );
-                return;
-              }
-              router.push({
-                pathname: '/seeker/ask-question',
-                params: { expertId: expert._id, initialType: 'text' },
-              });
-            }}
-          />
+          {isOwnProfile ? (
+            <View className="bg-emerald-500/10 border border-emerald-500/25 rounded-3xl p-6 items-center">
+              <View className="p-3 bg-emerald-500/20 rounded-2xl mb-3">
+                <UserCheck size={28} color="#059669" />
+              </View>
+              <Text className="text-slate-900 dark:text-white font-bold text-base text-center">
+                This is Your Public Profile
+              </Text>
+              <Text className="text-slate-500 dark:text-slate-400 text-xs text-center mt-1 mb-5 leading-relaxed">
+                Seekers view these rates and your bio when discovering you. To adjust your rates or update your calendar, tap below:
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push('/expert/edit-profile')}
+                className="bg-primary-500 px-6 py-3.5 rounded-2xl flex-row items-center shadow-md"
+              >
+                <Edit3 size={16} color="#fff" style={{ marginRight: 6 }} />
+                <Text className="text-white font-bold text-sm">Edit Rates & Profile</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              {/* Pricing Tier 1: Text Question */}
+              <PricingTierCard
+                title="Written Consultation Review"
+                price={expert.textQuestionPrice.toLocaleString()}
+                description="Submit a detailed question and receive an in-depth written response from the mentor within 72 hours."
+                icon={<MessageSquare size={20} color="#059669" />}
+                actionLabel="Ask Written Question"
+                onPress={() => {
+                  if (isGuest) {
+                    Alert.alert(
+                      'Sign In Required',
+                      'Please sign in or create an account to submit questions to experts.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Sign In', onPress: () => {
+                          router.replace('/(auth)/login');
+                        }}
+                      ]
+                    );
+                    return;
+                  }
+                  router.push({
+                    pathname: '/seeker/ask-question',
+                    params: { expertId: expert._id, initialType: 'text' },
+                  });
+                }}
+              />
 
-          {/* Pricing Tier 2: Async Voice Note Memo */}
-          <PricingTierCard
-            title="Async Voice Note Memo"
-            price={(expert.videoResponsePrice > 0 ? Math.round(expert.videoResponsePrice * 0.75) : Math.round(expert.textQuestionPrice * 1.5)).toLocaleString()}
-            description="Receive high-value spoken consultation advice directly from the mentor with actionable voice memos."
-            icon={<Mic size={20} color="#059669" />}
-            actionLabel="Request Voice Memo"
-            onPress={() => {
-              if (isGuest) {
-                Alert.alert(
-                  'Sign In Required',
-                  'Please sign in or create an account to request voice note advice.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Sign In', onPress: () => {
-                      router.replace('/(auth)/login');
-                    }}
-                  ]
-                );
-                return;
-              }
-              router.push({
-                pathname: '/seeker/ask-question',
-                params: { expertId: expert._id, initialType: 'voice' },
-              });
-            }}
-          />
+              {/* Pricing Tier 2: Video response */}
+              <PricingTierCard
+                title="Personalized Video Response"
+                price={expert.videoResponsePrice.toLocaleString()}
+                description="Submit your brief and receive a comprehensive, screen-shared or recorded video advisory breakdown."
+                icon={<Video size={20} color="#059669" />}
+                actionLabel="Request Video Response"
+                onPress={() => {
+                  if (isGuest) {
+                    Alert.alert(
+                      'Sign In Required',
+                      'Please sign in or create an account to request custom video answers.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Sign In', onPress: () => {
+                          router.replace('/(auth)/login');
+                        }}
+                      ]
+                    );
+                    return;
+                  }
+                  router.push({
+                    pathname: '/seeker/ask-question',
+                    params: { expertId: expert._id, initialType: 'video' },
+                  });
+                }}
+              />
 
-          {/* Pricing Tier 3: Video response */}
-          <PricingTierCard
-            title="Personalized Video Response"
-            price={expert.videoResponsePrice.toLocaleString()}
-            description="Submit your brief and receive a comprehensive, screen-shared or recorded video advisory breakdown."
-            icon={<Video size={20} color="#059669" />}
-            actionLabel="Request Video Response"
-            onPress={() => {
-              if (isGuest) {
-                Alert.alert(
-                  'Sign In Required',
-                  'Please sign in or create an account to request custom video answers.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Sign In', onPress: () => {
-                      router.replace('/(auth)/login');
-                    }}
-                  ]
-                );
-                return;
-              }
-              router.push({
-                pathname: '/seeker/ask-question',
-                params: { expertId: expert._id, initialType: 'video' },
-              });
-            }}
-          />
-
-          {/* Pricing Tier 4: Live Consultation */}
-          <PricingTierCard
-            title="1:1 Live Scheduled Call"
-            price={expert.hourlyRate.toLocaleString()}
-            description="Book a live 1:1 consultation session directly on their calendar slot."
-            icon={<PhoneCall size={20} color="#059669" />}
-            actionLabel="Book 1:1 Live Call"
-            onPress={() => {
-              if (isGuest) {
-                Alert.alert(
-                  'Sign In Required',
-                  'Please sign in or create an account to schedule video call consultations.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Sign In', onPress: () => {
-                      router.replace('/(auth)/login');
-                    }}
-                  ]
-                );
-                return;
-              }
-              router.push({
-                pathname: '/seeker/book-call',
-                params: { expertId: expert._id },
-              });
-            }}
-          />
+              {/* Pricing Tier 3: Live Consultation */}
+              <PricingTierCard
+                title="1:1 Live Scheduled Call"
+                price={expert.hourlyRate.toLocaleString()}
+                description="Book a live 1:1 consultation session directly on their calendar slot."
+                icon={<PhoneCall size={20} color="#059669" />}
+                actionLabel="Book 1:1 Live Call"
+                onPress={() => {
+                  if (isGuest) {
+                    Alert.alert(
+                      'Sign In Required',
+                      'Please sign in or create an account to schedule video call consultations.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Sign In', onPress: () => {
+                          router.replace('/(auth)/login');
+                        }}
+                      ]
+                    );
+                    return;
+                  }
+                  router.push({
+                    pathname: '/seeker/book-call',
+                    params: { expertId: expert._id },
+                  });
+                }}
+              />
+            </>
+          )}
         </View>
 
         {/* Reviews Section */}

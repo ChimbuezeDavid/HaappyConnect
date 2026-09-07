@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { authenticate } from '../middleware/auth';
 import { Category } from '../models/Category';
 import { Profile } from '../models/Profile';
 import { User } from '../models/User';
@@ -63,6 +64,63 @@ router.get('/:id', async (req, res) => {
     res.json(profile);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error fetching expert detail' });
+  }
+});
+
+// GET /api/expert/verification - Get verification status for logged-in expert
+router.get('/verification/status', authenticate, async (req: any, res: any) => {
+  try {
+    const profile = await Profile.findOne({ user: req.userId });
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    res.json({
+      isVerified: profile.isVerified,
+      verificationStatus: profile.verificationStatus || 'unsubmitted',
+      verificationData: profile.verificationData || null
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error fetching verification status' });
+  }
+});
+
+// POST /api/expert/verification - Submit accreditation details & answers
+router.post('/verification/submit', authenticate, async (req: any, res: any) => {
+  try {
+    const {
+      idDocumentUrl,
+      certifications,
+      yearsOfExperience,
+      portfolioUrl,
+      mentorshipStatement
+    } = req.body;
+
+    const profile = await Profile.findOne({ user: req.userId });
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    profile.verificationStatus = 'pending';
+    profile.verificationData = {
+      idDocumentUrl: idDocumentUrl || profile.verificationData?.idDocumentUrl || '',
+      certifications: Array.isArray(certifications) ? certifications : (profile.verificationData?.certifications || []),
+      yearsOfExperience: Number(yearsOfExperience) || profile.verificationData?.yearsOfExperience || 0,
+      portfolioUrl: portfolioUrl || profile.verificationData?.portfolioUrl || '',
+      mentorshipStatement: mentorshipStatement || profile.verificationData?.mentorshipStatement || '',
+      submittedAt: new Date(),
+      adminNotes: ''
+    };
+
+    await profile.save();
+
+    res.json({
+      message: 'Verification application submitted successfully for review.',
+      isVerified: profile.isVerified,
+      verificationStatus: profile.verificationStatus,
+      verificationData: profile.verificationData
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error submitting verification' });
   }
 });
 

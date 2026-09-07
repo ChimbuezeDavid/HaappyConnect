@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '@/lib/api';
 import { Booking, Question } from '@/types';
-import { Calendar, MessageSquare, ExternalLink, Star, Mic, Square, Play, Pause, Trash, Volume2 } from 'lucide-react-native';
+import { Calendar, MessageSquare, ExternalLink, Star, Mic, Square, Play, Pause, Trash, Volume2, Clock, Video } from 'lucide-react-native';
 import SignInWall from '@/components/ui/SignInWall';
 import { useColorScheme } from 'nativewind';
 import SubmitReviewModal from '@/components/review/SubmitReviewModal';
@@ -350,9 +350,12 @@ export default function BookingsScreen() {
                             </View>
                           )}
                         </View>
-                        <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">
-                          📅 {formattedDate}
-                        </Text>
+                        <View className="flex-row items-center gap-1.5 mt-1">
+                          <Calendar size={12} color={isDark ? '#64748b' : '#94a3b8'} />
+                          <Text className="text-slate-400 dark:text-slate-500 text-xs">
+                            {formattedDate}
+                          </Text>
+                        </View>
                       </View>
 
                       {/* Status & Price Pill Group */}
@@ -390,12 +393,18 @@ export default function BookingsScreen() {
 
                     {/* Metadata Strip: Session Details */}
                     <View className="bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 rounded-2xl mb-4 flex-row justify-between items-center border border-slate-100 dark:border-slate-850">
-                      <Text className="text-slate-500 dark:text-slate-400 text-xs">
-                        📹 1:1 Video Consultation
-                      </Text>
-                      <Text className="text-slate-700 dark:text-slate-300 font-bold text-xs">
-                        ⏱️ {booking.durationMinutes} mins
-                      </Text>
+                      <View className="flex-row items-center gap-1.5">
+                        <Video size={13} color={isDark ? '#94a3b8' : '#64748b'} />
+                        <Text className="text-slate-500 dark:text-slate-400 text-xs font-medium">
+                          1:1 Video Consultation
+                        </Text>
+                      </View>
+                      <View className="flex-row items-center gap-1.5">
+                        <Clock size={13} color={isDark ? '#cbd5e1' : '#475569'} />
+                        <Text className="text-slate-700 dark:text-slate-300 font-bold text-xs">
+                          {booking.durationMinutes} mins
+                        </Text>
+                      </View>
                     </View>
 
                     {/* Conference Jitsi Meeting Button */}
@@ -535,9 +544,12 @@ export default function BookingsScreen() {
                             </View>
                           )}
                         </View>
-                        <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">
-                          📅 Asked {datePosted} • {question.type === 'video' ? '📹 Video' : question.type === 'voice' ? '🎙️ Audio' : '💬 Text'} Q&A
-                        </Text>
+                        <View className="flex-row items-center gap-1.5 mt-1">
+                          <Calendar size={12} color={isDark ? '#64748b' : '#94a3b8'} />
+                          <Text className="text-slate-400 dark:text-slate-500 text-xs">
+                            Asked {datePosted} • {question.type === 'video' ? 'Video' : question.type === 'voice' ? 'Audio' : 'Text'} Q&A
+                          </Text>
+                        </View>
                       </View>
 
                       {/* Status & Price Pill Group */}

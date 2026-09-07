@@ -3,6 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { Conversation } from '../models/Conversation';
 import { Message } from '../models/Message';
 import { Profile } from '../models/Profile';
+import { getIO } from '../socket';
 import fs from 'fs';
 import path from 'path';
 
@@ -84,6 +85,65 @@ router.get('/conversations/:id/messages', authenticate, async (req: AuthRequest,
     res.json(messages);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error fetching messages' });
+  }
+});
+
+// POST /api/chat/conversations/:id/messages - Post a new message with direct database persistence
+router.post('/conversations/:id/messages', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { content, media } = req.body;
+
+    if (!content && !media) {
+      return res.status(400).json({ error: 'Message content or media is required' });
+    }
+
+    const conversation = await Conversation.findOne({
+      _id: id,
+      participants: req.userId
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found or unauthorized' });
+    }
+
+    if (conversation.blockedBy && conversation.blockedBy.length > 0) {
+      return res.status(403).json({ error: 'Cannot send message: This conversation is blocked' });
+    }
+
+    const message = new Message({
+      conversationId: id,
+      senderId: req.userId,
+      content,
+      media,
+      readBy: [req.userId]
+    });
+    await message.save();
+
+    conversation.lastMessage = message._id as any;
+    conversation.unreadCounts.forEach((uc) => {
+      if (uc.user.toString() !== req.userId) {
+        uc.count += 1;
+      }
+    });
+    await conversation.save();
+
+    // Broadcast via socket if initialized
+    try {
+      const io = getIO();
+      io.to(id).emit('messageReceived', message);
+      conversation.participants.forEach((p) => {
+        io.to(`user:${p.toString()}`).emit('conversationUpdated', {
+          conversationId: id,
+          lastMessage: message,
+          unreadCounts: conversation.unreadCounts
+        });
+      });
+    } catch (_) {}
+
+    res.status(201).json(message);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error sending message' });
   }
 });
 

@@ -1,50 +1,50 @@
-import { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, TextInput, Animated, useWindowDimensions, Platform } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  TextInput,
+  useWindowDimensions,
+  Platform,
+} from 'react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useWalletStore } from '@/store/walletStore';
 import { Transaction } from '@/types';
-import { 
-  Plus, ArrowUpRight, ArrowDownLeft, ShieldCheck, 
-  Search, ArrowDownToLine, ArrowUpFromLine, Send, Settings, Eye, EyeOff, X
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ShieldCheck,
+  CreditCard,
+  Building2,
+  Lock,
+  Eye,
+  EyeOff,
+  Filter,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Plus,
+  Send,
+  Zap,
+  ArrowRight,
+  ChevronRight,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react-native';
 import SignInWall from '@/components/ui/SignInWall';
 import { useColorScheme } from 'nativewind';
+import { format, parseISO } from 'date-fns';
 
 // Modals
 import DepositModal from '@/components/wallet/DepositModal';
 import WithdrawModal from '@/components/wallet/WithdrawModal';
 import TransactionDetailModal from '@/components/wallet/TransactionDetailModal';
 
-// Animated skeleton row (replaces NativeWind animate-pulse to avoid css-interop crash)
-function SkeletonRow() {
-  const opacity = useRef(new Animated.Value(0.4)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-  return (
-    <Animated.View
-      style={{ opacity }}
-      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex-row justify-between items-center mb-3"
-    >
-      <View className="flex-row items-center flex-1">
-        <View className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-850 mr-3" />
-        <View className="flex-1 space-y-1.5">
-          <View className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-2/3" />
-          <View className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/3" />
-        </View>
-      </View>
-      <View className="w-16 h-4 bg-slate-100 dark:bg-slate-800 rounded" />
-    </Animated.View>
-  );
-}
-
 export default function WalletScreen() {
-  const { user, token, isGuest } = useAuthStore();
+  const { user, profile, token, isGuest } = useAuthStore();
   const {
     availableBalance,
     pendingBalance,
@@ -56,33 +56,30 @@ export default function WalletScreen() {
     hasMore,
     fetchBalance,
     fetchTransactions,
-    clearWalletState
+    clearWalletState,
   } = useWalletStore();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
-  
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'deposits' | 'consultations' | 'payouts'>('all');
+  const [hideBalance, setHideBalance] = useState(false);
+
   // Modals Visibility
   const [depositVisible, setDepositVisible] = useState(false);
   const [withdrawVisible, setWithdrawVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  
-  // Balance Visibility toggle
-  const [hideBalance, setHideBalance] = useState(false);
 
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
-
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
+  const isExpert = user?.role === 'expert';
 
   const loadData = async (refresh = true) => {
     if (isGuest || !token) return;
     await Promise.all([
       fetchBalance(),
-      fetchTransactions(refresh, activeFilter, searchQuery)
+      fetchTransactions(refresh, 'all', ''),
     ]);
   };
 
@@ -92,17 +89,7 @@ export default function WalletScreen() {
       return;
     }
     loadData(true);
-  }, [isGuest, token, activeFilter]);
-
-  // Handle Search Debounce / Trigger
-  useEffect(() => {
-    if (isGuest || !token) return;
-    const delayDebounceFn = setTimeout(() => {
-      fetchTransactions(true, activeFilter, searchQuery);
-    }, 400);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
+  }, [isGuest, token]);
 
   if (isGuest) {
     return <SignInWall />;
@@ -114,407 +101,435 @@ export default function WalletScreen() {
     setRefreshing(false);
   };
 
-  const handleLoadMore = () => {
-    if (hasMore && !isLoading) {
-      fetchTransactions(false, activeFilter, searchQuery);
+  // Filtered transactions for the ledger
+  const filteredTransactions = useMemo(() => {
+    if (selectedFilter === 'deposits') {
+      return transactions.filter(t => t.type === 'deposit');
     }
+    if (selectedFilter === 'consultations') {
+      return transactions.filter(t => t.type === 'charge' || t.type === 'payout');
+    }
+    if (selectedFilter === 'payouts') {
+      return transactions.filter(t => t.type === 'withdrawal' || t.type === 'payout');
+    }
+    return transactions;
+  }, [transactions, selectedFilter]);
+
+  const getTxIcon = (tx: Transaction) => {
+    if (tx.type === 'deposit') {
+      return <ArrowDownLeft size={18} color="#059669" />;
+    }
+    if (tx.type === 'withdrawal') {
+      return <Building2 size={18} color="#3B82F6" />;
+    }
+    if (tx.type === 'payout') {
+      return <ArrowUpRight size={18} color="#10B981" />;
+    }
+    if (tx.type === 'refund') {
+      return <RefreshCw size={18} color="#D97706" />;
+    }
+    return <Sparkles size={18} color="#6366F1" />;
   };
 
-  const handleTxPress = (tx: Transaction) => {
-    setSelectedTx(tx);
-    setDetailVisible(true);
-  };
-
-  // Date Grouping
-  const groupTransactions = (txs: Transaction[]) => {
-    const groups: { [key: string]: Transaction[] } = {};
-    const todayStr = new Date().toDateString();
-    
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toDateString();
-
-    txs.forEach((tx) => {
-      const txDate = new Date(tx.createdAt);
-      const txDateStr = txDate.toDateString();
-      let groupKey = 'Older Transactions';
-
-      if (txDateStr === todayStr) {
-        groupKey = 'Today';
-      } else if (txDateStr === yesterdayStr) {
-        groupKey = 'Yesterday';
-      } else {
-        const monthNames = [
-          'January', 'February', 'March', 'April', 'May', 'June',
-          'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        groupKey = `${monthNames[txDate.getMonth()]} ${txDate.getFullYear()}`;
-      }
-
-      if (!groups[groupKey]) {
-        groups[groupKey] = [];
-      }
-      groups[groupKey].push(tx);
-    });
-
-    return groups;
-  };
-
-  const groupedTxs = groupTransactions(transactions);
-  const isExpert = user?.role === 'expert';
-
-  // Skeletons Loader
-  const renderSkeletons = () => (
-    <View className="space-y-3">
-      {[1, 2, 3].map((i) => (
-        <SkeletonRow key={i} />
-      ))}
-    </View>
-  );
-
-  const renderBalanceCard = () => (
-    <View className="bg-slate-900 dark:bg-slate-900 border border-slate-800 dark:border-slate-800 rounded-[32px] p-6 shadow-xl relative overflow-hidden">
-      {/* Gradients */}
-      <View className="absolute right-0 top-0 bg-primary-500/15 w-40 h-40 rounded-full -mr-16 -mt-16" />
-      <View className="absolute left-0 bottom-0 bg-emerald-500/10 w-28 h-28 rounded-full -ml-12 -mb-12" />
-
-      <View className="flex-row items-center justify-between mb-4">
-        <Text className="text-slate-450 dark:text-slate-450 font-bold text-xs uppercase tracking-widest">
-          Available Balance
-        </Text>
-        <TouchableOpacity onPress={() => setHideBalance(!hideBalance)} className="p-1">
-          {hideBalance ? (
-            <EyeOff size={16} color="#94a3b8" />
-          ) : (
-            <Eye size={16} color="#94a3b8" />
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <Text className="text-4xl font-black text-white tracking-tight">
-        {hideBalance ? '₦ •••••••' : `₦${availableBalance.toLocaleString()}`}
-      </Text>
-
-      {/* Locked/Total metrics */}
-      <View className="flex-row justify-between items-center mt-6 pt-5 border-t border-slate-800/80">
-        <View>
-          <Text className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Pending (Locked)</Text>
-          <Text className="text-sm font-extrabold text-slate-300 mt-0.5">
-            {hideBalance ? '₦ •••' : `₦${pendingBalance.toLocaleString()}`}
-          </Text>
-        </View>
-        <View className="items-end">
-          <Text className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Total Value</Text>
-          <Text className="text-sm font-extrabold text-white mt-0.5">
-            {hideBalance ? '₦ •••' : `₦${totalBalance.toLocaleString()}`}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderStatsRow = () => (
-    <View className="flex-row gap-3">
-      {isExpert ? (
-        <>
-          <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex-row items-center shadow-sm">
-            <View className="p-2 bg-emerald-500/10 rounded-xl mr-3">
-              <ArrowDownLeft size={16} color="#10b981" />
-            </View>
-            <View>
-              <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Earned</Text>
-              <Text className="text-sm font-black text-slate-850 dark:text-slate-200 mt-0.5">₦{totalEarned.toLocaleString()}</Text>
-            </View>
-          </View>
-          <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex-row items-center shadow-sm">
-            <View className="p-2 bg-primary-500/10 rounded-xl mr-3">
-              <ArrowUpRight size={16} color="#059669" />
-            </View>
-            <View>
-              <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Payouts</Text>
-              <Text className="text-sm font-black text-slate-850 dark:text-slate-200 mt-0.5">₦{pendingBalance.toLocaleString()}</Text>
-            </View>
-          </View>
-        </>
-      ) : (
-        <>
-          <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex-row items-center shadow-sm">
-            <View className="p-2 bg-primary-500/10 rounded-xl mr-3">
-              <ArrowUpRight size={16} color="#059669" />
-            </View>
-            <View>
-              <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Spent</Text>
-              <Text className="text-sm font-black text-slate-850 dark:text-slate-200 mt-0.5">₦{totalSpent.toLocaleString()}</Text>
-            </View>
-          </View>
-          <View className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex-row items-center shadow-sm">
-            <View className="p-2 bg-emerald-500/10 rounded-xl mr-3">
-              <ArrowDownLeft size={16} color="#10b981" />
-            </View>
-            <View>
-              <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Deposited</Text>
-              <Text className="text-sm font-black text-slate-850 dark:text-slate-200 mt-0.5">₦{totalEarned.toLocaleString()}</Text>
-            </View>
-          </View>
-        </>
-      )}
-    </View>
-  );
-
-  const renderQuickActions = () => (
-    <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
-      <Text className="text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-wider mb-4">Quick Actions</Text>
-      <View className="flex-row justify-between">
-        <TouchableOpacity 
-          onPress={() => setDepositVisible(true)}
-          className="items-center flex-1"
-        >
-          <View className="bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/15 mb-2">
-            <ArrowDownToLine size={20} color="#10b981" />
-          </View>
-          <Text className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Deposit</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          onPress={() => setWithdrawVisible(true)}
-          className="items-center flex-1"
-        >
-          <View className="bg-amber-500/10 p-3 rounded-2xl border border-amber-500/15 mb-2">
-            <ArrowUpFromLine size={20} color="#f59e0b" />
-          </View>
-          <Text className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Withdraw</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          onPress={() => Alert.alert('Coming Soon', 'Peer-to-peer money transfers are currently in development.')}
-          className="items-center flex-1"
-        >
-          <View className="bg-blue-500/10 p-3 rounded-2xl border border-blue-500/15 mb-2">
-            <Send size={20} color="#3b82f6" />
-          </View>
-          <Text className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Send</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          onPress={() => Alert.alert('Wallet Settings', 'Security PIN and linked card options will be available in the next version.')}
-          className="items-center flex-1"
-        >
-          <View className="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl border border-slate-200 dark:border-slate-850 mb-2">
-            <Settings size={20} color={isDark ? '#94a3b8' : '#64748b'} />
-          </View>
-          <Text className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Settings</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderTransactionHistory = () => (
-    <View>
-      <View className="flex-row justify-between items-center">
-        <Text className="text-base font-extrabold text-slate-900 dark:text-white">Transaction History</Text>
-        <View className="flex-row items-center">
-          <ShieldCheck size={14} color="#10b981" />
-          <Text className="text-[11px] font-bold text-slate-450 dark:text-slate-500 ml-1 uppercase">Ledger Secured</Text>
-        </View>
-      </View>
-      <View className="h-4" />
-
-      {/* Search Box */}
-      <View className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 flex-row items-center shadow-sm">
-        <Search size={16} color={isDark ? '#475569' : '#94a3b8'} className="mr-2" />
-        <TextInput
-          placeholder="Search description..."
-          placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          className="flex-1 text-slate-900 dark:text-white text-sm p-0 ml-1.5"
-        />
-      </View>
-      <View className="h-4" />
-
-      {/* Filter Tabs */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        className="flex-row"
+  return (
+    <View
+      className="flex-1"
+      style={{ backgroundColor: isDark ? '#0B0F14' : '#FAF8F5' }}
+    >
+      <ScrollView
+        className="flex-1 w-full"
+        contentContainerStyle={{
+          width: '100%',
+          paddingHorizontal: isDesktop ? 36 : 18,
+          paddingTop: isDesktop ? 24 : 14,
+          paddingBottom: isDesktop ? 40 : 120,
+        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />
+        }
+        showsVerticalScrollIndicator={false}
       >
-        {[
-          { id: 'all', label: 'All' },
-          { id: 'deposit', label: 'Deposits' },
-          { id: 'withdrawal', label: 'Payouts' },
-          { id: 'payment', label: 'Payments' },
-          { id: 'refund', label: 'Refunds' }
-        ].map((filter) => (
+        {/* TOP BAR: Title & Institutional Status */}
+        <View className="flex-row justify-between items-start mb-6">
+          <View>
+            <Text className="text-xs uppercase tracking-widest font-extrabold text-emerald-600 dark:text-emerald-400">
+              {isExpert ? 'ADVISORY REVENUE VAULT' : 'FINANCIAL VAULT & ESCROW'}
+            </Text>
+            <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
+              {isExpert ? 'Earnings Ledger' : 'Account Balance'}
+            </Text>
+          </View>
+
           <TouchableOpacity
-            key={filter.id}
-            onPress={() => setActiveFilter(filter.id)}
-            className={`py-2 px-4 rounded-full mr-2.5 ${
-              activeFilter === filter.id 
-                ? 'bg-primary-500' 
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
+            onPress={() => setHideBalance(!hideBalance)}
+            className="p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm"
+          >
+            {hideBalance ? (
+              <EyeOff size={18} color={isDark ? '#94A3B8' : '#64748B'} />
+            ) : (
+              <Eye size={18} color={isDark ? '#94A3B8' : '#64748B'} />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* ============================================================ */}
+        {/* COMPLETE 180° HERO FINTECH VAULT DISPLAY                     */}
+        {/* ============================================================ */}
+        <View
+          style={{
+            backgroundColor: isDark ? '#111822' : '#FFFFFF',
+            borderColor: isDark ? '#1F2B3A' : '#E7E1D8',
+          }}
+          className="rounded-3xl p-6 mb-6 border shadow-sm"
+        >
+          <View className="flex-row justify-between items-center mb-1">
+            <Text className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              {isExpert ? 'Available For Withdrawal' : 'Net Liquidity Available'}
+            </Text>
+            <View className="flex-row items-center bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+              <ShieldCheck size={12} color="#059669" style={{ marginRight: 4 }} />
+              <Text className="text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
+                Paystack Direct
+              </Text>
+            </View>
+          </View>
+
+          {/* Crisp Primary Amount Display */}
+          <Text className="text-4xl font-black text-slate-900 dark:text-white tracking-tight my-2">
+            {hideBalance ? '₦ •••••••' : `₦${availableBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`}
+          </Text>
+
+          {/* Institutional Split Ledger */}
+          <View className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex-row justify-between">
+            <View>
+              <View className="flex-row items-center mb-0.5">
+                <View className="w-2 h-2 rounded-full bg-amber-500 mr-1.5" />
+                <Text className="text-[11px] font-bold text-slate-400 uppercase">
+                  {isExpert ? 'In-Review Escrow' : 'Held In Escrow'}
+                </Text>
+              </View>
+              <Text className="text-base font-extrabold text-amber-600 dark:text-amber-400">
+                {hideBalance ? '₦ •••' : `₦${pendingBalance.toLocaleString()}`}
+              </Text>
+            </View>
+
+            <View className="items-end">
+              <View className="flex-row items-center mb-0.5">
+                <View className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5" />
+                <Text className="text-[11px] font-bold text-slate-400 uppercase">
+                  {isExpert ? 'Lifetime Revenue' : 'Total Deposited'}
+                </Text>
+              </View>
+              <Text className="text-base font-extrabold text-slate-900 dark:text-white">
+                {hideBalance ? '₦ •••' : `₦${totalEarned.toLocaleString()}`}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ============================================================ */}
+        {/* INSTITUTIONAL ACTION STRIP                                   */}
+        {/* ============================================================ */}
+        <View className="flex-row gap-3 mb-6">
+          {isExpert ? (
+            <>
+              <TouchableOpacity
+                onPress={() => setWithdrawVisible(true)}
+                activeOpacity={0.85}
+                className="flex-1 bg-primary-500 py-4 px-4 rounded-2xl flex-row items-center justify-center shadow-md shadow-primary-500/20"
+              >
+                <Zap size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text className="text-white font-black text-sm">Withdraw to Bank</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setDepositVisible(true)}
+                activeOpacity={0.85}
+                className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 py-4 px-5 rounded-2xl flex-row items-center justify-center shadow-sm"
+              >
+                <Plus size={18} color={isDark ? '#FFFFFF' : '#0F172A'} style={{ marginRight: 6 }} />
+                <Text className="text-slate-900 dark:text-white font-bold text-sm">Top Up</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                onPress={() => setDepositVisible(true)}
+                activeOpacity={0.85}
+                className="flex-1 bg-primary-500 py-4 px-4 rounded-2xl flex-row items-center justify-center shadow-md shadow-primary-500/20"
+              >
+                <Plus size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text className="text-white font-black text-sm">Fund Wallet (Paystack)</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setWithdrawVisible(true)}
+                activeOpacity={0.85}
+                className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 py-4 px-5 rounded-2xl flex-row items-center justify-center shadow-sm"
+              >
+                <Send size={16} color={isDark ? '#FFFFFF' : '#0F172A'} style={{ marginRight: 6 }} />
+                <Text className="text-slate-900 dark:text-white font-bold text-sm">Withdraw</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        {/* ============================================================ */}
+        {/* NIGERIAN BANK PAYOUT ACCOUNT CARD (FOR EXPERTS)              */}
+        {/* ============================================================ */}
+        {isExpert && (
+          <View
+            style={{
+              backgroundColor: isDark ? '#111822' : '#FFFFFF',
+              borderColor: isDark ? '#1F2B3A' : '#E7E1D8',
+            }}
+            className="rounded-3xl p-5 mb-6 border"
+          >
+            <View className="flex-row justify-between items-center mb-3">
+              <View className="flex-row items-center">
+                <View className="p-2.5 bg-blue-500/10 rounded-xl mr-3">
+                  <Building2 size={18} color="#3B82F6" />
+                </View>
+                <View>
+                  <Text className="text-sm font-bold text-slate-900 dark:text-white">
+                    Direct Bank Payout Route
+                  </Text>
+                  <Text className="text-[11px] text-slate-400">
+                    Nigerian Clearing House & NIBSS
+                  </Text>
+                </View>
+              </View>
+
+              <View className="bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                <Text className="text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase">
+                  Active
+                </Text>
+              </View>
+            </View>
+
+            <View className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-850 flex-row justify-between items-center">
+              <View>
+                <Text className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  {profile?.fullName || 'Account Beneficiary'}
+                </Text>
+                <Text className="text-slate-400 text-[11px] mt-0.5">
+                  Automated Bank Settlement • 1-Tap Withdrawal
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setWithdrawVisible(true)}
+                className="bg-primary-500/10 px-3 py-1.5 rounded-xl"
+              >
+                <Text className="text-primary-600 dark:text-primary-400 text-xs font-bold">Withdraw</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* ============================================================ */}
+        {/* ESCROW PROTECTION BANNER (FOR SEEKERS)                       */}
+        {/* ============================================================ */}
+        {!isExpert && (
+          <View className="bg-emerald-500/10 border border-emerald-500/25 rounded-3xl p-4 mb-6 flex-row items-center">
+            <ShieldCheck size={22} color="#059669" style={{ marginRight: 12 }} />
+            <View className="flex-1">
+              <Text className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                100% Escrow Protection
+              </Text>
+              <Text className="text-slate-600 dark:text-slate-300 text-xs mt-0.5 leading-relaxed">
+                When booking mentors, funds remain securely in your escrow vault. If a question is unanswered within 72h, it is instantly refunded.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* ============================================================ */}
+        {/* FINTECH TRANSACTION LEDGER & FILTER PILLS                    */}
+        {/* ============================================================ */}
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Transaction Activity ({filteredTransactions.length})
+          </Text>
+        </View>
+
+        {/* Filter Tabs */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-4 -mx-1 px-1">
+          <TouchableOpacity
+            onPress={() => setSelectedFilter('all')}
+            className={`px-4 py-2 rounded-xl mr-2 border ${
+              selectedFilter === 'all'
+                ? 'bg-primary-500 border-primary-500'
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
             }`}
           >
-            <Text className={`font-bold text-xs ${
-              activeFilter === filter.id 
-                ? 'text-white' 
-                : 'text-slate-600 dark:text-slate-300'
-            }`}>
-              {filter.label}
+            <Text
+              className={`text-xs font-bold ${
+                selectedFilter === 'all' ? 'text-white' : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              All Records
             </Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <View className="h-4" />
 
-      {/* Transaction List */}
-      {isLoading && transactions.length === 0 ? (
-        renderSkeletons()
-      ) : transactions.length === 0 ? (
-        <View className="items-center justify-center py-12 bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 border-dashed shadow-sm">
-          <Text className="text-slate-500 dark:text-slate-400 text-sm font-semibold">No transactions found</Text>
-          <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1 text-center px-6">
-            {searchQuery || activeFilter !== 'all' 
-              ? 'Try modifying your search query or transaction filters'
-              : isExpert 
-                ? 'Your earned client booking payments and payout histories will appear here.'
-                : 'Your card deposits, payouts, and query call payments will appear here.'}
-          </Text>
-        </View>
-      ) : (
-        Object.keys(groupedTxs).map((groupName) => (
-          <View key={groupName} className="mb-5">
-            <Text className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3.5 ml-1">
-              {groupName}
+          <TouchableOpacity
+            onPress={() => setSelectedFilter('deposits')}
+            className={`px-4 py-2 rounded-xl mr-2 border ${
+              selectedFilter === 'deposits'
+                ? 'bg-primary-500 border-primary-500'
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+            }`}
+          >
+            <Text
+              className={`text-xs font-bold ${
+                selectedFilter === 'deposits' ? 'text-white' : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              Deposits
             </Text>
-            
-            {groupedTxs[groupName].map((tx) => {
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setSelectedFilter('consultations')}
+            className={`px-4 py-2 rounded-xl mr-2 border ${
+              selectedFilter === 'consultations'
+                ? 'bg-primary-500 border-primary-500'
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+            }`}
+          >
+            <Text
+              className={`text-xs font-bold ${
+                selectedFilter === 'consultations' ? 'text-white' : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              Consultations & Escrow
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setSelectedFilter('payouts')}
+            className={`px-4 py-2 rounded-xl mr-2 border ${
+              selectedFilter === 'payouts'
+                ? 'bg-primary-500 border-primary-500'
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+            }`}
+          >
+            <Text
+              className={`text-xs font-bold ${
+                selectedFilter === 'payouts' ? 'text-white' : 'text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              Withdrawals
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Ledger List */}
+        {isLoading && transactions.length === 0 ? (
+          <View className="py-16 items-center justify-center">
+            <ActivityIndicator size="large" color="#059669" />
+          </View>
+        ) : filteredTransactions.length === 0 ? (
+          <View
+            style={{
+              backgroundColor: isDark ? '#111822' : '#FFFFFF',
+              borderColor: isDark ? '#1F2B3A' : '#E7E1D8',
+            }}
+            className="rounded-3xl p-8 items-center border border-dashed"
+          >
+            <CreditCard size={32} color={isDark ? '#334155' : '#CBD5E1'} style={{ marginBottom: 8 }} />
+            <Text className="text-sm font-bold text-slate-800 dark:text-slate-200">
+              No Transactions Recorded
+            </Text>
+            <Text className="text-xs text-slate-400 text-center mt-1">
+              Your deposits, consultation payments, and payout statements will stream here automatically.
+            </Text>
+          </View>
+        ) : (
+          <View className="space-y-2.5">
+            {filteredTransactions.map((tx) => {
               const isPositive = tx.amount > 0;
-              const isPending = tx.status === 'pending';
-              const isFailed = tx.status === 'failed';
-              
+              let txDateStr = '';
+              try {
+                txDateStr = format(parseISO(tx.createdAt), 'MMM dd, yyyy • hh:mm a');
+              } catch (_) {
+                txDateStr = 'Recent';
+              }
+
               return (
                 <TouchableOpacity
                   key={tx._id}
-                  onPress={() => handleTxPress(tx)}
+                  onPress={() => {
+                    setSelectedTx(tx);
+                    setDetailVisible(true);
+                  }}
                   activeOpacity={0.7}
-                  className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 mb-3 flex-row items-center justify-between shadow-sm"
+                  style={{
+                    backgroundColor: isDark ? '#111822' : '#FFFFFF',
+                    borderColor: isDark ? '#1F2B3A' : '#E7E1D8',
+                  }}
+                  className="p-4 rounded-2xl border flex-row items-center justify-between"
                 >
-                  <View className="flex-row items-center flex-1 mr-4">
-                    <View className={`p-2.5 rounded-xl mr-3 ${
-                      isFailed 
-                        ? 'bg-rose-500/10'
-                        : isPending 
-                          ? 'bg-amber-500/10'
-                          : isPositive 
-                            ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                            : 'bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-850'
-                    }`}>
-                      {isFailed ? (
-                        <X size={16} color="#ef4444" />
-                      ) : isPositive ? (
-                        <ArrowDownLeft size={16} color="#10b981" />
-                      ) : (
-                        <ArrowUpRight size={16} color={isDark ? '#94a3b8' : '#64748b'} />
-                      )}
+                  <View className="flex-row items-center flex-1 mr-3">
+                    <View
+                      className={`p-2.5 rounded-xl mr-3 ${
+                        tx.type === 'deposit'
+                          ? 'bg-emerald-500/10'
+                          : tx.type === 'withdrawal'
+                          ? 'bg-blue-500/10'
+                          : 'bg-amber-500/10'
+                      }`}
+                    >
+                      {getTxIcon(tx)}
                     </View>
                     <View className="flex-1">
-                      <Text 
-                        className={`text-slate-900 dark:text-white font-semibold text-sm ${isFailed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`} 
-                        numberOfLines={1}
-                      >
-                        {tx.description}
+                      <Text className="text-sm font-bold text-slate-900 dark:text-white" numberOfLines={1}>
+                        {tx.description || (tx.type === 'deposit' ? 'Wallet Deposit' : 'Consultation Settlement')}
                       </Text>
-                      <Text className="text-slate-500 dark:text-slate-400 text-[11px] uppercase mt-0.5 font-bold tracking-wide">
-                        {tx.type} • {isPending ? 'Pending hold' : tx.status}
+                      <Text className="text-[11px] text-slate-400 mt-0.5">
+                        {txDateStr}
                       </Text>
                     </View>
                   </View>
 
-                  <Text className={`font-black text-sm ${
-                    isFailed 
-                      ? 'text-slate-400 line-through'
-                      : isPending 
-                        ? 'text-amber-500'
-                        : isPositive 
-                          ? 'text-emerald-600 dark:text-emerald-400' 
+                  <View className="items-end">
+                    <Text
+                      className={`text-sm font-black ${
+                        isPositive
+                          ? 'text-emerald-600 dark:text-emerald-400'
                           : 'text-slate-900 dark:text-white'
-                  }`}>
-                    {isPositive && !isFailed ? '+' : ''}
-                    ₦{tx.amount.toLocaleString()}
-                  </Text>
+                      }`}
+                    >
+                      {isPositive ? '+' : ''}₦{Math.abs(tx.amount).toLocaleString()}
+                    </Text>
+                    <View className="flex-row items-center mt-0.5">
+                      <View
+                        className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                          tx.status === 'success'
+                            ? 'bg-emerald-500'
+                            : tx.status === 'pending'
+                            ? 'bg-amber-500'
+                            : 'bg-red-500'
+                        }`}
+                      />
+                      <Text className="text-[10px] uppercase font-bold text-slate-400">
+                        {tx.status}
+                      </Text>
+                    </View>
+                  </View>
                 </TouchableOpacity>
               );
             })}
           </View>
-        ))
-      )}
-
-      {/* Load More Button */}
-      {hasMore && (
-        <TouchableOpacity
-          onPress={handleLoadMore}
-          disabled={isLoading}
-          className="w-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-3 rounded-2xl items-center mt-2"
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#059669" />
-          ) : (
-            <Text className="text-primary-500 font-extrabold text-sm">Load Older Transactions</Text>
-          )}
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
-  return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-955" style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
-      <ScrollView
-        className="flex-1 w-full self-center"
-        contentContainerStyle={
-          isDesktop
-            ? { paddingHorizontal: 32, paddingTop: 24, paddingBottom: 100, width: '100%' }
-            : { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100, maxWidth: 640, alignSelf: 'center', width: '100%' }
-        }
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />}
-        showsVerticalScrollIndicator={false}
-      >
-        {isDesktop ? (
-          <View className="flex-row gap-6 items-start">
-            {/* Left Column: Cards and Quick Actions */}
-            <View style={{ flex: 4 }} className="space-y-4">
-              {renderBalanceCard()}
-              <View className="h-4" />
-              {renderStatsRow()}
-              <View className="h-4" />
-              {renderQuickActions()}
-            </View>
-
-            {/* Right Column: Transaction History Ledger Card */}
-            <View style={{ flex: 5 }} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
-              {renderTransactionHistory()}
-            </View>
-          </View>
-        ) : (
-          <View className="space-y-4">
-            {renderBalanceCard()}
-            <View className="h-4" />
-            {renderStatsRow()}
-            <View className="h-4" />
-            {renderQuickActions()}
-            <View className="h-6" />
-            {renderTransactionHistory()}
-          </View>
         )}
       </ScrollView>
 
-      {/* Deposit Amount Input Preset Modal */}
+      {/* Modals */}
       <DepositModal
         visible={depositVisible}
         onClose={() => setDepositVisible(false)}
         onSuccess={() => loadData(true)}
       />
 
-      {/* Withdraw Modal */}
       <WithdrawModal
         visible={withdrawVisible}
         onClose={() => setWithdrawVisible(false)}
@@ -522,14 +537,13 @@ export default function WalletScreen() {
         availableBalance={availableBalance}
       />
 
-      {/* Detail Breakdown View Modal */}
       <TransactionDetailModal
         visible={detailVisible}
+        transaction={selectedTx}
         onClose={() => {
           setDetailVisible(false);
           setSelectedTx(null);
         }}
-        transaction={selectedTx}
       />
     </View>
   );

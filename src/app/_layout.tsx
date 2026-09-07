@@ -21,7 +21,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import '../global.css';
-import { Platform, Alert } from 'react-native';
+import { Platform, Alert, StatusBar, BackHandler, AppState } from 'react-native';
 import ToastNotificationContainer from '@/components/ui/ToastNotification';
 import { showCustomAlert } from '@/store/alertStore';
 import CustomAlertContainer from '@/components/ui/CustomAlert';
@@ -62,6 +62,7 @@ SplashScreen.hideAsync().catch(() => {});
 export default function RootLayout() {
   const { token, user, loadUser, isLoading, isGuest } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
+  const [initialBootDone, setInitialBootDone] = useState(false);
   const router = useRouter();
   const segments = useSegments() as unknown as string[];
 
@@ -179,6 +180,7 @@ export default function RootLayout() {
         setTimeout(() => {
           if (active) {
             setIsReady(true);
+            setInitialBootDone(true);
           }
         }, remaining);
       }
@@ -190,6 +192,21 @@ export default function RootLayout() {
       active = false;
     };
   }, []);
+
+  // Hardware back button handler: prevent popping root tabs to welcome screen
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const backAction = () => {
+      const inTabs = segments[0] === '(tabs)';
+      if (inTabs && (!segments[1] || segments[1] === 'index')) {
+        // At root explore tab: do not pop to welcome screen
+        return false;
+      }
+      return false;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [segments]);
 
   // Sync socket connection with auth token
   useEffect(() => {
@@ -287,11 +304,19 @@ export default function RootLayout() {
           name="seeker/ask-question"
           options={{
             presentation: 'modal',
-            headerShown: true,
-            title: 'Ask an Expert',
-            headerStyle,
-            headerTintColor,
-            headerTitleStyle,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="expert/verification"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="admin/index"
+          options={{
+            headerShown: false,
           }}
         />
         <Stack.Screen
@@ -337,11 +362,16 @@ export default function RootLayout() {
           }}
         />
       </Stack>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? '#0B0F14' : '#FAF8F5'}
+        translucent={Platform.OS === 'android'}
+      />
       <ToastNotificationContainer />
       <CustomAlertContainer />
       <RingingOverlay />
       <PermissionPrimerModal />
-      <SplashScreenOverlay isVisible={!isReady || isLoading || (!fontsLoaded && !fontError)} />
+      <SplashScreenOverlay isVisible={!initialBootDone} />
     </SafeAreaProvider>
   );
 }

@@ -117,12 +117,12 @@ export default function SubmitReviewModal({ visible, onClose, expertId, bookingI
               </Animated.View>
 
               {/* Rating Text description */}
-              <Text className="text-center font-extrabold text-slate-850 dark:text-slate-250 text-sm mb-6 uppercase tracking-wider">
-                {rating === 5 && '🏆 Excellent'}
-                {rating === 4 && '✨ Good'}
-                {rating === 3 && '👍 Average'}
-                {rating === 2 && '👎 Poor'}
-                {rating === 1 && '⚠️ Terrible'}
+              <Text className="text-center font-extrabold text-slate-800 dark:text-slate-200 text-sm mb-6 uppercase tracking-wider">
+                {rating === 5 && 'Excellent'}
+                {rating === 4 && 'Good'}
+                {rating === 3 && 'Average'}
+                {rating === 2 && 'Poor'}
+                {rating === 1 && 'Terrible'}
               </Text>
 
               {/* Feedback Comment Input */}

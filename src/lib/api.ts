@@ -292,15 +292,14 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  // Set up request timeout
+  // Set up request timeout (30s allows Render free instances to complete cold starts)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 seconds timeout
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   const config: RequestInit = {
     ...options,
     headers,
     signal: controller.signal,
-    credentials: Platform.OS === 'web' ? 'include' : undefined,
   };
 
   if (options.bodyData) {
@@ -413,7 +412,7 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      console.log(`[API Timeout] ${endpoint}: Request timed out after 8000ms`);
+      console.log(`[API Timeout] ${endpoint}: Request timed out after 30000ms`);
       throw new Error('Network timeout. Please check your connection or server status.');
     }
     console.warn(`[API Error] ${endpoint}:`, error.message);

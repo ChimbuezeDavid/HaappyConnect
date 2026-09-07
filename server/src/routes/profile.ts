@@ -186,6 +186,13 @@ router.post('/upload-avatar', authenticate, async (req: AuthRequest, res: Respon
     const proto = (req.headers['x-forwarded-proto'] as string) || (req.secure ? 'https' : req.protocol);
     const fileUrl = `${proto}://${host}/uploads/${uniqueFileName}`;
 
+    // Persist immediately to Profile in database
+    await Profile.findOneAndUpdate(
+      { user: req.userId },
+      { $set: { avatarUrl: fileUrl } },
+      { new: true }
+    );
+
     res.json({ url: fileUrl });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error uploading avatar' });

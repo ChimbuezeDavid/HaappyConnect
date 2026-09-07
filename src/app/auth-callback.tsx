@@ -1,7 +1,11 @@
-﻿import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Image, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
+import * as WebBrowser from 'expo-web-browser';
+
+// Notify Expo's WebBrowser handler if opened via openAuthSessionAsync
+WebBrowser.maybeCompleteAuthSession();
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
@@ -20,6 +24,8 @@ export default function AuthCallbackScreen() {
           email,
           role,
           isOnboarded,
+          suggestedName,
+          suggestedAvatar,
         } = params as Record<string, string>;
 
         console.log('[Auth Callback] Deep link parameters received:', {
@@ -27,6 +33,7 @@ export default function AuthCallbackScreen() {
           email,
           role,
           isOnboarded,
+          suggestedAvatar: !!suggestedAvatar,
         });
 
         if (!token) {
@@ -42,6 +49,61 @@ export default function AuthCallbackScreen() {
         const isUserOnboarded = isOnboarded === 'true';
         const userRole = (role as 'seeker' | 'expert') || 'seeker';
 
+        const initialProfile = suggestedAvatar || suggestedName ? {
+          fullName: suggestedName || '',
+          avatarUrl: suggestedAvatar || '',
+        } : null;
+
+        // On Web: Communicate back to the starting tab and close this popup/tab
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          let hasOpener = false;
+          if (window.opener && window.opener !== window) {
+            hasOpener = true;
+            try {
+              window.opener.postMessage({ type: 'expo-auth-session', url: window.location.href }, '*');
+              window.opener.postMessage({
+                type: 'haappy-auth-success',
+                token,
+                refreshToken,
+                id,
+                email,
+                role: userRole,
+                isOnboarded: isUserOnboarded,
+                suggestedName,
+                suggestedAvatar,
+              }, '*');
+            } catch (e) {
+              console.warn('[Auth Callback] Could not postMessage to opener:', e);
+            }
+          }
+
+          // Broadcast to any other listening tabs
+          try {
+            if (typeof BroadcastChannel !== 'undefined') {
+              const channel = new BroadcastChannel('haappy_auth_channel');
+              channel.postMessage({
+                type: 'haappy-auth-success',
+                token,
+                refreshToken,
+                id,
+                email,
+                role: userRole,
+                isOnboarded: isUserOnboarded,
+                suggestedName,
+                suggestedAvatar,
+              });
+              channel.close();
+            }
+          } catch (_) {}
+
+          // If this was opened from a parent window, attempt to close this popup immediately
+          if (hasOpener) {
+            try {
+              window.close();
+            } catch (_) {}
+          }
+        }
+
         // Update auth state in store and persistent secure storage
         await useAuthStore.getState().loginWithOAuth(
           token,
@@ -52,7 +114,7 @@ export default function AuthCallbackScreen() {
             role: userRole,
             isOnboarded: isUserOnboarded,
           },
-          null
+          initialProfile as any
         );
 
         if (active) {

@@ -40,7 +40,7 @@ import CountryCityPickerModal from '@/components/ui/CountryCityPickerModal';
 
 export default function OnboardingWizard() {
   const router = useRouter();
-  const { user, updateOnboarding, isLoading: apiSaving } = useAuthStore();
+  const { user, profile, updateOnboarding, isLoading: apiSaving } = useAuthStore();
   const draft = useOnboardingStore();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -81,6 +81,20 @@ export default function OnboardingWizard() {
     };
     fetchCategories();
   }, []);
+
+  // Pre-populate draft avatar and fullName from profile / Google if available
+  useEffect(() => {
+    const updates: Partial<typeof draft> = {};
+    if (!draft.avatarUrl && profile?.avatarUrl) {
+      updates.avatarUrl = profile.avatarUrl;
+    }
+    if (!draft.fullName && profile?.fullName) {
+      updates.fullName = profile.fullName;
+    }
+    if (Object.keys(updates).length > 0) {
+      draft.updateDraft(updates);
+    }
+  }, [profile?.avatarUrl, profile?.fullName]);
 
   // Set default username handle lifted from user email (or fullName fallback)
   useEffect(() => {

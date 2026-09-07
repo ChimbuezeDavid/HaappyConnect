@@ -94,6 +94,7 @@ export default function LoginScreen() {
   const isFormValid = !!email && !!password;
 
   const handleOAuthLogin = async (provider: 'google' | 'x' | 'linkedin' | 'apple') => {
+    let cleanup: (() => void) | null = null;
     try {
       clearError();
       const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
@@ -101,6 +102,61 @@ export default function LoginScreen() {
       
       const redirectUrl = Linking.createURL('auth-callback');
       console.log(`Starting OAuth session. Provider: ${provider}, URL: ${authUrl}, Redirect: ${redirectUrl}`);
+
+      const handleAuthData = async (data: any) => {
+        const { token, refreshToken, id, email: oEmail, role, isOnboarded, suggestedName, suggestedAvatar } = data || {};
+        if (token) {
+          const isUserOnboarded = isOnboarded === 'true' || isOnboarded === true;
+          const userRole = (role as 'seeker' | 'expert') || 'seeker';
+          const initialProfile = suggestedAvatar || suggestedName ? {
+            fullName: suggestedName || '',
+            avatarUrl: suggestedAvatar || '',
+          } : null;
+
+          await useAuthStore.getState().loginWithOAuth(
+            token as string,
+            (refreshToken as string) || null,
+            { id: id as string, email: oEmail as string, role: userRole, isOnboarded: isUserOnboarded },
+            initialProfile as any
+          );
+
+          if (isUserOnboarded) {
+            router.replace('/(tabs)');
+          } else {
+            router.replace('/(onboarding)/role-selection');
+          }
+        }
+      };
+
+      // On Web: Listen for postMessage from popup and BroadcastChannel
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const messageHandler = (event: MessageEvent) => {
+          if (event.data?.type === 'haappy-auth-success') {
+            handleAuthData(event.data);
+          } else if (event.data?.type === 'expo-auth-session' && event.data?.url) {
+            const parsed = Linking.parse(event.data.url);
+            if (parsed.queryParams?.token) {
+              handleAuthData(parsed.queryParams);
+            }
+          }
+        };
+        window.addEventListener('message', messageHandler);
+
+        let bc: any = null;
+        if (typeof BroadcastChannel !== 'undefined') {
+          bc = new BroadcastChannel('haappy_auth_channel');
+          bc.onmessage = (event: MessageEvent) => {
+            if (event.data?.type === 'haappy-auth-success') {
+              handleAuthData(event.data);
+            }
+          };
+        }
+
+        cleanup = () => {
+          window.removeEventListener('message', messageHandler);
+          if (bc) bc.close();
+        };
+      }
       
       const result = await WebBrowser.openAuthSessionAsync(
         `${authUrl}?redirect_uri=${encodeURIComponent(redirectUrl)}`,
@@ -109,19 +165,14 @@ export default function LoginScreen() {
 
       if (result.type === 'success' && result.url) {
         const parsed = Linking.parse(result.url);
-        const { token, refreshToken, id, email: oEmail, role, isOnboarded } = parsed.queryParams || {};
-        
-        if (token) {
-          await useAuthStore.getState().loginWithOAuth(
-            token as string,
-            (refreshToken as string) || null,
-            { id: id as string, email: oEmail as string, role: (role as 'seeker' | 'expert') || 'seeker', isOnboarded: isOnboarded === 'true' },
-            null
-          );
+        if (parsed.queryParams?.token) {
+          await handleAuthData(parsed.queryParams);
         }
       }
     } catch (e: any) {
       console.error(`OAuth login error with ${provider}:`, e);
+    } finally {
+      cleanup?.();
     }
   };
 

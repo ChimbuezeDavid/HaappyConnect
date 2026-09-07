@@ -311,10 +311,46 @@ const appendQueryParams = (url: string, params: Record<string, string | boolean>
 
 // Helper to safely redirect back to app or browser
 const renderAuthRedirect = (res: Response, targetUrl: string) => {
-  const isCustomScheme = !targetUrl.startsWith('http://') && !targetUrl.startsWith('https://');
-
   if (!isCustomScheme) {
-    return res.redirect(targetUrl);
+    const webHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Authenticating - Happy Connect</title>
+  <script>
+    (function() {
+      var targetUrl = ${JSON.stringify(targetUrl)};
+      var communicated = false;
+      if (window.opener) {
+        try {
+          window.opener.postMessage({ type: 'expo-auth-session', url: targetUrl }, '*');
+          window.opener.postMessage({ type: 'haappy-auth-success', url: targetUrl }, '*');
+          communicated = true;
+          window.close();
+        } catch (e) {}
+      }
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          var bc = new BroadcastChannel('haappy_auth_channel');
+          bc.postMessage({ type: 'haappy-auth-success', url: targetUrl });
+          bc.close();
+        }
+      } catch (e) {}
+
+      setTimeout(function() {
+        if (!communicated || !window.closed) {
+          window.location.href = targetUrl;
+        }
+      }, 150);
+    })();
+  </script>
+</head>
+<body style="background:#061431;color:#ffffff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;">
+  <p style="font-size:16px;font-weight:600;">Authenticating &amp; returning to Happy Connect...</p>
+</body>
+</html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(webHtml);
   }
 
   // Construct Android Intent URI as extra resilient fallback
@@ -521,6 +557,29 @@ router.get('/google/callback', async (req, res) => {
       await user.save();
     }
 
+    // Persist profile picture and suggested name to Profile model in MongoDB
+    let profile = await Profile.findOne({ user: user._id });
+    if (!profile) {
+      profile = new Profile({
+        user: user._id,
+        fullName: googleUser.name || googleUser.email.split('@')[0],
+        avatarUrl: googleUser.picture || '',
+        headline: '',
+        bio: '',
+      });
+      await profile.save();
+      console.log(`[Google Auth] Created new profile with avatar for user: ${user.email}`);
+    } else if (googleUser.picture) {
+      if (!profile.avatarUrl || profile.avatarUrl.includes('dicebear') || profile.avatarUrl.includes('placeholder')) {
+        profile.avatarUrl = googleUser.picture;
+      }
+      if (!profile.fullName && googleUser.name) {
+        profile.fullName = googleUser.name;
+      }
+      await profile.save();
+      console.log(`[Google Auth] Updated profile avatar for user: ${user.email}`);
+    }
+
     const token = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id, user.role);
     await storeRefreshToken(user, refreshToken);
@@ -532,8 +591,8 @@ router.get('/google/callback', async (req, res) => {
       email: user.email,
       role: user.role,
       isOnboarded: user.isOnboarded,
-      suggestedName: googleUser.name || '',
-      suggestedAvatar: googleUser.picture || '',
+      suggestedName: googleUser.name || profile?.fullName || '',
+      suggestedAvatar: googleUser.picture || profile?.avatarUrl || '',
     });
 
     return renderAuthRedirect(res, finalRedirect);
@@ -833,9 +892,18 @@ router.post('/social-login', async (req, res) => {
     const refreshToken = generateRefreshToken(user._id, user.role);
     await storeRefreshToken(user, refreshToken);
 
-    let profile = null;
-    if (user.isOnboarded) {
-      profile = await Profile.findOne({ user: user._id });
+    let profile = await Profile.findOne({ user: user._id });
+    if (!profile && (fullName || avatarUrl)) {
+      profile = new Profile({
+        user: user._id,
+        fullName: fullName || normalizedEmail.split('@')[0],
+        avatarUrl: avatarUrl || '',
+      });
+      await profile.save();
+    } else if (profile && avatarUrl && (!profile.avatarUrl || profile.avatarUrl.includes('dicebear') || profile.avatarUrl.includes('placeholder'))) {
+      profile.avatarUrl = avatarUrl;
+      if (!profile.fullName && fullName) profile.fullName = fullName;
+      await profile.save();
     }
 
     setSessionCookies(res, token, refreshToken);

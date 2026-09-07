@@ -74,6 +74,7 @@ export default function DiscoverScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [discoveryMode, setDiscoveryMode] = useState<'explore' | 'leaderboard'>('explore');
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const isAvailable = profile?.availabilityImmediate !== false;
 
@@ -93,13 +94,32 @@ export default function DiscoverScreen() {
   };
 
   const fetchData = async () => {
+    setFetchError(null);
     try {
-      const [cats, expertList] = await Promise.all([
+      const [catsRes, expertListRes] = await Promise.allSettled([
         api.get('/expert/categories'),
         api.get('/expert/discover'),
       ]);
-      setCategories(cats);
-      setExperts(expertList);
+
+      let loadedCats = false;
+      let loadedExperts = false;
+
+      if (catsRes.status === 'fulfilled' && Array.isArray(catsRes.value)) {
+        setCategories(catsRes.value);
+        loadedCats = true;
+      }
+      if (expertListRes.status === 'fulfilled' && Array.isArray(expertListRes.value)) {
+        setExperts(expertListRes.value);
+        loadedExperts = true;
+      }
+
+      if (!loadedCats && !loadedExperts) {
+        const errorMsg = 
+          catsRes.status === 'rejected' ? catsRes.reason?.message : 
+          expertListRes.status === 'rejected' ? expertListRes.reason?.message : 
+          'Database offline or waking up';
+        setFetchError(errorMsg);
+      }
 
       if (user?.role === 'expert' && !isGuest) {
         const [questionList, walletData, bookingList] = await Promise.all([
@@ -123,8 +143,9 @@ export default function DiscoverScreen() {
           .sort((a: Booking, b: Booking) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
         setNextBooking(upcoming[0] || null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching home screen data:', error);
+      setFetchError(error?.message || 'Failed to fetch data');
     } finally {
       setIsLoading(false);
     }
@@ -765,6 +786,30 @@ export default function DiscoverScreen() {
                   <SlidersHorizontal size={14} color={isDark ? '#94a3b8' : '#64748b'} />
                 </View>
               </TouchableOpacity>
+            )}
+
+            {/* Reconnect / Error Alert Banner */}
+            {fetchError && (
+              <View className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-5 flex-row items-center justify-between">
+                <View className="flex-1 mr-3">
+                  <Text className="text-amber-600 dark:text-amber-400 font-bold text-xs uppercase tracking-wider">
+                    Connecting to Database
+                  </Text>
+                  <Text className="text-slate-600 dark:text-slate-300 text-xs mt-0.5">
+                    Server is waking up. Tap retry to load mentors.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsLoading(true);
+                    fetchData();
+                  }}
+                  className="bg-emerald-600 px-3.5 py-2 rounded-xl"
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-white font-bold text-xs">Retry</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* Mode Switcher: Explore vs Leaderboard */}

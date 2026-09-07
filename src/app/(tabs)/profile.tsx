@@ -128,12 +128,30 @@ export default function ProfileScreen() {
     }
     setIsSaving(true);
     try {
+      let finalAvatarUrl = avatarUrl;
+      // If avatarUrl is a local device URI, upload it to the server first
+      if (avatarUrl && !avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:')) {
+        try {
+          const { uploadAvatar } = require('@/lib/api');
+          const fileName = avatarUrl.split('/').pop() || 'avatar.jpg';
+          const ext = fileName.split('.').pop()?.toLowerCase();
+          const fileType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+          const uploadRes = await uploadAvatar(avatarUrl, fileName, fileType);
+          finalAvatarUrl = uploadRes.url;
+        } catch (uploadError: any) {
+          Alert.alert('Upload Error', 'Failed to upload profile photo: ' + uploadError.message);
+          setIsSaving(false);
+          return;
+        }
+      }
+
       await updateOnboarding({
         fullName,
-        avatarUrl,
+        avatarUrl: finalAvatarUrl,
         goals,
         communicationStyle,
       });
+      setAvatarUrl(finalAvatarUrl);
       setIsEditModalVisible(false);
       Alert.alert('Success', 'Profile updated successfully.');
     } catch (err: any) {

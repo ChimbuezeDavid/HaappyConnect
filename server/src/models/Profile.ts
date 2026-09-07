@@ -24,6 +24,11 @@ export interface IProfile extends Document {
   minCallMinutes?: number;
   textQuestionPrice: number;
   videoResponsePrice: number;
+  textPackagePrice?: number;
+  textPackageCount?: number;
+  videoPackagePrice?: number;
+  videoPackageCount?: number;
+  responseWindowDays?: number;
   responseRate?: number;
   avgResponseHours?: number;
   categories: Types.ObjectId[];
@@ -73,9 +78,13 @@ const ProfileSchema = new Schema<IProfile>(
     headline: { type: String, default: '' },
     hourlyRate: { type: Number, default: 0 },
     callPricePerMinute: { type: Number, default: 500 },
-    minCallMinutes: { type: Number, default: 15 },
     textQuestionPrice: { type: Number, default: 0 },
     videoResponsePrice: { type: Number, default: 0 },
+    textPackagePrice: { type: Number, default: 0 },
+    textPackageCount: { type: Number, default: 3 },
+    videoPackagePrice: { type: Number, default: 0 },
+    videoPackageCount: { type: Number, default: 1 },
+    responseWindowDays: { type: Number, default: 3 },
     responseRate: { type: Number, default: 98 },
     avgResponseHours: { type: Number, default: 4 },
     categories: [{ type: Schema.Types.ObjectId, ref: 'Category' }],

@@ -97,7 +97,7 @@ export default function DepositModal({ visible, onClose, onSuccess }: DepositMod
           </View>
 
           {/* Amount Input */}
-          <View className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 mb-5 flex-row items-center">
+          <View className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 mb-5 flex-row items-center">
             <Text className="text-3xl font-extrabold text-slate-900 dark:text-white mr-2">₦</Text>
             <TextInput
               keyboardType="numeric"

@@ -59,7 +59,7 @@ export default function Sidebar() {
       isActive: pathname === '/bookings' || pathname.startsWith('/bookings/')
     },
     {
-      label: 'Wallet',
+      label: user?.role === 'expert' ? 'Earnings' : 'Wallet',
       path: '/wallet',
       icon: Wallet,
       isActive: pathname === '/wallet' || pathname.startsWith('/(tabs)/wallet')

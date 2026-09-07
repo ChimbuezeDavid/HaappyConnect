@@ -46,7 +46,442 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Create question (Ask an expert)
+// Direct Paystack Escrow Checkout: Initiate a consultation package
+router.post('/initiate', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { expertId, type = 'text', seekerContent, redirect_uri } = req.body;
+    if (!expertId || !seekerContent) {
+      return res.status(400).json({ error: 'ExpertId and consultation content are required' });
+    }
+
+    if (expertId === req.userId) {
+      return res.status(400).json({ error: 'You cannot submit a consultation to yourself' });
+    }
+
+    if (!['text', 'voice', 'video'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid question type' });
+    }
+
+    const expertProfile = await Profile.findOne({ user: expertId });
+    if (!expertProfile) {
+      return res.status(404).json({ error: 'Expert profile not found' });
+    }
+
+    const seekerUser = await User.findById(req.userId);
+    if (!seekerUser) {
+      return res.status(404).json({ error: 'Seeker user not found' });
+    }
+
+    // Determine package pricing, quota count, and response turnaround from expert's configuration
+    let price = 0;
+    let quotaTotal = 1;
+    if (type === 'video') {
+      price = expertProfile.videoPackagePrice || expertProfile.videoResponsePrice || 5000;
+      quotaTotal = expertProfile.videoPackageCount || 1;
+    } else {
+      // text or voice package
+      price = expertProfile.textPackagePrice || expertProfile.textQuestionPrice || 3000;
+      quotaTotal = expertProfile.textPackageCount || 3;
+    }
+
+    const turnaroundDays = expertProfile.responseWindowDays || 3;
+    const expiresAt = new Date(Date.now() + turnaroundDays * 24 * 60 * 60 * 1000);
+
+    // Get or create canonical single lifetime thread between seeker and expert
+    let conv = await Conversation.findOne({
+      participants: { $all: [req.userId, expertId] }
+    }).sort({ updatedAt: -1 });
+
+    if (!conv) {
+      conv = new Conversation({
+        participants: [req.userId, expertId],
+        unreadCounts: [
+          { user: req.userId, count: 0 },
+          { user: expertId, count: 0 }
+        ]
+      });
+      await conv.save();
+    }
+
+    const reference = `hc_escrow_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+    const question = new Question({
+      seeker: req.userId,
+      expert: expertId,
+      conversation: conv._id,
+      type,
+      status: 'payment_pending',
+      price,
+      seekerContent,
+      quotaTotal,
+      quotaUsed: 0,
+      paidWith: 'paystack',
+      paymentReference: reference,
+      escrowStatus: 'held',
+      expiresAt
+    });
+    await question.save();
+
+    const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
+    const effectiveRedirectUri = redirect_uri || 'haappy://checkout-complete';
+
+    if (PAYSTACK_SECRET) {
+      const initializeUrl = 'https://api.paystack.co/transaction/initialize';
+      const paystackRes = await fetch(initializeUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: seekerUser.email,
+          amount: Math.round(price * 100), // kobo
+          reference,
+          callback_url: effectiveRedirectUri,
+          metadata: {
+            questionId: question._id,
+            conversationId: conv._id,
+            seekerId: req.userId,
+            expertId,
+            type: 'consultation_escrow'
+          }
+        })
+      });
+
+      const responseData = (await paystackRes.json()) as any;
+      if (!responseData.status) {
+        return res.status(400).json({ error: responseData.message || 'Paystack initialization failed' });
+      }
+
+      return res.json({
+        questionId: question._id,
+        conversationId: conv._id,
+        authorizationUrl: responseData.data.authorization_url,
+        reference,
+        isMock: false
+      });
+    }
+
+    // Sandbox / Mock flow for testing
+    const mockCheckoutUrl = `${req.protocol}://${req.get('host')}/api/wallet/mock-checkout?` +
+      `reference=${reference}&` +
+      `amount=${price}&` +
+      `redirect_uri=${encodeURIComponent(effectiveRedirectUri)}`;
+
+    return res.json({
+      questionId: question._id,
+      conversationId: conv._id,
+      authorizationUrl: mockCheckoutUrl,
+      reference,
+      isMock: true
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error initiating consultation' });
+  }
+});
+
+// Verify Paystack payment and activate consultation in single chat thread
+router.post('/verify-payment', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { reference } = req.body;
+    if (!reference) {
+      return res.status(400).json({ error: 'Transaction reference is required' });
+    }
+
+    const question = await Question.findOne({ paymentReference: reference });
+    if (!question) {
+      return res.status(404).json({ error: 'Consultation order not found for this reference' });
+    }
+
+    if (question.status !== 'payment_pending') {
+      return res.json({
+        success: true,
+        message: 'Payment already verified',
+        question,
+        conversationId: question.conversation
+      });
+    }
+
+    const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
+    if (PAYSTACK_SECRET && !reference.startsWith('hc_mock_')) {
+      const verifyUrl = `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`;
+      const verifyRes = await fetch(verifyUrl, {
+        headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` }
+      });
+      const verifyData = (await verifyRes.json()) as any;
+      if (!verifyData.status || verifyData.data?.status !== 'success') {
+        return res.status(400).json({ error: 'Payment verification failed at Paystack' });
+      }
+    }
+
+    const expertProfile = await Profile.findOne({ user: question.expert });
+    const turnaroundDays = expertProfile?.responseWindowDays || 3;
+
+    question.status = 'pending';
+    question.escrowStatus = 'held';
+    question.expiresAt = new Date(Date.now() + turnaroundDays * 24 * 60 * 60 * 1000);
+    await question.save();
+
+    // Record ledger entry
+    const tx = new Transaction({
+      user: question.seeker,
+      amount: -question.price,
+      type: 'charge',
+      status: 'success',
+      reference,
+      description: `Escrow payment: ${question.type} advisory package`,
+      metadata: { questionId: question._id, expertId: question.expert }
+    });
+    await tx.save();
+
+    // Ensure single lifetime conversation
+    let convId = question.conversation;
+    if (!convId) {
+      let conv = await Conversation.findOne({
+        participants: { $all: [question.seeker, question.expert] }
+      }).sort({ updatedAt: -1 });
+      if (!conv) {
+        conv = new Conversation({
+          participants: [question.seeker, question.expert],
+          unreadCounts: [
+            { user: question.seeker, count: 0 },
+            { user: question.expert, count: 0 }
+          ]
+        });
+        await conv.save();
+      }
+      convId = conv._id as any;
+      question.conversation = convId;
+      await question.save();
+    }
+
+    // Post clean Order Card message directly into the single conversation thread (Icon only, no emojis)
+    const orderCardContent = `[CONSULTATION_ORDER:${question._id}:${question.type}:${question.price}:${question.quotaTotal}:${question.expiresAt.toISOString()}]\n\n${question.seekerContent}`;
+
+    const message = new Message({
+      conversationId: convId,
+      senderId: question.seeker,
+      content: orderCardContent,
+      readBy: [question.seeker]
+    });
+    await message.save();
+
+    const conversation = await Conversation.findById(convId);
+    if (conversation) {
+      conversation.lastMessage = message._id as any;
+      conversation.relatedTo = { modelType: 'Question', id: question._id };
+      conversation.unreadCounts.forEach((uc) => {
+        if (uc.user.toString() !== question.seeker.toString()) {
+          uc.count += 1;
+        }
+      });
+      await conversation.save();
+
+      try {
+        const io = getIO();
+        io.to(conversation._id.toString()).emit('messageReceived', message);
+        conversation.participants.forEach((p) => {
+          io.to(`user:${p.toString()}`).emit('conversationUpdated', {
+            conversationId: conversation._id,
+            lastMessage: message,
+            unreadCounts: conversation.unreadCounts
+          });
+        });
+      } catch (_) {}
+    }
+
+    // Push and email notices
+    try {
+      const io = getIO();
+      io.to(`user:${question.expert}`).emit('notification', {
+        type: 'new_question',
+        title: 'New Consultation Request',
+        body: `You received a new paid ${question.type} consultation request.`,
+        data: { questionId: question._id, conversationId: convId }
+      });
+      sendPushNotification(
+        question.expert.toString(),
+        'New Consultation Request',
+        `You received a new paid ${question.type} consultation request.`,
+        { questionId: question._id, conversationId: convId }
+      );
+
+      const expertUser = await User.findById(question.expert);
+      const seekerProfile = await Profile.findOne({ user: question.seeker });
+      if (expertUser?.email) {
+        sendConsultationNoticeEmail({
+          toEmail: expertUser.email,
+          recipientName: expertProfile?.fullName || 'Expert',
+          senderName: seekerProfile?.fullName || 'A Seeker',
+          type: 'question',
+          sessionDetails: `New ${question.type.toUpperCase()} Consultation Request:\n"${question.seekerContent.slice(0, 160)}"`
+        });
+      }
+    } catch (_) {}
+
+    return res.json({
+      success: true,
+      question,
+      conversationId: convId
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error verifying consultation payment' });
+  }
+});
+
+// Auto-expiry action: Extend 24h or instant refund (Seeker only)
+router.post('/:id/auto-expire-action', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { action } = req.body; // 'extend' | 'refund'
+    if (!['extend', 'refund'].includes(action)) {
+      return res.status(400).json({ error: 'Action must be "extend" or "refund"' });
+    }
+
+    const question = await Question.findById(req.params.id);
+    if (!question) {
+      return res.status(404).json({ error: 'Consultation order not found' });
+    }
+
+    if (question.seeker.toString() !== req.userId) {
+      return res.status(403).json({ error: 'Only the client can take action on expired consultations' });
+    }
+
+    const isExpired = new Date() >= new Date(question.expiresAt) || question.status === 'expired';
+    if (!isExpired && question.status !== 'pending') {
+      return res.status(400).json({ error: 'Consultation has not expired yet or is already resolved' });
+    }
+
+    if (action === 'extend') {
+      const baseDate = new Date() > new Date(question.expiresAt) ? new Date() : new Date(question.expiresAt);
+      question.expiresAt = new Date(baseDate.getTime() + 24 * 60 * 60 * 1000);
+      question.status = 'pending';
+      question.extendedCount = (question.extendedCount || 0) + 1;
+      await question.save();
+
+      if (question.conversation) {
+        const sysMsg = new Message({
+          conversationId: question.conversation,
+          senderId: req.userId,
+          content: `[SYSTEM_NOTICE:EXTENDED] Client extended the response deadline by 24 hours.`,
+          readBy: [req.userId]
+        });
+        await sysMsg.save();
+        try {
+          const io = getIO();
+          io.to(question.conversation.toString()).emit('messageReceived', sysMsg);
+        } catch (_) {}
+      }
+
+      try {
+        const io = getIO();
+        io.to(`user:${question.expert}`).emit('notification', {
+          type: 'question_extended',
+          title: 'Consultation Deadline Extended',
+          body: 'Client has granted you 24 additional hours to respond to their consultation.',
+          data: { questionId: question._id, conversationId: question.conversation }
+        });
+        sendPushNotification(
+          question.expert.toString(),
+          'Consultation Deadline Extended',
+          'Client has granted you 24 additional hours to respond to their consultation.',
+          { questionId: question._id, conversationId: question.conversation }
+        );
+      } catch (_) {}
+
+      return res.json({ message: 'Response window extended by 24 hours', question });
+    }
+
+    if (action === 'refund') {
+      question.status = 'expired';
+      question.escrowStatus = 'refunded';
+      await question.save();
+
+      const refundTx = new Transaction({
+        user: question.seeker,
+        amount: question.price,
+        type: 'refund',
+        status: 'success',
+        description: `100% Instant Refund: Consultation response timed out`,
+        metadata: { questionId: question._id }
+      });
+      await refundTx.save();
+
+      if (question.conversation) {
+        const sysMsg = new Message({
+          conversationId: question.conversation,
+          senderId: req.userId,
+          content: `[SYSTEM_NOTICE:REFUNDED] Consultation closed due to response timeout. 100% refund credited.`,
+          readBy: [req.userId]
+        });
+        await sysMsg.save();
+        try {
+          const io = getIO();
+          io.to(question.conversation.toString()).emit('messageReceived', sysMsg);
+        } catch (_) {}
+      }
+
+      try {
+        const io = getIO();
+        io.to(`user:${question.expert}`).emit('notification', {
+          type: 'question_cancelled',
+          title: 'Consultation Cancelled',
+          body: 'A consultation timed out without response and was refunded to the client.',
+          data: { questionId: question._id }
+        });
+      } catch (_) {}
+
+      return res.json({ message: '100% refund processed successfully to your account', question });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error processing auto-expiry action' });
+  }
+});
+
+// File dispute / report issue with consultation (Seeker only)
+router.post('/:id/dispute', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { reason, details } = req.body;
+    if (!reason) {
+      return res.status(400).json({ error: 'Dispute reason is required' });
+    }
+
+    const question = await Question.findById(req.params.id);
+    if (!question) {
+      return res.status(404).json({ error: 'Consultation not found' });
+    }
+
+    if (question.seeker.toString() !== req.userId) {
+      return res.status(403).json({ error: 'Only the client can report an issue with this consultation' });
+    }
+
+    question.status = 'disputed';
+    question.escrowStatus = 'disputed';
+    question.disputeReason = reason;
+    question.disputeDetails = details || '';
+    question.disputedAt = new Date();
+    await question.save();
+
+    if (question.conversation) {
+      const sysMsg = new Message({
+        conversationId: question.conversation,
+        senderId: req.userId,
+        content: `[SYSTEM_NOTICE:DISPUTED] Client reported an issue: "${reason}". Our support team is reviewing.`,
+        readBy: [req.userId]
+      });
+      await sysMsg.save();
+      try {
+        const io = getIO();
+        io.to(question.conversation.toString()).emit('messageReceived', sysMsg);
+      } catch (_) {}
+    }
+
+    return res.json({ message: 'Issue reported successfully. Support team will review.', question });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error filing dispute' });
+  }
+});
+
+// Create question (Ask an expert - legacy wallet direct debit fallback)
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { expertId, type, seekerContent } = req.body;

@@ -9,7 +9,7 @@ import { getAvatarUrl } from '@/lib/avatar';
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { category: urlCategory, query: urlQuery } = useLocalSearchParams<{ category?: string; query?: string }>();
+  const { category: urlCategory, query: urlQuery, sort: urlSort } = useLocalSearchParams<{ category?: string; query?: string; sort?: string }>();
   
   const [query, setQuery] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
@@ -72,6 +72,18 @@ export default function SearchScreen() {
       setQuery('');
     }
   }, [urlCategory, urlQuery]);
+
+  useEffect(() => {
+    if (urlSort === 'top_rated' || urlSort === 'rating') {
+      setSortBy('rating');
+    } else if (urlSort === 'speed') {
+      setSortBy('speed');
+    } else if (urlSort === 'price_low') {
+      setSortBy('price_low');
+    } else if (urlSort === 'price_high') {
+      setSortBy('price_high');
+    }
+  }, [urlSort]);
 
   // 3. Trigger search when query or selected category changes
   useEffect(() => {

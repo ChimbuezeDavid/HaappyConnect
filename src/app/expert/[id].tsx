@@ -309,13 +309,13 @@ export default function ExpertProfileDetailScreen() {
             </View>
           ) : (
             <>
-              {/* Pricing Tier 1: Text Question */}
+              {/* Pricing Tier 1: Written Advisory Package */}
               <PricingTierCard
-                title="Text Advisory Answer"
-                price={expert.textQuestionPrice.toLocaleString()}
-                description="Submit your question and receive an actionable written consultation answer backed by our 7-day escrow hold SLA."
+                title="Written Advisory Package"
+                price={`${(expert.textPackagePrice || expert.textQuestionPrice || 3000).toLocaleString()} (${expert.textPackageCount || 3} Qs)`}
+                description={`Submit your inquiry and receive tailored written guidance. Includes ${expert.textPackageCount || 3} question(s) & follow-ups, with a ${expert.responseWindowDays || 3}-day response guarantee.`}
                 icon={<MessageSquare size={20} color="#059669" />}
-                actionLabel="Ask Written Question"
+                actionLabel="Book Written Advisory"
                 onPress={() => {
                   if (isGuest) {
                     Alert.alert(
@@ -337,13 +337,13 @@ export default function ExpertProfileDetailScreen() {
                 }}
               />
 
-              {/* Pricing Tier 2: Video response */}
+              {/* Pricing Tier 2: Video Breakdown Package */}
               <PricingTierCard
-                title="Video Advisory Answer"
-                price={expert.videoResponsePrice.toLocaleString()}
-                description="Submit your brief and receive a personalized, high-clarity recorded video response addressing your question."
+                title="Video Breakdown Package"
+                price={`${(expert.videoPackagePrice || expert.videoResponsePrice || 5000).toLocaleString()} (${expert.videoPackageCount || 1} Video)`}
+                description={`Receive a personalized, high-clarity recorded video breakdown (${expert.videoPackageCount || 1} video). Response delivered within ${expert.responseWindowDays || 3} days.`}
                 icon={<Video size={20} color="#059669" />}
-                actionLabel="Request Video Answer"
+                actionLabel="Request Video Breakdown"
                 onPress={() => {
                   if (isGuest) {
                     Alert.alert(

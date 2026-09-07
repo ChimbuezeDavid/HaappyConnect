@@ -781,7 +781,7 @@ export default function ProfileScreen() {
                   color: isDark ? '#F8FAFC' : '#0F172A',
                 }}
               >
-                Earnings Wallet & Payouts (₦)
+                Earnings (₦)
               </Text>
               <Text
                 style={{

@@ -15,7 +15,6 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Category, Profile, Question, Booking } from '@/types';
-import ExpertCard from '@/components/ui/ExpertCard';
 import AvatarImage from '@/components/ui/AvatarImage';
 import { useColorScheme } from 'nativewind';
 import { getAvatarUrl } from '@/lib/avatar';
@@ -50,7 +49,8 @@ import {
   Clock,
   Video,
   ExternalLink,
-  Power
+  Power,
+  Star
 } from 'lucide-react-native';
 
 export default function DiscoverScreen() {
@@ -73,7 +73,6 @@ export default function DiscoverScreen() {
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [discoveryMode, setDiscoveryMode] = useState<'explore' | 'leaderboard'>('explore');
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const isAvailable = profile?.availabilityImmediate !== false;
@@ -214,34 +213,155 @@ export default function DiscoverScreen() {
     ? (typeof profile.categories[0] === 'string' ? profile.categories[0] : (profile.categories[0] as any)?.name)
     : null;
 
-  const categoryMatchedExperts = seekerCategories.length > 0
-    ? filteredExperts.filter(e => 
-        (e.categories || []).some((ec: any) => {
-          const slug = typeof ec === 'string' ? ec : ec.slug || ec.name || '';
-          return seekerCategories.includes(slug);
-        })
-      )
-    : [];
+  const getExpertPrimaryCategory = (exp: Profile) => {
+    if (!exp.categories || exp.categories.length === 0) return null;
+    const first = exp.categories[0];
+    if (typeof first === 'string') {
+      const found = categories.find(c => c.slug === first || c._id === first);
+      return found?.name || first;
+    }
+    return (first as any)?.name || (first as any)?.slug || null;
+  };
 
-  const featuredExperts = (categoryMatchedExperts.length >= 2 ? categoryMatchedExperts : filteredExperts)
-    .slice()
+  // 1. Top Mentors (Strictly 10 slots, ranked by ratingAverage and review count)
+  const topMentors = [...filteredExperts]
     .sort((a, b) => {
+      if ((b.ratingAverage || 0) !== (a.ratingAverage || 0)) {
+        return (b.ratingAverage || 0) - (a.ratingAverage || 0);
+      }
+      return (b.reviewsCount || 0) - (a.reviewsCount || 0);
+    })
+    .slice(0, 10);
+
+  // 2. Recommended For You (Strictly 10 slots, prioritizing seeker interests and balance)
+  const recommendedMentors = [...filteredExperts]
+    .sort((a, b) => {
+      const aMatches = seekerCategories.length > 0 && (a.categories || []).some((c: any) => {
+        const slug = typeof c === 'string' ? c : c.slug || c.name || '';
+        return seekerCategories.includes(slug);
+      }) ? 1 : 0;
+      const bMatches = seekerCategories.length > 0 && (b.categories || []).some((c: any) => {
+        const slug = typeof c === 'string' ? c : c.slug || c.name || '';
+        return seekerCategories.includes(slug);
+      }) ? 1 : 0;
+
+      if (bMatches !== aMatches) return bMatches - aMatches;
+
       const scoreA = (a.ratingAverage || 0) * 10 + Math.log2((a.reviewsCount || 0) + 1) * 2;
       const scoreB = (b.ratingAverage || 0) * 10 + Math.log2((b.reviewsCount || 0) + 1) * 2;
       return scoreB - scoreA;
     })
-    .slice(0, 6);
+    .slice(0, 10);
 
-  const recommendationHeaderTitle = seekerCategoryTitle 
-    ? `Top Mentors in ${seekerCategoryTitle}` 
-    : 'Top Rated Mentors';
+  const renderMentorTile = (expert: Profile, rank?: number) => {
+    const primaryCat = getExpertPrimaryCategory(expert);
 
-  const leaderboardExperts = [...filteredExperts].sort((a, b) => {
-    if (b.ratingAverage !== a.ratingAverage) {
-      return b.ratingAverage - a.ratingAverage;
-    }
-    return b.reviewsCount - a.reviewsCount;
-  });
+    return (
+      <TouchableOpacity
+        key={expert._id}
+        onPress={() => router.push({ pathname: '/expert/[id]', params: { id: expert._id } })}
+        activeOpacity={0.85}
+        style={{ width: isDesktop ? 220 : 190 }}
+        className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 mr-3.5 shadow-sm dark:shadow-none flex-col justify-between"
+      >
+        {/* Top meta row */}
+        <View className="flex-row items-center justify-between mb-3">
+          {rank !== undefined ? (
+            <View
+              className={`px-2.5 py-0.5 rounded-lg border ${
+                rank === 1
+                  ? 'bg-amber-500/15 border-amber-500/30'
+                  : rank === 2
+                  ? 'bg-slate-400/15 border-slate-400/30'
+                  : rank === 3
+                  ? 'bg-amber-700/15 border-amber-700/30'
+                  : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <Text
+                className={`text-[10px] font-black ${
+                  rank === 1
+                    ? 'text-amber-500'
+                    : rank === 2
+                    ? 'text-slate-500 dark:text-slate-300'
+                    : rank === 3
+                    ? 'text-amber-700 dark:text-amber-400'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                #{rank}
+              </Text>
+            </View>
+          ) : (
+            <View className="bg-primary-500/10 px-2 py-0.5 rounded-lg max-w-[110px]">
+              <Text className="text-primary-700 dark:text-primary-400 text-[10px] font-bold" numberOfLines={1}>
+                {primaryCat || 'Recommended'}
+              </Text>
+            </View>
+          )}
+
+          {expert.avgResponseHours ? (
+            <View className="flex-row items-center bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
+              <Zap size={9} color="#059669" />
+              <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 ml-0.5">
+                ~{expert.avgResponseHours}h
+              </Text>
+            </View>
+          ) : (
+            <View className="w-1" />
+          )}
+        </View>
+
+        {/* Center avatar + details */}
+        <View className="items-center mb-3">
+          <View className="relative">
+            <AvatarImage
+              avatarUrl={expert.avatarUrl}
+              fullName={expert.fullName}
+              className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800"
+            />
+            {expert.isVerified && (
+              <View className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-900 rounded-full p-0.5">
+                <CheckCircle2 size={13} color="#059669" />
+              </View>
+            )}
+          </View>
+
+          <Text 
+            className="text-slate-900 dark:text-white font-bold text-sm text-center mt-2.5 w-full" 
+            numberOfLines={1}
+          >
+            {expert.fullName}
+          </Text>
+          <Text 
+            className="text-slate-500 dark:text-slate-400 text-[11px] text-center mt-0.5 w-full" 
+            numberOfLines={1}
+          >
+            {expert.headline || 'Verified Consultant'}
+          </Text>
+        </View>
+
+        {/* Bottom ratings and price */}
+        <View className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex-row items-center justify-between">
+          <View className="flex-row items-center">
+            <Star size={11} color="#F59E0B" fill="#F59E0B" />
+            <Text className="text-slate-800 dark:text-slate-200 text-xs font-bold ml-1">
+              {expert.ratingAverage ? expert.ratingAverage.toFixed(1) : '5.0'}
+            </Text>
+            <Text className="text-slate-400 text-[10px] ml-0.5">
+              ({expert.reviewsCount || 0})
+            </Text>
+          </View>
+          <View className="items-end">
+            <Text className="text-[9px] text-slate-400 font-semibold uppercase">From</Text>
+            <Text className="text-emerald-600 dark:text-emerald-400 font-black text-xs">
+              ₦{(expert.textQuestionPrice || 0).toLocaleString()}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View 
@@ -812,292 +932,164 @@ export default function DiscoverScreen() {
               </View>
             )}
 
-            {/* Mode Switcher: Explore vs Leaderboard */}
-            <View className="flex-row bg-slate-200/60 dark:bg-slate-900/90 rounded-2xl p-1 mb-5 border border-slate-200 dark:border-slate-800">
-              <TouchableOpacity
-                onPress={() => setDiscoveryMode('explore')}
-                className={`flex-1 py-2.5 rounded-xl items-center flex-row justify-center ${
-                  discoveryMode === 'explore'
-                    ? 'bg-white dark:bg-slate-800 shadow-sm'
-                    : 'bg-transparent'
-                }`}
-              >
-                <Sparkles size={14} color={discoveryMode === 'explore' ? '#059669' : '#64748b'} style={{ marginRight: 6 }} />
-                <Text
-                  className={`text-xs font-bold ${
-                    discoveryMode === 'explore'
-                      ? 'text-slate-900 dark:text-white'
-                      : 'text-slate-500 dark:text-slate-400'
-                  }`}
-                >
-                  Explore Mentors
+            {/* 1. Browse Domains */}
+            <View className="mb-6">
+              <View className="flex-row justify-between items-center mb-3 px-1">
+                <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+                  Browse Domains
                 </Text>
-              </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
+                  <Text className="text-primary-600 dark:text-primary-400 text-xs font-extrabold">
+                    View All
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                onPress={() => setDiscoveryMode('leaderboard')}
-                className={`flex-1 py-2.5 rounded-xl items-center flex-row justify-center ${
-                  discoveryMode === 'leaderboard'
-                    ? 'bg-white dark:bg-slate-800 shadow-sm'
-                    : 'bg-transparent'
-                }`}
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={{ paddingVertical: 6, paddingHorizontal: 2 }}
+                className="flex-row"
               >
-                <Award size={14} color={discoveryMode === 'leaderboard' ? '#F59E0B' : '#64748b'} style={{ marginRight: 6 }} />
-                <Text
-                  className={`text-xs font-bold ${
-                    discoveryMode === 'leaderboard'
-                      ? 'text-slate-900 dark:text-white'
-                      : 'text-slate-500 dark:text-slate-400'
-                  }`}
-                >
-                  Top Mentors Leaderboard
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {discoveryMode === 'leaderboard' ? (
-              /* ============================================================ */
-              /* LEADERBOARD VIEW (HCI RESTRAINT & MINIMAL COGNITIVE LOAD)    */
-              /* ============================================================ */
-              <View className="mb-6">
-                <View className="flex-row justify-between items-center mb-3 px-1">
-                  <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-                    Highest Ranked Consultancies
-                  </Text>
-                  <Text className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">
-                    Sorted by Ratings & Discipline
-                  </Text>
-                </View>
-
-                {leaderboardExperts.map((expert, index) => (
+                {categories.map((cat, idx) => (
                   <TouchableOpacity
-                    key={expert._id}
-                    onPress={() => router.push({ pathname: '/expert/[id]', params: { id: expert._id } })}
-                    activeOpacity={0.85}
-                    className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 mb-3 flex-row items-center shadow-sm dark:shadow-none"
+                    key={cat._id}
+                    onPress={() => router.push({ pathname: '/(tabs)/search', params: { category: cat.slug } })}
+                    activeOpacity={0.8}
+                    style={{ width: 145, height: 136 }}
+                    className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-3.5 rounded-2xl mr-3 shadow-sm dark:shadow-none justify-between flex-col"
                   >
-                    {/* Rank Badge with Gold/Silver/Bronze restraint */}
-                    <View
-                      className={`w-9 h-9 rounded-2xl items-center justify-center mr-3 border ${
-                        index === 0
-                          ? 'bg-amber-500/15 border-amber-500/30 text-amber-500'
-                          : index === 1
-                          ? 'bg-slate-400/15 border-slate-400/30 text-slate-400'
-                          : index === 2
-                          ? 'bg-amber-700/15 border-amber-700/30 text-amber-700'
-                          : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'
-                      }`}
-                    >
-                      <Text
-                        className={`text-xs font-black ${
-                          index === 0
-                            ? 'text-amber-500'
-                            : index === 1
-                            ? 'text-slate-400'
-                            : index === 2
-                            ? 'text-amber-700 dark:text-amber-400'
-                            : 'text-slate-500'
-                        }`}
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
+                        {getCategoryIcon(cat.slug)}
+                      </View>
+                      {idx < 2 && (
+                        <View className="bg-primary-500/10 px-2 py-0.5 rounded-full">
+                          <Text className="text-primary-600 dark:text-primary-400 text-[10px] font-bold">Top</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View className="flex-1 justify-center">
+                      <Text 
+                        className="text-slate-900 dark:text-white font-bold text-xs leading-snug" 
+                        numberOfLines={2}
                       >
-                        #{index + 1}
+                        {cat.name}
                       </Text>
                     </View>
-
-                    <AvatarImage
-                      avatarUrl={expert.avatarUrl}
-                      fullName={expert.fullName}
-                      className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 mr-3 border border-slate-200 dark:border-slate-800"
-                    />
-
-                    <View className="flex-1 mr-2">
-                      <View className="flex-row items-center">
-                        <Text className="text-slate-900 dark:text-white font-bold text-sm" numberOfLines={1}>
-                          {expert.fullName}
-                        </Text>
-                        {expert.isVerified && (
-                          <CheckCircle2 size={14} color="#059669" style={{ marginLeft: 4 }} />
-                        )}
-                      </View>
-                      <Text className="text-slate-500 dark:text-slate-400 text-xs font-sans mt-0.5" numberOfLines={1}>
-                        {expert.headline}
-                      </Text>
-                      <View className="flex-row items-center gap-1.5 mt-1.5">
-                        <View className="flex-row items-center bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
-                          <Award size={10} color="#F59E0B" />
-                          <Text className="text-[10px] font-bold text-slate-700 dark:text-slate-300 ml-1">
-                            {expert.ratingAverage.toFixed(1)} ({expert.reviewsCount})
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                          <Zap size={10} color="#059669" />
-                          <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 ml-0.5">
-                            ~{expert.avgResponseHours || 4}h
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View className="items-end">
-                      <Text className="text-[10px] text-slate-400 font-bold uppercase">From</Text>
-                      <Text className="text-slate-900 dark:text-white font-black text-sm">
-                        ₦{expert.textQuestionPrice.toLocaleString()}
-                      </Text>
-                    </View>
+                    <Text className="text-slate-400 text-[10px] mt-1 font-medium">Explore mentors</Text>
                   </TouchableOpacity>
                 ))}
-              </View>
-            ) : (
-              /* ============================================================ */
-              /* STANDARD EXPLORE VIEW                                        */
-              /* ============================================================ */
-              <>
-                {/* Intelligently Redesigned Browse Categories */}
-                <View className="mb-6">
-                  <View className="flex-row justify-between items-center mb-3 px-1">
-                    <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-                      Browse Domains
+              </ScrollView>
+            </View>
+
+            {/* 2. Top Mentors (Strictly 10 Slots with Rank Badges) */}
+            {topMentors.length > 0 && (
+              <View className="mb-6">
+                <View className="flex-row justify-between items-center mb-3 px-1">
+                  <View className="flex-row items-center">
+                    <Award size={15} color="#F59E0B" />
+                    <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider ml-1.5">
+                      Top Mentors
                     </Text>
-                    <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
-                      <Text className="text-primary-600 dark:text-primary-400 text-xs font-extrabold">
-                        View All
+                    <View className="bg-amber-500/10 px-2 py-0.5 rounded-full ml-2">
+                      <Text className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                        Top {topMentors.length}
                       </Text>
-                    </TouchableOpacity>
+                    </View>
                   </View>
-
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
-                    contentContainerStyle={{ paddingVertical: 6, paddingHorizontal: 2 }}
-                    className="flex-row"
-                  >
-                    {categories.map((cat, idx) => (
-                      <TouchableOpacity
-                        key={cat._id}
-                        onPress={() => router.push({ pathname: '/(tabs)/search', params: { category: cat.slug } })}
-                        activeOpacity={0.8}
-                        style={{ width: 145, height: 136 }}
-                        className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-3.5 rounded-2xl mr-3 shadow-sm dark:shadow-none justify-between flex-col"
-                      >
-                        <View className="flex-row items-center justify-between mb-2">
-                          <View className="p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
-                            {getCategoryIcon(cat.slug)}
-                          </View>
-                          {idx < 2 && (
-                            <View className="bg-primary-500/10 px-2 py-0.5 rounded-full">
-                              <Text className="text-primary-600 dark:text-primary-400 text-[10px] font-bold">Top</Text>
-                            </View>
-                          )}
-                        </View>
-                        <View className="flex-1 justify-center">
-                          <Text 
-                            className="text-slate-900 dark:text-white font-bold text-xs leading-snug" 
-                            numberOfLines={2}
-                          >
-                            {cat.name}
-                          </Text>
-                        </View>
-                        <Text className="text-slate-400 text-[10px] mt-1 font-medium">Explore mentors</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/search', params: { sort: 'top_rated' } })}>
+                    <Text className="text-primary-600 dark:text-primary-400 text-xs font-extrabold">
+                      View All
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
-                {/* Seeker Welcome Value Card */}
-                <View 
-                  className="rounded-3xl p-4 sm:p-5 mb-6 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm dark:shadow-none"
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 2 }}
+                  className="flex-row"
                 >
-                  <View className="flex-row items-center justify-between gap-2 mb-2.5">
-                    <View className="flex-row items-center flex-1 mr-1">
-                      <View className="bg-primary-500/15 p-2 rounded-xl mr-2.5 shrink-0">
-                        <Sparkles size={18} color="#059669" />
-                      </View>
-                      <Text 
-                        className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex-1"
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        Expert Consultations
-                      </Text>
-                    </View>
-                    <View className="bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0">
-                      <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                        Escrow Protected
+                  {topMentors.map((expert, idx) => renderMentorTile(expert, idx + 1))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* 3. Seeker Welcome Value Card */}
+            <View 
+              className="rounded-3xl p-4 sm:p-5 mb-6 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm dark:shadow-none"
+            >
+              <View className="flex-row items-center justify-between gap-2 mb-2.5">
+                <View className="flex-row items-center flex-1 mr-1">
+                  <View className="bg-primary-500/15 p-2 rounded-xl mr-2.5 shrink-0">
+                    <Sparkles size={18} color="#059669" />
+                  </View>
+                  <Text 
+                    className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex-1"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    Expert Consultations
+                  </Text>
+                </View>
+                <View className="bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0">
+                  <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                    Escrow Protected
+                  </Text>
+                </View>
+              </View>
+              <Text className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
+                Submit targeted questions for in-depth written reviews or book 1:1 live consultations directly on the mentor&apos;s calendar.
+              </Text>
+            </View>
+
+            {/* 4. Recommended For You (Strictly 10 Slots) */}
+            {recommendedMentors.length > 0 && (
+              <View className="mb-6">
+                <View className="flex-row justify-between items-center mb-3 px-1">
+                  <View className="flex-row items-center">
+                    <Sparkles size={15} color="#059669" />
+                    <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider ml-1.5">
+                      {seekerCategoryTitle ? `Recommended in ${seekerCategoryTitle}` : 'Recommended For You'}
+                    </Text>
+                    <View className="bg-emerald-500/10 px-2 py-0.5 rounded-full ml-2">
+                      <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        {recommendedMentors.length} Slots
                       </Text>
                     </View>
                   </View>
-                  <Text className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                    Submit targeted questions for in-depth written reviews or book 1:1 live consultations directly on the mentor&apos;s calendar.
-                  </Text>
+                  <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/search', params: { sort: 'recommended' } })}>
+                    <Text className="text-primary-600 dark:text-primary-400 text-xs font-extrabold">
+                      View All
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
-                {/* Featured Experts */}
-                {featuredExperts.length > 0 && (
-                  <View className="mb-6">
-                    <View className="flex-row justify-between items-center mb-3 px-1">
-                      <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-                        {recommendationHeaderTitle}
-                      </Text>
-                      <Text className="text-slate-400 text-xs font-semibold">
-                        {featuredExperts.length} Recommended
-                      </Text>
-                    </View>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 2 }}
+                  className="flex-row"
+                >
+                  {recommendedMentors.map((expert) => renderMentorTile(expert))}
+                </ScrollView>
+              </View>
+            )}
 
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
-                      {featuredExperts.map((expert) => (
-                        <TouchableOpacity
-                          key={expert._id}
-                          onPress={() => router.push({ pathname: '/expert/[id]', params: { id: expert._id } })}
-                          activeOpacity={0.85}
-                          className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 mr-4 shadow-sm dark:shadow-none"
-                          style={{ width: isDesktop ? 280 : 250 }}
-                        >
-                          <View className="flex-row items-center mb-3">
-                            <AvatarImage
-                              avatarUrl={expert.avatarUrl}
-                              fullName={expert.fullName}
-                              className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 mr-3"
-                            />
-                            <View className="flex-1">
-                              <Text className="text-slate-900 dark:text-white font-bold text-sm" numberOfLines={1}>
-                                {expert.fullName}
-                              </Text>
-                              <Text className="text-slate-500 dark:text-slate-400 text-xs font-sans" numberOfLines={1}>
-                                {expert.headline}
-                              </Text>
-                            </View>
-                          </View>
-
-                          <View className="flex-row justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                            <View className="flex-row items-center">
-                              <Award size={14} color="#F59E0B" />
-                              <Text className="text-slate-800 dark:text-slate-200 text-xs font-bold ml-1">
-                                {expert.ratingAverage.toFixed(1)}
-                              </Text>
-                              <Text className="text-slate-400 text-xs ml-0.5">({expert.reviewsCount})</Text>
-                            </View>
-                            <Text className="text-emerald-600 dark:text-emerald-400 font-extrabold text-xs">
-                              ₦{expert.textQuestionPrice.toLocaleString()}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
-
-                {/* Recommended For You */}
-                <View className="mb-4">
-                  <Text className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 px-1">
-                    Recommended For You
-                  </Text>
-                  {filteredExperts.slice(0, 6).map((expert) => (
-                    <ExpertCard
-                      key={expert._id}
-                      expert={expert}
-                    />
-                  ))}
+            {/* Empty state fallback if database has no mentors */}
+            {filteredExperts.length === 0 && !isLoading && (
+              <View className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-8 items-center justify-center my-4">
+                <View className="w-12 h-12 rounded-full bg-emerald-500/10 items-center justify-center mb-3">
+                  <Sparkles size={24} color="#059669" />
                 </View>
-              </>
+                <Text className="text-slate-900 dark:text-white font-bold text-sm text-center">
+                  Mentors Coming Soon
+                </Text>
+                <Text className="text-slate-500 dark:text-slate-400 text-xs text-center mt-1 max-w-xs">
+                  We are currently onboarding verified mentors. Check back shortly.
+                </Text>
+              </View>
             )}
           </View>
         )}

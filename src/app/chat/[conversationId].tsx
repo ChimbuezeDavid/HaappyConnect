@@ -37,7 +37,17 @@ import {
   Lock,
   X,
   ExternalLink,
-  Globe
+  Globe,
+  MessageSquare,
+  Video,
+  ShieldCheck,
+  Clock,
+  RotateCcw,
+  Banknote,
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  PhoneCall
 } from 'lucide-react-native';
 import { useAudioPlayer, useAudioRecorder, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
@@ -223,6 +233,239 @@ function FormattedMessageText({ content, isSender }: { content: string; isSender
   );
 }
 
+// Helper: Format countdown time remaining nicely without jargon
+function formatTimeRemaining(expiresAtStr: string): { label: string; isExpired: boolean } {
+  if (!expiresAtStr) return { label: '', isExpired: false };
+  const expiresAt = new Date(expiresAtStr).getTime();
+  const diff = expiresAt - Date.now();
+  if (diff <= 0) {
+    return { label: 'Deadline expired', isExpired: true };
+  }
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    return { label: `${days} day${days > 1 ? 's' : ''} left to respond`, isExpired: false };
+  }
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  return { label: `${hours}h ${minutes}m left to respond`, isExpired: false };
+}
+
+// In-Chat Consultation Order Card (Strict Icon-Only Standard, Zero Emojis)
+function ConsultationOrderBubble({
+  orderData,
+  onExtend,
+  onRefund,
+  onDispute,
+  isProcessing,
+  activeQuestion,
+  isClient
+}: {
+  orderData: {
+    questionId: string;
+    type: string;
+    price: number;
+    quotaTotal: number;
+    expiresAt: string;
+    content: string;
+  };
+  onExtend: (id: string) => void;
+  onRefund: (id: string) => void;
+  onDispute: (id: string) => void;
+  isProcessing: boolean;
+  activeQuestion?: any;
+  isClient: boolean;
+}) {
+  const isVideo = orderData.type === 'video';
+  const effectiveExpiresAt = activeQuestion?.expiresAt || orderData.expiresAt;
+  const { label: timeRemaining, isExpired } = formatTimeRemaining(effectiveExpiresAt);
+  const quotaUsed = activeQuestion?.quotaUsed ?? 0;
+  const quotaTotal = activeQuestion?.quotaTotal ?? orderData.quotaTotal;
+  const remaining = Math.max(0, quotaTotal - quotaUsed);
+  const isFulfilled = quotaUsed >= quotaTotal || activeQuestion?.status === 'answered';
+  const isRefunded = activeQuestion?.status === 'refunded' || activeQuestion?.escrowStatus === 'refunded';
+  const isDisputed = activeQuestion?.status === 'disputed';
+  const isExpiredStatus = activeQuestion?.status === 'expired' || isExpired;
+
+  return (
+    <View className="my-3 w-full max-w-[94%] self-center rounded-3xl bg-white dark:bg-slate-900 border border-emerald-500/30 p-5 shadow-sm">
+      {/* Top Header Row */}
+      <View className="flex-row items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <View className="flex-row items-center flex-1 mr-2">
+          <View className="p-2.5 rounded-2xl bg-emerald-500/10 mr-3">
+            {isVideo ? (
+              <Video size={18} color="#059669" />
+            ) : (
+              <MessageSquare size={18} color="#059669" />
+            )}
+          </View>
+          <View className="flex-1">
+            <Text className="text-slate-900 dark:text-white font-extrabold text-sm" numberOfLines={1}>
+              {isVideo ? 'Video Breakdown Package' : 'Written Advisory Package'}
+            </Text>
+            <View className="flex-row items-center mt-0.5">
+              <ShieldCheck size={12} color="#059669" style={{ marginRight: 4 }} />
+              <Text className="text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">
+                Escrow Protected (₦{orderData.price.toLocaleString()})
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {isFulfilled && (
+          <View className="bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+            <Text className="text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase">
+              Fulfilled
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Quota & Timer Status Row */}
+      <View className="my-3.5 bg-slate-50 dark:bg-slate-955 rounded-2xl p-3.5 border border-slate-200/70 dark:border-slate-800">
+        <View className="flex-row items-center justify-between mb-2">
+          <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold">
+            {isVideo ? 'Video Delivery' : 'Package Quota Progress'}
+          </Text>
+          <View className="bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+            <Text className="text-emerald-700 dark:text-emerald-400 text-[11px] font-bold">
+              {isFulfilled
+                ? 'All Deliveries Completed'
+                : `${quotaUsed} of ${quotaTotal} answered`}
+            </Text>
+          </View>
+        </View>
+
+        {/* Visual Progress Bar */}
+        <View className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-2.5">
+          <View
+            style={{ width: `${Math.min(100, Math.round(((quotaUsed || 0) / (quotaTotal || 1)) * 100))}%` }}
+            className="h-full bg-emerald-500 rounded-full"
+          />
+        </View>
+
+        {/* Human-friendly Timer */}
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center">
+            <Clock size={13} color={isExpiredStatus && !isFulfilled ? '#ef4444' : '#64748b'} style={{ marginRight: 4 }} />
+            <Text className={`text-xs font-semibold ${isExpiredStatus && !isFulfilled ? 'text-red-500' : 'text-slate-600 dark:text-slate-400'}`}>
+              {isFulfilled ? 'Completed' : isRefunded ? 'Refunded' : timeRemaining}
+            </Text>
+          </View>
+          {!isFulfilled && !isRefunded && (
+            <Text className="text-slate-400 text-[11px]">
+              {remaining} remaining
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Inquiry Brief */}
+      <View className="mb-2">
+        <Text className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-1">
+          Inquiry Brief
+        </Text>
+        <Text className="text-slate-800 dark:text-slate-200 text-sm leading-relaxed">
+          {orderData.content}
+        </Text>
+      </View>
+
+      {/* Auto-Expiry Action Trigger (Shown only to Client if deadline passed without full response) */}
+      {isClient && isExpiredStatus && !isFulfilled && !isRefunded && (
+        <View className="mt-3 pt-3 border-t border-red-200 dark:border-red-900/40">
+          <View className="flex-row items-center mb-2.5">
+            <AlertCircle size={14} color="#ef4444" style={{ marginRight: 6 }} />
+            <Text className="text-red-600 dark:text-red-400 text-xs font-bold">
+              Response deadline expired without expert reply
+            </Text>
+          </View>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={() => onExtend(orderData.questionId)}
+              disabled={isProcessing}
+              className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 px-3 rounded-xl flex-row items-center justify-center border border-slate-200 dark:border-slate-700"
+              activeOpacity={0.8}
+            >
+              <RotateCcw size={13} color="#059669" style={{ marginRight: 6 }} />
+              <Text className="text-slate-800 dark:text-white text-xs font-bold">
+                Give 24 More Hours
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => onRefund(orderData.questionId)}
+              disabled={isProcessing}
+              className="flex-1 bg-emerald-600 py-2.5 px-3 rounded-xl flex-row items-center justify-center shadow-sm"
+              activeOpacity={0.8}
+            >
+              <Banknote size={14} color="#fff" style={{ marginRight: 6 }} />
+              <Text className="text-white text-xs font-bold">
+                Instant Refund
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Discrete Dispute Option for Completed Orders */}
+      {isClient && isFulfilled && !isDisputed && (
+        <View className="mt-2 pt-2 flex-row justify-end">
+          <TouchableOpacity
+            onPress={() => onDispute(orderData.questionId)}
+            className="flex-row items-center py-1 px-2 rounded-lg"
+          >
+            <AlertTriangle size={12} color="#94a3b8" style={{ marginRight: 4 }} />
+            <Text className="text-slate-400 text-[11px] font-semibold">
+              Report an issue with answer
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {isDisputed && (
+        <View className="mt-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex-row items-center">
+          <AlertTriangle size={14} color="#d97706" style={{ marginRight: 6 }} />
+          <Text className="text-amber-800 dark:text-amber-300 text-xs font-semibold flex-1">
+            Issue reported. Our support team is cross-examining this consultation.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// In-Chat System Notice Bubble (Clean text & SVG icons)
+function SystemNoticeBubble({ noticeType, content }: { noticeType: string; content: string }) {
+  let IconComponent = CheckCircle2;
+  let iconColor = '#059669';
+  let bgColor = 'bg-slate-100 dark:bg-slate-900';
+  let borderColor = 'border-slate-200 dark:border-slate-800';
+
+  if (noticeType === 'EXTENDED') {
+    IconComponent = RotateCcw;
+    iconColor = '#059669';
+  } else if (noticeType === 'REFUNDED') {
+    IconComponent = Banknote;
+    iconColor = '#10b981';
+  } else if (noticeType === 'DISPUTED') {
+    IconComponent = AlertTriangle;
+    iconColor = '#f59e0b';
+    bgColor = 'bg-amber-500/10';
+    borderColor = 'border-amber-500/30';
+  } else if (noticeType === 'COMPLETED') {
+    IconComponent = CheckCircle2;
+    iconColor = '#059669';
+  }
+
+  return (
+    <View className={`my-2 self-center max-w-[90%] px-4 py-2.5 rounded-2xl border ${bgColor} ${borderColor} flex-row items-center`}>
+      <IconComponent size={14} color={iconColor} style={{ marginRight: 8 }} />
+      <Text className="text-slate-700 dark:text-slate-300 text-xs leading-snug flex-1 font-medium">
+        {content}
+      </Text>
+    </View>
+  );
+}
+
 interface ChatRoomScreenProps {
   conversationIdProp?: string;
   isInlineProp?: boolean;
@@ -257,24 +500,107 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
   const [reportReason, setReportReason] = useState('');
   const [imageViewerUri, setImageViewerUri] = useState<string | null>(null);
 
-  // Consultation Gating State
+  // Consultation Gating & Active Package State
   const [consultationStatus, setConsultationStatus] = useState<{
     isGated: boolean;
     expertProfileId?: string;
     expertName?: string;
     textQuestionPrice?: number;
     videoResponsePrice?: number;
+    textPackagePrice?: number;
+    textPackageCount?: number;
+    videoPackagePrice?: number;
+    videoPackageCount?: number;
+    responseWindowDays?: number;
     callPricePerMinute?: number;
     hourlyRate?: number;
+    activeQuestion?: any;
   }>({ isGated: false });
+
+  const [activeQuestion, setActiveQuestion] = useState<any>(null);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+
+  // Dispute reporting modal state
+  const [disputeModalVisible, setDisputeModalVisible] = useState(false);
+  const [disputeQuestionId, setDisputeQuestionId] = useState<string | null>(null);
+  const [disputeReason, setDisputeReason] = useState('Incomplete response to inquiry');
+  const [disputeDetails, setDisputeDetails] = useState('');
+  const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
 
   const checkConsultationStatus = async () => {
     if (!conversationId) return;
     try {
       const data = await api.get(`/chat/conversations/${conversationId}/consultation-status`);
       setConsultationStatus(data);
+      if (data?.activeQuestion) {
+        setActiveQuestion(data.activeQuestion);
+      }
     } catch (_) {}
   };
+
+  const handleExpireAction = async (questionId: string, action: 'extend' | 'refund') => {
+    setIsProcessingAction(true);
+    try {
+      const res = await api.post(`/question/${questionId}/auto-expire-action`, { action });
+      Alert.alert(action === 'extend' ? 'Deadline Extended' : '100% Refund Processed', res.message);
+      await checkConsultationStatus();
+      if (conversationId) {
+        await fetchMessages(conversationId);
+      }
+    } catch (err: any) {
+      Alert.alert('Action Failed', err.message || 'Could not process request');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleDisputeOpen = (questionId: string) => {
+    setDisputeQuestionId(questionId);
+    setDisputeModalVisible(true);
+  };
+
+  const handleDisputeSubmit = async () => {
+    if (!disputeReason.trim() || !disputeQuestionId) {
+      Alert.alert('Validation Error', 'Please choose a reason for the report.');
+      return;
+    }
+    setIsSubmittingDispute(true);
+    try {
+      const res = await api.post(`/question/${disputeQuestionId}/dispute`, {
+        reason: disputeReason.trim(),
+        details: disputeDetails.trim()
+      });
+      setDisputeModalVisible(false);
+      setDisputeReason('Incomplete response to inquiry');
+      setDisputeDetails('');
+      Alert.alert('Report Filed', res.message || 'Our team will review your consultation report.');
+      await checkConsultationStatus();
+      if (conversationId) {
+        await fetchMessages(conversationId);
+      }
+    } catch (err: any) {
+      Alert.alert('Submission Failed', err.message || 'Could not submit report');
+    } finally {
+      setIsSubmittingDispute(false);
+    }
+  };
+
+  // Listen to live consultation update socket events
+  useEffect(() => {
+    const socket = useChatStore.getState().socket;
+    if (!socket) return;
+    const handleConsultationUpdated = (updated: any) => {
+      setActiveQuestion((prev: any) => ({
+        ...prev,
+        ...updated
+      }));
+      checkConsultationStatus();
+    };
+    socket.on('consultationUpdated', handleConsultationUpdated);
+    return () => {
+      socket.off('consultationUpdated', handleConsultationUpdated);
+    };
+  }, []);
 
   // Audio Recording State
   const [audioPermission, setAudioPermission] = useState<{ granted: boolean } | null>(null);
@@ -491,6 +817,43 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
       );
     }
 
+    // Interactive Consultation Order Card
+    const orderMatch = item.content?.match(/^\[CONSULTATION_ORDER:([^:]+):([^:]+):([^:]+):([^:]+):([^\]]+)\]\n*([\s\S]*)/);
+    if (orderMatch) {
+      const orderData = {
+        questionId: orderMatch[1],
+        type: orderMatch[2],
+        price: Number(orderMatch[3]) || 0,
+        quotaTotal: Number(orderMatch[4]) || 1,
+        expiresAt: orderMatch[5],
+        content: orderMatch[6],
+      };
+      const isClient = user?.role === 'seeker' || (activeQuestion?.seeker && (user?.id === activeQuestion.seeker || (user as any)?._id === activeQuestion.seeker)) || isSender;
+
+      return (
+        <ConsultationOrderBubble
+          orderData={orderData}
+          onExtend={(qId) => handleExpireAction(qId, 'extend')}
+          onRefund={(qId) => handleExpireAction(qId, 'refund')}
+          onDispute={handleDisputeOpen}
+          isProcessing={isProcessingAction}
+          activeQuestion={activeQuestion}
+          isClient={!!isClient}
+        />
+      );
+    }
+
+    // System Status Notice (e.g. extension, refund, dispute)
+    const sysMatch = item.content?.match(/^\[SYSTEM_NOTICE:([^\]]+)\]\s*([\s\S]*)/);
+    if (sysMatch) {
+      return (
+        <SystemNoticeBubble
+          noticeType={sysMatch[1]}
+          content={sysMatch[2]}
+        />
+      );
+    }
+
     return (
       <TouchableOpacity
         onLongPress={() => isSender && handleDeleteMessage(item._id)}
@@ -677,23 +1040,24 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
             </Text>
           </View>
           <Text className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed mb-3">
-            Direct communication with {consultationStatus.expertName || 'this mentor'} requires booking an active consultation.
+            Direct communication with {consultationStatus.expertName || 'this mentor'} requires booking an active advisory package.
           </Text>
           <View className="flex-row gap-2">
             <TouchableOpacity
               onPress={() => {
                 if (consultationStatus.expertProfileId) {
                   router.push({
-                    pathname: '/expert/[id]',
-                    params: { id: consultationStatus.expertProfileId, tab: 'ask' }
+                    pathname: '/seeker/ask-question',
+                    params: { expertId: consultationStatus.expertProfileId, initialType: 'text' }
                   } as any);
                 }
               }}
-              className="flex-1 bg-emerald-600 py-2.5 px-3 rounded-xl items-center"
+              className="flex-1 bg-emerald-600 py-2.5 px-3 rounded-xl items-center flex-row justify-center"
               activeOpacity={0.85}
             >
+              <MessageSquare size={13} color="#fff" style={{ marginRight: 6 }} />
               <Text className="text-white text-xs font-bold" numberOfLines={1}>
-                Ask (₦{consultationStatus.textQuestionPrice?.toLocaleString() || '5,000'})
+                Ask (₦{(consultationStatus.textPackagePrice || consultationStatus.textQuestionPrice || 3000).toLocaleString()})
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -705,11 +1069,12 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
                   } as any);
                 }
               }}
-              className="flex-1 bg-slate-900 dark:bg-white py-2.5 px-3 rounded-xl items-center"
+              className="flex-1 bg-slate-900 dark:bg-white py-2.5 px-3 rounded-xl items-center flex-row justify-center"
               activeOpacity={0.85}
             >
+              <PhoneCall size={13} color={isDark ? '#0f172a' : '#fff'} style={{ marginRight: 6 }} />
               <Text className="text-white dark:text-slate-900 text-xs font-bold" numberOfLines={1}>
-                Book Call (₦{consultationStatus.callPricePerMinute?.toLocaleString() || '500'}/min)
+                Book Call (₦{(consultationStatus.callPricePerMinute || 500).toLocaleString()}/min)
               </Text>
             </TouchableOpacity>
           </View>
@@ -864,6 +1229,100 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
               >
                 Submit Report
               </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Dispute / Issue with Consultation Modal (Icon-only, no emojis) */}
+      <Modal
+        visible={disputeModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDisputeModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/70 justify-center items-center px-4">
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDisputeModalVisible(false)} />
+          <View className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full">
+            <View className="flex-row justify-between items-center mb-3">
+              <View className="flex-row items-center">
+                <AlertTriangle size={18} color="#f59e0b" style={{ marginRight: 8 }} />
+                <Text className="text-slate-900 dark:text-white font-extrabold text-base">
+                  Report Issue with Consultation
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setDisputeModalVisible(false)}
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800"
+              >
+                <X size={16} color={isDark ? '#cbd5e1' : '#64748b'} />
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-slate-500 dark:text-slate-400 text-xs mb-3 leading-relaxed">
+              If the mentor provided incomplete, off-topic, or inadequate guidance, submit a report for our team to cross-examine.
+            </Text>
+
+            {/* Quick Reason Chips */}
+            <Text className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider mb-2">
+              Reason for Report
+            </Text>
+            <View className="flex-row flex-wrap gap-2 mb-4">
+              {[
+                'Incomplete response to inquiry',
+                'Misleading or unhelpful advice',
+                'Unprofessional conduct',
+                'Other'
+              ].map((reason) => {
+                const isSelected = disputeReason === reason;
+                return (
+                  <TouchableOpacity
+                    key={reason}
+                    onPress={() => setDisputeReason(reason)}
+                    className={`px-3 py-1.5 rounded-full border ${
+                      isSelected
+                        ? 'bg-amber-500/20 border-amber-500'
+                        : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <Text className={`text-xs ${isSelected ? 'text-amber-700 dark:text-amber-300 font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
+                      {reason}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5">
+              Additional Details (Optional)
+            </Text>
+            <TextInput
+              value={disputeDetails}
+              onChangeText={setDisputeDetails}
+              placeholder="Describe the issue with the delivered answer..."
+              placeholderTextColor="#94a3b8"
+              multiline
+              numberOfLines={3}
+              className="bg-slate-100 dark:bg-slate-800 text-slate-955 dark:text-white rounded-2xl p-3.5 text-sm min-h-[80px] mb-5 align-top"
+            />
+
+            <TouchableOpacity
+              onPress={handleDisputeSubmit}
+              disabled={isSubmittingDispute || !disputeReason.trim()}
+              className={`py-3.5 rounded-2xl items-center flex-row justify-center ${
+                disputeReason.trim() ? 'bg-amber-600' : 'bg-slate-200 dark:bg-slate-800'
+              }`}
+            >
+              {isSubmittingDispute ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <AlertTriangle size={15} color="#fff" style={{ marginRight: 6 }} />
+                  <Text className="font-bold text-sm text-white">
+                    Submit Dispute Report
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>

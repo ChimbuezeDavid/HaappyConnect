@@ -17,7 +17,7 @@ async function checkExpiredItems() {
   console.log(`[Scheduler] Checking for expired questions and bookings at ${now.toISOString()}...`);
 
   try {
-    // 1. Check for Expired Pending Questions (72 hours)
+    // 1. Check for Expired Pending Questions (Mark as expired so client can extend 24h or refund)
     const expiredQuestions = await Question.find({
       status: 'pending',
       expiresAt: { $lt: now }
@@ -25,71 +25,74 @@ async function checkExpiredItems() {
 
     for (const question of expiredQuestions) {
       try {
-        console.log(`[Scheduler] Expiring question past SLA: ${question._id}`);
-        question.status = 'refunded';
+        console.log(`[Scheduler] Marking question expired: ${question._id}`);
+        question.status = 'expired';
         await question.save();
 
-        // Release the escrow hold
-        const escrowTx = await Transaction.findOne({
-          'metadata.questionId': question._id,
-          status: 'pending'
-        });
-
-        if (escrowTx) {
-          escrowTx.status = 'failed';
-          escrowTx.description = 'SLA expired consultation hold released to wallet';
-          await escrowTx.save();
-        } else {
-          // Fallback: Credit seeker directly via refund
-          const refundTx = new Transaction({
-            user: question.seeker,
-            amount: question.price,
-            type: 'refund',
-            status: 'success',
-            description: 'Refund: Consultation expired past 7-day SLA'
-          });
-          await refundTx.save();
-        }
-
-        // Notify seeker via Sockets and Push
+        // Notify seeker via Sockets and Push (Clean text, no emojis)
         try {
           getIO().to(`user:${question.seeker}`).emit('notification', {
-            type: 'question_refunded',
-            title: 'Consultation Auto-Refunded 💸',
-            body: 'Your question passed the SLA response window without an answer. Your full payment has been refunded to your wallet.',
-            data: { questionId: question._id }
+            type: 'question_expired',
+            title: 'Consultation Deadline Expired',
+            body: 'Your expert did not respond within the timeframe. You can extend the deadline by 24 hours or claim an instant refund.',
+            data: { questionId: question._id, conversationId: question.conversation }
           });
           
           await sendPushNotification(
             question.seeker.toString(),
-            'Consultation Auto-Refunded 💸',
-            'Your question passed the SLA response window without an answer. Your full payment has been refunded to your wallet.',
-            { questionId: question._id.toString() }
+            'Consultation Deadline Expired',
+            'Your expert did not respond within the timeframe. You can extend the deadline by 24 hours or claim an instant refund.',
+            { questionId: question._id.toString(), conversationId: question.conversation ? question.conversation.toString() : '' }
           );
 
-          // Also notify expert about the missed SLA
+          // Also notify expert about the missed deadline
           getIO().to(`user:${question.expert}`).emit('notification', {
             type: 'question_sla_missed',
-            title: 'Consultation SLA Expired ⚠️',
-            body: 'A consultation request expired unanswered and has been auto-refunded to the client.',
+            title: 'Consultation Deadline Passed',
+            body: 'A consultation request passed without your response and is now eligible for client cancellation.',
             data: { questionId: question._id }
           });
 
           await sendPushNotification(
             question.expert.toString(),
-            'Consultation SLA Expired ⚠️',
-            'A consultation request expired unanswered and has been auto-refunded to the client.',
+            'Consultation Deadline Passed',
+            'A consultation request passed without your response and is now eligible for client cancellation.',
             { questionId: question._id.toString() }
           );
-        } catch (notifyErr) {
-          console.error('[Scheduler] Notification failed for question expiry:', notifyErr);
-        }
+        } catch (_) {}
       } catch (err) {
-        console.error(`[Scheduler] Error processing question expiry ${question._id}:`, err);
+        console.error(`[Scheduler] Error updating expired question ${question._id}:`, err);
       }
     }
 
-    // 2. Check for Expired Call Bookings (Scheduled time is in the past, and status is still 'pending' unconfirmed)
+    // 2. Check for stale expired questions (expired for > 5 days without client action) -> auto-refund
+    const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+    const staleExpiredQuestions = await Question.find({
+      status: 'expired',
+      updatedAt: { $lt: fiveDaysAgo },
+      escrowStatus: 'held'
+    });
+
+    for (const question of staleExpiredQuestions) {
+      try {
+        question.escrowStatus = 'refunded';
+        await question.save();
+
+        const refundTx = new Transaction({
+          user: question.seeker,
+          amount: question.price,
+          type: 'refund',
+          status: 'success',
+          description: 'Automatic refund for unresolved expired consultation',
+          metadata: { questionId: question._id }
+        });
+        await refundTx.save();
+      } catch (err) {
+        console.error(`[Scheduler] Error auto-refunding stale question ${question._id}:`, err);
+      }
+    }
+
+    // 3. Check for Expired Call Bookings (Scheduled time is in the past, and status is still 'pending' unconfirmed)
     const expiredBookings = await Booking.find({
       status: 'pending',
       scheduledAt: { $lt: now }

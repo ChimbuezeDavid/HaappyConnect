@@ -181,10 +181,10 @@ export default function WalletScreen() {
         <View className="flex-row justify-between items-center mb-6">
           <View>
             <Text className="text-xs uppercase tracking-wider font-extrabold text-emerald-600 dark:text-emerald-400">
-              {isExpert ? 'ADVISORY REVENUE' : 'FINANCIAL OVERVIEW'}
+              {isExpert ? 'ADVISORY EARNINGS' : 'FINANCIAL OVERVIEW'}
             </Text>
             <Text className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-              {isExpert ? 'Earnings & Payouts' : 'Wallet & Balances'}
+              {isExpert ? 'Earnings' : 'Wallet'}
             </Text>
           </View>
 

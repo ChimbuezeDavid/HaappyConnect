@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '@/lib/api';
 import { Profile } from '@/types';
-import { MessageSquare, Video, ShieldCheck, Sparkles, HelpCircle, ChevronLeft } from 'lucide-react-native';
+import { MessageSquare, Video, ShieldCheck, HelpCircle, ChevronLeft, Clock, Lock, CheckCircle2 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import AppScreen from '@/components/ui/AppScreen';
 import { useAuthStore } from '@/store/authStore';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+
+// Ensure any opened auth session can complete on web or mobile
+WebBrowser.maybeCompleteAuthSession();
 
 export default function AskQuestionModal() {
   const { expertId, initialType } = useLocalSearchParams<{ expertId: string; initialType?: string }>();
@@ -19,7 +24,7 @@ export default function AskQuestionModal() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  // Form states: support Written text and Video consultations
+  // Form states: Written text package or Video breakdown package
   const [type, setType] = useState<'text' | 'video'>(
     initialType === 'video' ? 'video' : 'text'
   );
@@ -55,33 +60,77 @@ export default function AskQuestionModal() {
     fetchExpertDetails();
   }, [expertId, user]);
 
-  const textPrice = expert?.textQuestionPrice || 0;
-  const videoPrice = expert?.videoResponsePrice || 0;
+  // Package pricing and terms configured by the expert
+  const textPrice = expert?.textPackagePrice || expert?.textQuestionPrice || 3000;
+  const textCount = expert?.textPackageCount || 3;
+  const videoPrice = expert?.videoPackagePrice || expert?.videoResponsePrice || 5000;
+  const videoCount = expert?.videoPackageCount || 1;
+  const turnaroundDays = expert?.responseWindowDays || 3;
+
   const currentPrice = type === 'text' ? textPrice : videoPrice;
+  const currentCount = type === 'text' ? textCount : videoCount;
 
   const handleSubmit = async () => {
     if (!seekerContent.trim()) {
-      Alert.alert('Validation Error', 'Please enter your question details.');
+      Alert.alert('Validation Error', 'Please enter your question or advisory brief.');
       return;
     }
 
     setSubmitting(true);
     try {
-      await api.post('/question', {
+      const redirectUri = Linking.createURL('consultation-callback');
+      const initiateData = await api.post('/question/initiate', {
         expertId: expertUserId,
         type,
-        seekerContent,
+        seekerContent: seekerContent.trim(),
+        redirect_uri: redirectUri,
       });
-      Alert.alert('Question Submitted', 'Your question has been sent and funds placed in escrow. The expert has 72 hours to respond.', [
-        {
-          text: 'View Consultation',
-          onPress: () => {
-            router.replace({ pathname: '/(tabs)/bookings', params: { tab: 'questions' } } as any);
-          },
-        },
-      ]);
+
+      if (!initiateData?.authorizationUrl) {
+        throw new Error('Payment initialization failed. Please try again.');
+      }
+
+      // Web platform checkout flow
+      if (Platform.OS === 'web') {
+        if (initiateData.isMock) {
+          const verifyRes = await api.post('/question/verify-payment', { reference: initiateData.reference });
+          router.replace({
+            pathname: '/chat/[conversationId]',
+            params: { conversationId: verifyRes.conversationId || initiateData.conversationId }
+          });
+          return;
+        }
+        window.location.href = initiateData.authorizationUrl;
+        return;
+      }
+
+      // Mobile Native checkout flow
+      const result = await WebBrowser.openAuthSessionAsync(initiateData.authorizationUrl, redirectUri);
+
+      if (result.type === 'success' && result.url) {
+        const parsed = Linking.parse(result.url);
+        const ref = (parsed.queryParams?.reference || parsed.queryParams?.trxref || initiateData.reference) as string;
+        const verifyRes = await api.post('/question/verify-payment', { reference: ref });
+        router.replace({
+          pathname: '/chat/[conversationId]',
+          params: { conversationId: verifyRes.conversationId || initiateData.conversationId }
+        });
+      } else {
+        // Fallback check if reference was completed
+        try {
+          const verifyRes = await api.post('/question/verify-payment', { reference: initiateData.reference });
+          if (verifyRes?.success) {
+            router.replace({
+              pathname: '/chat/[conversationId]',
+              params: { conversationId: verifyRes.conversationId || initiateData.conversationId }
+            });
+            return;
+          }
+        } catch (_) {}
+        Alert.alert('Checkout Incomplete', 'Payment session was closed before completion. You can retry at any time.');
+      }
     } catch (err: any) {
-      Alert.alert('Submission Failed', err.message || 'Server error submitting question');
+      Alert.alert('Checkout Failed', err.message || 'Server error initiating consultation');
     } finally {
       setSubmitting(false);
     }
@@ -113,16 +162,16 @@ export default function AskQuestionModal() {
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Sparkles size={18} color="#fff" style={{ marginRight: 8 }} />
+              <Lock size={17} color="#fff" style={{ marginRight: 8 }} />
               <Text className="text-white font-display font-bold text-base">
-                Send Question (₦{currentPrice.toLocaleString()})
+                Pay ₦{currentPrice.toLocaleString()} & Open Thread
               </Text>
             </>
           )}
         </TouchableOpacity>
       }
     >
-      {/* Single Unified Header */}
+      {/* Header */}
       <View className="flex-row items-center mb-6">
         <TouchableOpacity
           onPress={() => router.back()}
@@ -132,10 +181,10 @@ export default function AskQuestionModal() {
         </TouchableOpacity>
         <View>
           <Text className="text-2xl font-display font-black text-slate-900 dark:text-white">
-            Ask Consultation
+            Book Consultation
           </Text>
           <Text className="text-xs text-slate-500 dark:text-slate-400">
-            Targeted advice & professional review
+            One-tap direct escrow checkout & lifetime thread
           </Text>
         </View>
       </View>
@@ -160,12 +209,21 @@ export default function AskQuestionModal() {
         </View>
       )}
 
-      {/* Select Response Format (Balanced 2-Card Grid) */}
-      <Text className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider mb-3">
-        Select Consultation Format
-      </Text>
+      {/* Consultation Package Selector */}
+      <View className="flex-row items-center justify-between mb-3">
+        <Text className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
+          Select Advisory Package
+        </Text>
+        <View className="flex-row items-center">
+          <Clock size={12} color="#059669" style={{ marginRight: 4 }} />
+          <Text className="text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
+            {turnaroundDays}-day response window
+          </Text>
+        </View>
+      </View>
+
       <View className="flex-row mb-6 gap-3">
-        {/* Written Response */}
+        {/* Written Advisory Package */}
         <TouchableOpacity
           onPress={() => setType('text')}
           activeOpacity={0.85}
@@ -184,14 +242,20 @@ export default function AskQuestionModal() {
             </Text>
           </View>
           <Text className="font-bold text-sm text-slate-900 dark:text-white">
-            Written Review
+            Written Advisory
           </Text>
+          <View className="flex-row items-center mt-1">
+            <CheckCircle2 size={12} color="#059669" style={{ marginRight: 4 }} />
+            <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold">
+              {textCount} Questions Total
+            </Text>
+          </View>
           <Text className="text-slate-500 dark:text-slate-400 text-[11px] mt-1 leading-snug">
-            In-depth written analysis delivered within 72h.
+            Initial brief + follow-up questions in thread.
           </Text>
         </TouchableOpacity>
 
-        {/* Video Response */}
+        {/* Video Breakdown Package */}
         <TouchableOpacity
           onPress={() => setType('video')}
           activeOpacity={0.85}
@@ -212,24 +276,30 @@ export default function AskQuestionModal() {
           <Text className="font-bold text-sm text-slate-900 dark:text-white">
             Video Breakdown
           </Text>
+          <View className="flex-row items-center mt-1">
+            <CheckCircle2 size={12} color="#059669" style={{ marginRight: 4 }} />
+            <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold">
+              {videoCount} In-Depth Video
+            </Text>
+          </View>
           <Text className="text-slate-500 dark:text-slate-400 text-[11px] mt-1 leading-snug">
-            Personalized video reply explaining your answer.
+            Personalized recorded breakdown answering brief.
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Question Details Input */}
+      {/* Inquiry Content Input */}
       <View className="mb-6">
         <View className="flex-row justify-between items-center mb-2">
           <Text className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
-            Your Question Details *
+            Your Initial Inquiry Details *
           </Text>
           <Text className="text-slate-400 text-xs">{seekerContent.length} chars</Text>
         </View>
         <TextInput
           value={seekerContent}
           onChangeText={setSeekerContent}
-          placeholder="Provide context, challenges you face, or specific questions so the mentor can give tailored advice..."
+          placeholder="Describe your question, challenges, or scenario in detail. The expert will respond directly in your dedicated knowledge thread..."
           placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
           multiline
           numberOfLines={6}
@@ -243,10 +313,10 @@ export default function AskQuestionModal() {
         <ShieldCheck size={20} color="#059669" style={{ marginTop: 1 }} />
         <View className="flex-1 ml-3">
           <Text className="text-emerald-900 dark:text-emerald-300 font-bold text-xs uppercase tracking-wider">
-            Escrow Protection Guarantee
+            Direct Paystack Escrow Protection
           </Text>
           <Text className="text-emerald-800 dark:text-emerald-400/90 text-xs mt-1 leading-relaxed">
-            Your payment of ₦{currentPrice.toLocaleString()} will be held securely in escrow. Funds are only released after the expert delivers their answer. If unanswered within 72 hours, your wallet is automatically refunded.
+            Your payment of ₦{currentPrice.toLocaleString()} is held safely in escrow. Funds are released to the mentor only upon delivering their response. If unanswered within {turnaroundDays} days, you can extend by 24 hours or claim an immediate 100% refund.
           </Text>
         </View>
       </View>

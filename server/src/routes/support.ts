@@ -5,7 +5,7 @@ import { User } from '../models/User';
 import jwt from 'jsonwebtoken';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkeyforhaappyconnect';
 
 // POST /api/support/ticket - Submit support ticket
 router.post('/ticket', async (req: Request, res: Response) => {

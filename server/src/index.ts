@@ -1,7 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import http from 'http';
 import { initSocket } from './socket';
 import jwt from 'jsonwebtoken';
@@ -32,8 +34,6 @@ import chatRoutes from './routes/chat';
 import adminRoutes from './routes/admin';
 import supportRoutes from './routes/support';
 
-dotenv.config();
-
 const app = express();
 app.enable('trust proxy');
 const httpServer = http.createServer(app);
@@ -46,7 +46,7 @@ const MONGODB_URI =
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkeyforhaappyconnect';
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

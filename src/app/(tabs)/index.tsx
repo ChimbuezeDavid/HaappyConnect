@@ -919,31 +919,39 @@ export default function DiscoverScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row -mx-1 px-1">
-                    {categories.map((cat) => (
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    contentContainerStyle={{ paddingVertical: 6, paddingHorizontal: 2 }}
+                    className="flex-row"
+                  >
+                    {categories.map((cat, idx) => (
                       <TouchableOpacity
                         key={cat._id}
                         onPress={() => router.push({ pathname: '/(tabs)/search', params: { category: cat.slug } })}
                         activeOpacity={0.8}
-                        style={{ width: 140 }}
-                        className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-3.5 rounded-2xl mr-3 shadow-sm dark:shadow-none"
+                        style={{ width: 145, height: 136 }}
+                        className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-3.5 rounded-2xl mr-3 shadow-sm dark:shadow-none justify-between flex-col"
                       >
                         <View className="flex-row items-center justify-between mb-2">
                           <View className="p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
                             {getCategoryIcon(cat.slug)}
                           </View>
-                          <View className="bg-primary-500/10 px-2 py-0.5 rounded-full">
-                            <Text className="text-primary-600 dark:text-primary-400 text-[10px] font-bold">Top</Text>
-                          </View>
+                          {idx < 2 && (
+                            <View className="bg-primary-500/10 px-2 py-0.5 rounded-full">
+                              <Text className="text-primary-600 dark:text-primary-400 text-[10px] font-bold">Top</Text>
+                            </View>
+                          )}
                         </View>
-                        <Text 
-                          className="text-slate-900 dark:text-white font-bold text-xs" 
-                          numberOfLines={2}
-                          style={{ minHeight: 32 }}
-                        >
-                          {cat.name}
-                        </Text>
-                        <Text className="text-slate-400 text-[10px] mt-1">Explore mentors</Text>
+                        <View className="flex-1 justify-center">
+                          <Text 
+                            className="text-slate-900 dark:text-white font-bold text-xs leading-snug" 
+                            numberOfLines={2}
+                          >
+                            {cat.name}
+                          </Text>
+                        </View>
+                        <Text className="text-slate-400 text-[10px] mt-1 font-medium">Explore mentors</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -951,19 +959,23 @@ export default function DiscoverScreen() {
 
                 {/* Seeker Welcome Value Card */}
                 <View 
-                  className="rounded-3xl p-5 mb-6 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900"
+                  className="rounded-3xl p-4 sm:p-5 mb-6 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm dark:shadow-none"
                 >
-                  <View className="flex-row items-center justify-between mb-2">
-                    <View className="flex-row items-center">
-                      <View className="bg-primary-500/15 p-2 rounded-xl mr-2.5">
+                  <View className="flex-row items-center justify-between gap-2 mb-2.5">
+                    <View className="flex-row items-center flex-1 mr-1">
+                      <View className="bg-primary-500/15 p-2 rounded-xl mr-2.5 shrink-0">
                         <Sparkles size={18} color="#059669" />
                       </View>
-                      <Text className="text-base font-extrabold text-slate-900 dark:text-white">
-                        Direct Expert Consultations
+                      <Text 
+                        className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex-1"
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        Expert Consultations
                       </Text>
                     </View>
-                    <View className="bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-                      <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+                    <View className="bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 shrink-0">
+                      <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                         Escrow Protected
                       </Text>
                     </View>

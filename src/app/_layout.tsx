@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
-import { getAuthToken, getRefreshToken, clearAuthTokens } from '@/lib/api';
+import { getAuthToken, getRefreshToken, clearAuthTokens, getCachedUserData } from '@/lib/api';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'nativewind';
@@ -156,17 +156,25 @@ export default function RootLayout() {
       const minDisplayDuration = 1800; // 1.8s splash duration for branding
 
       try {
-        const savedToken = await getAuthToken();
-        const savedRefreshToken = await getRefreshToken();
+        const [savedToken, savedRefreshToken, cachedData] = await Promise.all([
+          getAuthToken(),
+          getRefreshToken(),
+          getCachedUserData(),
+        ]);
 
         if ((savedToken || savedRefreshToken) && active) {
-          useAuthStore.setState({ token: savedToken, refreshToken: savedRefreshToken });
+          useAuthStore.setState({
+            token: savedToken,
+            refreshToken: savedRefreshToken,
+            user: cachedData?.user || null,
+            profile: cachedData?.profile || null,
+          });
           
-          // Verify with database gracefully; do not kill tokens if server takes >3s
+          // Verify with database gracefully in background; do not wipe tokens if server takes >4s or is redeploying
           try {
             await Promise.race([
               loadUser(),
-              new Promise((_, resolve) => setTimeout(resolve, 5000))
+              new Promise((_, resolve) => setTimeout(resolve, 4000))
             ]);
           } catch (err) {
             console.warn('Initial session fetch note:', err);

@@ -39,6 +39,8 @@ export default function AdminScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -65,13 +67,51 @@ export default function AdminScreen() {
   const [economicsSuccess, setEconomicsSuccess] = useState<string | null>(null);
   const [economicsError, setEconomicsError] = useState<string | null>(null);
 
+  // Helper to retrieve admin token with cookie fallback
+  const getStoredAdminToken = (): string | null => {
+    if (Platform.OS === 'web') {
+      let token = typeof localStorage !== 'undefined' ? (localStorage.getItem('hc_admin_token') || localStorage.getItem('haappy_admin_token')) : null;
+      if (!token && typeof document !== 'undefined') {
+        const match = document.cookie.match(/hc_admin_token=([^;]+)/);
+        if (match) {
+          token = decodeURIComponent(match[1]);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('hc_admin_token', token);
+            localStorage.setItem('haappy_admin_token', token);
+          }
+        }
+      }
+      return token;
+    }
+    return null;
+  };
+
+  const persistAdminToken = (token: string | null) => {
+    if (Platform.OS === 'web') {
+      if (typeof localStorage !== 'undefined') {
+        if (token) {
+          localStorage.setItem('hc_admin_token', token);
+          localStorage.setItem('haappy_admin_token', token);
+        } else {
+          localStorage.removeItem('hc_admin_token');
+          localStorage.removeItem('haappy_admin_token');
+        }
+      }
+      if (typeof document !== 'undefined') {
+        if (token) {
+          document.cookie = `hc_admin_token=${encodeURIComponent(token)}; path=/; max-age=${180 * 24 * 60 * 60}; SameSite=Lax`;
+        } else {
+          document.cookie = `hc_admin_token=; path=/; max-age=0; SameSite=Lax`;
+        }
+      }
+    }
+  };
+
   // Check stored admin token and registration status on mount
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      const stored = localStorage.getItem('hc_admin_token');
-      if (stored) {
-        setAdminToken(stored);
-      }
+    const stored = getStoredAdminToken();
+    if (stored) {
+      setAdminToken(stored);
     }
     fetchRegistrationStatus();
   }, []);
@@ -116,9 +156,7 @@ export default function AdminScreen() {
       if (!res.ok) throw new Error(data.error || 'Login failed');
 
       setAdminToken(data.token);
-      if (Platform.OS === 'web') {
-        localStorage.setItem('hc_admin_token', data.token);
-      }
+      persistAdminToken(data.token);
     } catch (err: any) {
       setLoginError(err.message || 'Invalid administrator credentials');
     } finally {
@@ -133,6 +171,10 @@ export default function AdminScreen() {
     }
     if (password.length < 6) {
       setLoginError('Password must be at least 6 characters');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLoginError('Passwords do not match');
       return;
     }
     setLoginLoading(true);
@@ -152,9 +194,7 @@ export default function AdminScreen() {
       if (!res.ok) throw new Error(data.error || 'Admin creation failed');
 
       setAdminToken(data.token);
-      if (Platform.OS === 'web') {
-        localStorage.setItem('hc_admin_token', data.token);
-      }
+      persistAdminToken(data.token);
       setCreateSuccess('Administrator account created successfully!');
     } catch (err: any) {
       setLoginError(err.message || 'Failed to create administrator account');
@@ -165,9 +205,7 @@ export default function AdminScreen() {
 
   const handleLogout = () => {
     setAdminToken(null);
-    if (Platform.OS === 'web') {
-      localStorage.removeItem('hc_admin_token');
-    }
+    persistAdminToken(null);
     fetchRegistrationStatus();
   };
 
@@ -179,6 +217,11 @@ export default function AdminScreen() {
       const dashRes = await fetch(`${API_URL}/admin/dashboard`, {
         headers: { Authorization: `Bearer ${adminToken}` },
       });
+      if (dashRes.status === 401) {
+        setAdminToken(null);
+        persistAdminToken(null);
+        return;
+      }
       if (dashRes.ok) {
         const d = await dashRes.json();
         setStats(d.summary || null);
@@ -427,7 +470,7 @@ export default function AdminScreen() {
             />
           </View>
 
-          <View className="mb-6">
+          <View className={isCreateMode ? "mb-4" : "mb-6"}>
             <Text className="text-slate-400 text-xs font-bold uppercase mb-1">Password</Text>
             <View className="flex-row items-center bg-[#18222E] border border-[#243242] rounded-2xl px-4">
               <TextInput
@@ -452,6 +495,32 @@ export default function AdminScreen() {
             </View>
           </View>
 
+          {isCreateMode && (
+            <View className="mb-6">
+              <Text className="text-slate-400 text-xs font-bold uppercase mb-1">Confirm Password</Text>
+              <View className="flex-row items-center bg-[#18222E] border border-[#243242] rounded-2xl px-4">
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="••••••••••••"
+                  placeholderTextColor="#475569"
+                  secureTextEntry={!showConfirmPassword}
+                  className="flex-1 py-3 text-white text-sm"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  className="p-1"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={18} color="#94A3B8" />
+                  ) : (
+                    <Eye size={18} color="#94A3B8" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           <TouchableOpacity
             onPress={isCreateMode ? handleAdminCreate : handleAdminLogin}
@@ -465,6 +534,27 @@ export default function AdminScreen() {
                 {isCreateMode ? 'Create Administrator Account' : 'Sign In to Dashboard'}
               </Text>
             )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              if (!isCreateMode && !allowAdminRegistration) return;
+              setIsCreateMode(!isCreateMode);
+              setLoginError(null);
+              setCreateSuccess(null);
+            }}
+            disabled={!isCreateMode && !allowAdminRegistration}
+            className="mt-4 items-center py-2"
+          >
+            <Text className="text-slate-400 text-xs">
+              {isCreateMode ? (
+                <>Already an administrator? <Text className="text-emerald-400 font-bold">Sign In</Text></>
+              ) : allowAdminRegistration ? (
+                <>Need to set up an admin account? <Text className="text-emerald-400 font-bold">Create Account</Text></>
+              ) : (
+                <Text className="text-slate-500 italic">Registration locked by governance policy</Text>
+              )}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

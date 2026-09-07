@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api, setAuthTokens, clearAuthTokens, getAuthToken, getRefreshToken } from '../lib/api';
+import { api, setAuthTokens, clearAuthTokens, getAuthToken, getRefreshToken, setCachedUserData } from '../lib/api';
 import { User, Profile } from '../types';
 
 // Lazy imports to avoid circular dependency — resolved at runtime
@@ -70,16 +70,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateLocalProfile: (updates: Partial<Profile>) => {
     const current = get().profile;
     if (current) {
-      set({ profile: { ...current, ...updates } });
+      const updatedProfile = { ...current, ...updates };
+      set({ profile: updatedProfile });
+      setCachedUserData(get().user, updatedProfile);
     }
   },
-  setGuest: (isGuest) => set({ isGuest, token: null, refreshToken: null, user: null, profile: null }),
+  setGuest: (isGuest) => {
+    set({ isGuest, token: null, refreshToken: null, user: null, profile: null });
+    setCachedUserData(null, null);
+  },
 
   signup: async (email, password, role) => {
     set({ isLoading: true, error: null, isGuest: false });
     try {
       const data = await api.post('/auth/signup', { email, password, role });
       await setAuthTokens(data.token, data.refreshToken);
+      await setCachedUserData(data.user, null);
       set({
         token: data.token,
         refreshToken: data.refreshToken || null,
@@ -98,6 +104,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const data = await api.post('/auth/login', { email, password });
       await setAuthTokens(data.token, data.refreshToken);
+      await setCachedUserData(data.user, data.profile || null);
       set({
         token: data.token,
         refreshToken: data.refreshToken || null,
@@ -116,6 +123,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const data = await api.post('/auth/social-login', payload);
       await setAuthTokens(data.token, data.refreshToken);
+      await setCachedUserData(data.user, data.profile || null);
       set({
         token: data.token,
         refreshToken: data.refreshToken || null,
@@ -133,6 +141,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null, isGuest: false });
     try {
       await setAuthTokens(token, refreshToken || undefined);
+      await setCachedUserData(user, profile);
       set({
         token,
         refreshToken: refreshToken || null,
@@ -159,6 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         api.post('/auth/logout', { refreshToken: currentRefresh }).catch(() => {});
       }
       await clearAuthTokens();
+      await setCachedUserData(null, null);
       set({
         token: null,
         refreshToken: null,
@@ -185,6 +195,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const data = await api.get('/profile/me');
+      await setCachedUserData(data.user, data.profile || null);
       set({
         user: data.user,
         profile: data.profile,
@@ -203,6 +214,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (isAuthUnauthorized) {
         // Genuine authentication rejection — wipe invalid session
         await clearAuthTokens();
+        await setCachedUserData(null, null);
         set({
           token: null,
           refreshToken: null,
@@ -212,8 +224,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
         });
       } else {
-        // Transient network error / timeout / offline / cold-start:
-        // Retain session tokens so user is not logged out!
+        // Transient network error / timeout / server redeploying / cold-start:
+        // Retain session tokens and cached user so user is NEVER logged out!
+        console.log('[AuthStore] Retaining session through transient server update / network status');
         set({ isLoading: false });
       }
     }
@@ -223,6 +236,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const data = await api.post('/profile/setup', profileData);
+      await setCachedUserData(data.user, data.profile);
       set({
         profile: data.profile,
         user: data.user, // Server returns the updated user now

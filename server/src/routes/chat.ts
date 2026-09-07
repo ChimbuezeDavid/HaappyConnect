@@ -6,6 +6,9 @@ import { Profile } from '../models/Profile';
 import { User } from '../models/User';
 import { Question } from '../models/Question';
 import { Booking } from '../models/Booking';
+import { Transaction } from '../models/Transaction';
+import { getSystemSettings } from '../models/SystemSettings';
+import { sendPushNotification } from '../utils/push';
 import { getIO } from '../socket';
 import fs from 'fs';
 import path from 'path';
@@ -217,7 +220,7 @@ router.post('/conversations/:id/read', authenticate, async (req: AuthRequest, re
   }
 });
 
-// GET /api/chat/conversations/:id/consultation-status - Verify active paid consultation requirement
+// GET /api/chat/conversations/:id/consultation-status - Verify active paid consultation requirement & package status
 router.get('/conversations/:id/consultation-status', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -236,11 +239,16 @@ router.get('/conversations/:id/consultation-status', authenticate, async (req: A
     }
 
     const otherUser = await User.findById(otherUserId);
-    if (otherUser?.role !== 'expert') {
-      return res.json({ isGated: false });
-    }
-
     const expertProfile = await Profile.findOne({ user: otherUserId });
+
+    // Check active question in this conversation or between these two users
+    const activeQuestion = await Question.findOne({
+      $or: [
+        { conversation: id, status: { $in: ['pending', 'expired'] } },
+        { seeker: req.userId, expert: otherUserId, status: { $in: ['pending', 'expired'] } },
+        { seeker: otherUserId, expert: req.userId, status: { $in: ['pending', 'expired'] } }
+      ]
+    }).sort({ createdAt: -1 });
 
     const isReplyingExpert = await Question.exists({
       expert: req.userId,
@@ -253,14 +261,27 @@ router.get('/conversations/:id/consultation-status', authenticate, async (req: A
     });
 
     if (isReplyingExpert) {
-      return res.json({ isGated: false });
+      return res.json({
+        isGated: false,
+        activeQuestion: activeQuestion ? {
+          _id: activeQuestion._id,
+          type: activeQuestion.type,
+          status: activeQuestion.status,
+          quotaTotal: activeQuestion.quotaTotal || 1,
+          quotaUsed: activeQuestion.quotaUsed || 0,
+          price: activeQuestion.price,
+          expiresAt: activeQuestion.expiresAt,
+          extendedCount: activeQuestion.extendedCount || 0,
+          escrowStatus: activeQuestion.escrowStatus,
+          seeker: activeQuestion.seeker,
+          expert: activeQuestion.expert
+        } : null
+      });
     }
 
-    const activeQuestion = await Question.findOne({
-      seeker: req.userId,
-      expert: otherUserId,
-      status: 'pending'
-    });
+    if (otherUser?.role !== 'expert') {
+      return res.json({ isGated: false, activeQuestion: null });
+    }
 
     const now = Date.now();
     const activeBooking = await Booking.findOne({
@@ -281,10 +302,28 @@ router.get('/conversations/:id/consultation-status', authenticate, async (req: A
       expertName: expertProfile?.fullName || 'Expert Mentor',
       textQuestionPrice: expertProfile?.textQuestionPrice || 5000,
       videoResponsePrice: expertProfile?.videoResponsePrice || 10000,
+      textPackagePrice: expertProfile?.textPackagePrice || expertProfile?.textQuestionPrice || 3000,
+      textPackageCount: expertProfile?.textPackageCount || 3,
+      videoPackagePrice: expertProfile?.videoPackagePrice || expertProfile?.videoResponsePrice || 5000,
+      videoPackageCount: expertProfile?.videoPackageCount || 1,
+      responseWindowDays: expertProfile?.responseWindowDays || 3,
       callPricePerMinute: expertProfile?.callPricePerMinute || 500,
       hourlyRate: expertProfile?.hourlyRate || 30000,
       hasActiveQuestion: !!activeQuestion,
-      hasActiveBooking: !!activeBooking
+      hasActiveBooking: !!activeBooking,
+      activeQuestion: activeQuestion ? {
+        _id: activeQuestion._id,
+        type: activeQuestion.type,
+        status: activeQuestion.status,
+        quotaTotal: activeQuestion.quotaTotal || 1,
+        quotaUsed: activeQuestion.quotaUsed || 0,
+        price: activeQuestion.price,
+        expiresAt: activeQuestion.expiresAt,
+        extendedCount: activeQuestion.extendedCount || 0,
+        escrowStatus: activeQuestion.escrowStatus,
+        seeker: activeQuestion.seeker,
+        expert: activeQuestion.expert
+      } : null
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Error checking consultation status' });
@@ -332,9 +371,10 @@ router.post('/conversations/:id/messages', authenticate, async (req: AuthRequest
 
       if (!isReplyingExpert) {
         const activeQuestion = await Question.findOne({
-          seeker: req.userId,
-          expert: otherUserId,
-          status: 'pending'
+          $or: [
+            { conversation: id, status: 'pending' },
+            { seeker: req.userId, expert: otherUserId, status: 'pending' }
+          ]
         });
 
         const now = Date.now();
@@ -374,6 +414,69 @@ router.post('/conversations/:id/messages', authenticate, async (req: AuthRequest
       }
     });
     await conversation.save();
+
+    // Check if the sender is an expert fulfilling an active consultation in this thread
+    const activeConsultation = await Question.findOne({
+      $or: [
+        { conversation: id, expert: req.userId, status: 'pending' },
+        { expert: req.userId, seeker: otherUserId, status: 'pending' }
+      ]
+    });
+
+    if (activeConsultation) {
+      activeConsultation.quotaUsed = (activeConsultation.quotaUsed || 0) + 1;
+      const isFulfilled = activeConsultation.quotaUsed >= (activeConsultation.quotaTotal || 1);
+
+      if (isFulfilled) {
+        activeConsultation.status = 'answered';
+        activeConsultation.escrowStatus = 'released';
+        activeConsultation.answeredAt = new Date();
+
+        // Release escrow payout to expert Earnings
+        const settings = await getSystemSettings();
+        const feeRatio = (100 - settings.platformFeePercentage) / 100;
+        const payoutTx = new Transaction({
+          user: activeConsultation.expert,
+          amount: activeConsultation.price * feeRatio,
+          type: 'charge',
+          status: 'success',
+          description: `Earnings: Completed ${activeConsultation.type} advisory package (${100 - settings.platformFeePercentage}% payout)`,
+          metadata: { questionId: activeConsultation._id }
+        });
+        await payoutTx.save();
+
+        // Notify seeker
+        try {
+          const io = getIO();
+          io.to(`user:${activeConsultation.seeker}`).emit('notification', {
+            type: 'question_answered',
+            title: 'Consultation Package Completed',
+            body: 'Your expert has provided all responses for your consultation package.',
+            data: { questionId: activeConsultation._id, conversationId: id }
+          });
+          sendPushNotification(
+            activeConsultation.seeker.toString(),
+            'Consultation Package Completed',
+            'Your expert has provided all responses for your consultation package.',
+            { questionId: activeConsultation._id, conversationId: id }
+          );
+        } catch (_) {}
+      }
+
+      await activeConsultation.save();
+
+      // Emit live consultation progress update to room
+      try {
+        const io = getIO();
+        io.to(id).emit('consultationUpdated', {
+          questionId: activeConsultation._id,
+          quotaUsed: activeConsultation.quotaUsed,
+          quotaTotal: activeConsultation.quotaTotal,
+          status: activeConsultation.status,
+          escrowStatus: activeConsultation.escrowStatus
+        });
+      } catch (_) {}
+    }
 
     // Broadcast via socket if initialized
     try {

@@ -136,7 +136,7 @@ export default function TabLayout() {
               title: isExpert ? 'Earnings' : 'Wallet',
               tabBarLabel: renderTabLabel(isExpert ? 'Earnings' : 'Wallet'),
               tabBarIcon: ({ color, size }) => <Wallet size={size} color={color} />,
-              headerTitle: isExpert ? 'Earnings & Payouts (₦)' : 'Naira Wallet (₦)',
+              headerTitle: isExpert ? 'Earnings' : 'Naira Wallet (₦)',
             }}
           />
           <Tabs.Screen

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
 import { Category } from '@/types';
-import { Sparkles, User, FileText, Check, Camera, Image as ImageIcon } from 'lucide-react-native';
+import { Sparkles, User, FileText, Check, Camera, Image as ImageIcon, MessageSquare, Video, Clock } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useColorScheme } from 'nativewind';
 
@@ -20,8 +20,21 @@ export default function EditProfileModal() {
   const [headline, setHeadline] = useState(profile?.headline || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [hourlyRate, setHourlyRate] = useState(profile?.hourlyRate?.toString() || '');
-  const [textQuestionPrice, setTextQuestionPrice] = useState(profile?.textQuestionPrice?.toString() || '');
-  const [videoResponsePrice, setVideoResponsePrice] = useState(profile?.videoResponsePrice?.toString() || '');
+  const [textPackagePrice, setTextPackagePrice] = useState(
+    profile?.textPackagePrice?.toString() || profile?.textQuestionPrice?.toString() || '3000'
+  );
+  const [textPackageCount, setTextPackageCount] = useState(
+    profile?.textPackageCount?.toString() || '3'
+  );
+  const [videoPackagePrice, setVideoPackagePrice] = useState(
+    profile?.videoPackagePrice?.toString() || profile?.videoResponsePrice?.toString() || '5000'
+  );
+  const [videoPackageCount, setVideoPackageCount] = useState(
+    profile?.videoPackageCount?.toString() || '1'
+  );
+  const [responseWindowDays, setResponseWindowDays] = useState(
+    profile?.responseWindowDays?.toString() || '3'
+  );
   
   // Category states
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
@@ -121,8 +134,13 @@ export default function EditProfileModal() {
         headline,
         bio,
         hourlyRate: Number(hourlyRate) || 0,
-        textQuestionPrice: Number(textQuestionPrice) || 0,
-        videoResponsePrice: Number(videoResponsePrice) || 0,
+        textQuestionPrice: Number(textPackagePrice) || 0,
+        videoResponsePrice: Number(videoPackagePrice) || 0,
+        textPackagePrice: Number(textPackagePrice) || 0,
+        textPackageCount: Math.max(1, Number(textPackageCount) || 1),
+        videoPackagePrice: Number(videoPackagePrice) || 0,
+        videoPackageCount: Math.max(1, Number(videoPackageCount) || 1),
+        responseWindowDays: Math.max(1, Number(responseWindowDays) || 3),
         categories: selectedCategories,
       });
       Alert.alert('Success', 'Profile updated successfully', [
@@ -229,53 +247,135 @@ export default function EditProfileModal() {
             </View>
           </View>
 
-          {/* Pricing Grid */}
-          <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Pricing Packages (₦ Naira)</Text>
+          {/* Advisory Packages & Quotas (Marketplace Configuration) */}
+          <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+            Advisory Packages & Quotas
+          </Text>
+          <Text className="text-slate-500 dark:text-slate-400 text-xs mb-4">
+            Configure your pricing terms and consultation limits. Seekers can book these exact terms.
+          </Text>
+
+          {/* Written Advisory Package Card */}
+          <View className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 mb-4">
+            <View className="flex-row items-center mb-3">
+              <View className="w-8 h-8 rounded-xl bg-emerald-500/10 items-center justify-center mr-2.5">
+                <MessageSquare size={16} color="#059669" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-slate-900 dark:text-white font-bold text-sm">Written Advisory Package</Text>
+                <Text className="text-slate-500 dark:text-slate-400 text-[11px]">Set total package fee and question quota</Text>
+              </View>
+            </View>
+
+            <View className="flex-row space-x-3">
+              <View className="flex-1 mr-2">
+                <Text className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold mb-1">Package Price (₦)</Text>
+                <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                  <Text className="text-slate-400 font-bold text-sm mr-1">₦</Text>
+                  <TextInput
+                    value={textPackagePrice}
+                    onChangeText={setTextPackagePrice}
+                    placeholder="3000"
+                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+                    keyboardType="numeric"
+                    className="flex-1 text-slate-900 dark:text-white text-sm font-bold"
+                  />
+                </View>
+              </View>
+
+              <View className="flex-1">
+                <Text className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold mb-1">Questions Included</Text>
+                <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                  <TextInput
+                    value={textPackageCount}
+                    onChangeText={setTextPackageCount}
+                    placeholder="3"
+                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+                    keyboardType="numeric"
+                    className="flex-1 text-slate-900 dark:text-white text-sm font-bold"
+                  />
+                  <Text className="text-slate-400 text-xs font-semibold ml-1">Qs</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Video Breakdown Package Card */}
+          <View className="bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 mb-4">
+            <View className="flex-row items-center mb-3">
+              <View className="w-8 h-8 rounded-xl bg-purple-500/10 items-center justify-center mr-2.5">
+                <Video size={16} color="#9333ea" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-slate-900 dark:text-white font-bold text-sm">Video Breakdown Package</Text>
+                <Text className="text-slate-500 dark:text-slate-400 text-[11px]">Set video fee and recorded video count</Text>
+              </View>
+            </View>
+
+            <View className="flex-row space-x-3">
+              <View className="flex-1 mr-2">
+                <Text className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold mb-1">Package Price (₦)</Text>
+                <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                  <Text className="text-slate-400 font-bold text-sm mr-1">₦</Text>
+                  <TextInput
+                    value={videoPackagePrice}
+                    onChangeText={setVideoPackagePrice}
+                    placeholder="5000"
+                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+                    keyboardType="numeric"
+                    className="flex-1 text-slate-900 dark:text-white text-sm font-bold"
+                  />
+                </View>
+              </View>
+
+              <View className="flex-1">
+                <Text className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold mb-1">Videos Included</Text>
+                <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                  <TextInput
+                    value={videoPackageCount}
+                    onChangeText={setVideoPackageCount}
+                    placeholder="1"
+                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+                    keyboardType="numeric"
+                    className="flex-1 text-slate-900 dark:text-white text-sm font-bold"
+                  />
+                  <Text className="text-slate-400 text-xs font-semibold ml-1">Vids</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Turnaround & Live Call Rates */}
           <View className="flex-row space-x-3 mb-6">
-            {/* Hourly Rate */}
             <View className="flex-1 mr-2">
-              <Text className="text-slate-500 dark:text-slate-400 text-[10px] mb-1">Hourly Live Call</Text>
-              <View className="flex-row items-center bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl px-3.5 py-2.5">
-                <Text className="text-[#94a3b8] font-bold text-base mr-1">₦</Text>
+              <View className="flex-row items-center mb-1">
+                <Clock size={12} color="#64748b" style={{ marginRight: 4 }} />
+                <Text className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold">Response SLA</Text>
+              </View>
+              <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                <TextInput
+                  value={responseWindowDays}
+                  onChangeText={setResponseWindowDays}
+                  placeholder="3"
+                  placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+                  keyboardType="numeric"
+                  className="flex-1 text-slate-900 dark:text-white text-sm font-bold"
+                />
+                <Text className="text-slate-400 text-xs font-semibold ml-1">Days</Text>
+              </View>
+            </View>
+
+            <View className="flex-1">
+              <Text className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold mb-1">Hourly Live Call</Text>
+              <View className="flex-row items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
+                <Text className="text-slate-400 font-bold text-sm mr-1">₦</Text>
                 <TextInput
                   value={hourlyRate}
                   onChangeText={setHourlyRate}
-                  placeholder="Hourly Rate"
+                  placeholder="25000"
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   keyboardType="numeric"
-                  className="flex-1 text-slate-900 dark:text-white ml-1 text-sm font-bold"
-                />
-              </View>
-            </View>
-
-            {/* Text Question */}
-            <View className="flex-1 mr-2">
-              <Text className="text-slate-500 dark:text-slate-400 text-[10px] mb-1">Text Question</Text>
-              <View className="flex-row items-center bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl px-3.5 py-2.5">
-                <Text className="text-[#94a3b8] font-bold text-base mr-1">₦</Text>
-                <TextInput
-                  value={textQuestionPrice}
-                  onChangeText={setTextQuestionPrice}
-                  placeholder="Text Price"
-                  placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                  keyboardType="numeric"
-                  className="flex-1 text-slate-900 dark:text-white ml-1 text-sm font-bold"
-                />
-              </View>
-            </View>
-
-            {/* Video Response */}
-            <View className="flex-1">
-              <Text className="text-slate-500 dark:text-slate-400 text-[10px] mb-1">Video Answer</Text>
-              <View className="flex-row items-center bg-slate-100 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl px-3.5 py-2.5">
-                <Text className="text-[#94a3b8] font-bold text-base mr-1">₦</Text>
-                <TextInput
-                  value={videoResponsePrice}
-                  onChangeText={setVideoResponsePrice}
-                  placeholder="Video Price"
-                  placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                  keyboardType="numeric"
-                  className="flex-1 text-slate-900 dark:text-white ml-1 text-sm font-bold"
+                  className="flex-1 text-slate-900 dark:text-white text-sm font-bold"
                 />
               </View>
             </View>

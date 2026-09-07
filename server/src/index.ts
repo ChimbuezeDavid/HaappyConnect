@@ -57,18 +57,6 @@ if (!fs.existsSync(uploadsPath)) {
 }
 app.use('/uploads', express.static(uploadsPath));
 
-// Serve Admin Web App Extension
-const adminPublicPath = fs.existsSync(path.join(__dirname, '../public/admin'))
-  ? path.join(__dirname, '../public/admin')
-  : path.join(process.cwd(), 'public/admin');
-
-if (fs.existsSync(adminPublicPath)) {
-  app.use('/admin', express.static(adminPublicPath));
-  app.get(['/admin', '/admin/*'], (req, res) => {
-    res.sendFile(path.join(adminPublicPath, 'index.html'));
-  });
-}
-
 // Normalize duplicate slashes in request URLs
 app.use((req, res, next) => {
   if (req.url.includes('//')) {
@@ -97,8 +85,20 @@ app.use(['/api/question', '/question'], questionRoutes);
 app.use(['/api/wallet', '/wallet'], walletRoutes);
 app.use(['/api/review', '/review'], reviewRoutes);
 app.use(['/api/chat', '/chat'], chatRoutes);
-app.use(['/api/admin', '/admin'], adminRoutes);
+app.use(['/api/admin', '/admin/api'], adminRoutes);
 app.use(['/api/support', '/support'], supportRoutes);
+
+// Serve Admin Web App Extension (served at /admin after API routes)
+const adminPublicPath = fs.existsSync(path.join(__dirname, '../public/admin'))
+  ? path.join(__dirname, '../public/admin')
+  : path.join(process.cwd(), 'public/admin');
+
+if (fs.existsSync(adminPublicPath)) {
+  app.use('/admin', express.static(adminPublicPath));
+  app.get(['/admin', '/admin/*'], (req, res) => {
+    res.sendFile(path.join(adminPublicPath, 'index.html'));
+  });
+}
 
 // Socket.io Setup
 const io = initSocket(httpServer);

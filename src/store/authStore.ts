@@ -49,6 +49,11 @@ interface AuthState {
     hourlyRate?: number;
     textQuestionPrice?: number;
     videoResponsePrice?: number;
+    textPackagePrice?: number;
+    textPackageCount?: number;
+    videoPackagePrice?: number;
+    videoPackageCount?: number;
+    responseWindowDays?: number;
     categories?: string[];
     role?: 'seeker' | 'expert';
   }) => Promise<void>;

@@ -116,16 +116,31 @@ export default function AdminScreen() {
     fetchRegistrationStatus();
   }, []);
 
+  const safeFetchJson = async (url: string, options: RequestInit = {}) => {
+    const res = await fetch(url, options);
+    const text = await res.text();
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      if (res.status === 404) {
+        throw new Error('Admin API endpoint was not found on server (404). Please ensure the backend is deployed.');
+      }
+      throw new Error(`Server returned unexpected response (${res.status})`);
+    }
+    if (!res.ok) {
+      throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
+    }
+    return data;
+  };
+
   const fetchRegistrationStatus = async () => {
     try {
-      const res = await fetch(`${API_URL}/admin/registration-status`);
-      if (res.ok) {
-        const data = await res.json();
-        const allowed = data.allowAdminRegistration !== false;
-        setAllowAdminRegistration(allowed);
-        if (!allowed) {
-          setIsCreateMode(false);
-        }
+      const data = await safeFetchJson(`${API_URL}/admin/registration-status`);
+      const allowed = data.allowAdminRegistration !== false;
+      setAllowAdminRegistration(allowed);
+      if (!allowed) {
+        setIsCreateMode(false);
       }
     } catch (err) {
       console.warn('Failed to fetch admin registration status:', err);
@@ -147,13 +162,11 @@ export default function AdminScreen() {
     setLoginError(null);
     setCreateSuccess(null);
     try {
-      const res = await fetch(`${API_URL}/admin/login`, {
+      const data = await safeFetchJson(`${API_URL}/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
 
       setAdminToken(data.token);
       persistAdminToken(data.token);
@@ -181,7 +194,7 @@ export default function AdminScreen() {
     setLoginError(null);
     setCreateSuccess(null);
     try {
-      const res = await fetch(`${API_URL}/admin/setup`, {
+      const data = await safeFetchJson(`${API_URL}/admin/setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -190,8 +203,6 @@ export default function AdminScreen() {
           password,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Admin creation failed');
 
       setAdminToken(data.token);
       persistAdminToken(data.token);
@@ -270,7 +281,7 @@ export default function AdminScreen() {
     setEconomicsError(null);
     try {
       const newStatus = !allowAdminRegistration;
-      const res = await fetch(`${API_URL}/admin/settings`, {
+      await safeFetchJson(`${API_URL}/admin/settings`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${adminToken}`,
@@ -280,8 +291,6 @@ export default function AdminScreen() {
           allowAdminRegistration: newStatus,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update admin registration status');
       setAllowAdminRegistration(newStatus);
       setEconomicsSuccess(
         newStatus
@@ -301,7 +310,7 @@ export default function AdminScreen() {
     setEconomicsSuccess(null);
     setEconomicsError(null);
     try {
-      const res = await fetch(`${API_URL}/admin/settings`, {
+      await safeFetchJson(`${API_URL}/admin/settings`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${adminToken}`,
@@ -314,8 +323,6 @@ export default function AdminScreen() {
           allowAdminRegistration: allowAdminRegistration,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update economics');
       setEconomicsSuccess('Platform economics and security policy updated successfully!');
     } catch (err: any) {
       setEconomicsError(err.message || 'Failed to save economics settings');

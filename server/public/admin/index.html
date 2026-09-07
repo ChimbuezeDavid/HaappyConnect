@@ -398,7 +398,96 @@
       transition: background 0.2s;
     }
     .btn-primary:hover { background: var(--emerald-accent); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
     .hidden { display: none !important; }
+
+    /* Auth Modes & Inputs */
+    .auth-mode-switch {
+      display: flex;
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 6px;
+      gap: 4px;
+    }
+    .auth-mode-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--muted-text);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 9px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .auth-mode-btn.active {
+      background: var(--emerald-primary);
+      color: #fff;
+    }
+    .auth-mode-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+    .input-wrapper .form-input {
+      width: 100%;
+      padding-right: 44px;
+      box-sizing: border-box;
+    }
+    .input-eye-btn {
+      position: absolute;
+      right: 8px;
+      background: transparent;
+      border: none;
+      color: var(--muted-text);
+      cursor: pointer;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: color 0.2s;
+    }
+    .input-eye-btn:hover {
+      color: var(--alabaster);
+    }
+    .auth-switch-link {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted-text);
+      margin-top: 4px;
+    }
+    .auth-switch-link a {
+      color: var(--emerald-accent);
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .auth-switch-link a:hover {
+      text-decoration: underline;
+    }
+    .auth-lock-notice {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #FBBF24;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      line-height: 1.4;
+    }
 
     /* Toast */
     .toast-box {
@@ -461,22 +550,88 @@
     <div class="modal-content">
       <div style="text-align: center;">
         <div class="brand-logo" style="margin: 0 auto 12px; width: 48px; height: 48px;">H</div>
-        <h2 style="font-size: 20px; font-weight: 800;">Administrator Sign In</h2>
-        <p style="font-size: 12px; color: var(--muted-text); margin-top: 4px;">Enter administrator credentials to unlock the operations suite.</p>
+        <h2 id="authModalTitle" style="font-size: 20px; font-weight: 800;">Administrator Sign In</h2>
+        <p id="authModalSubtitle" style="font-size: 12px; color: var(--muted-text); margin-top: 4px;">Enter administrator credentials to unlock the operations suite.</p>
+      </div>
+
+      <!-- Mode Switcher Tabs -->
+      <div class="auth-mode-switch">
+        <button type="button" id="authModeSignInBtn" class="auth-mode-btn active" onclick="setAuthMode('login')">Sign In</button>
+        <button type="button" id="authModeSignUpBtn" class="auth-mode-btn" onclick="setAuthMode('signup')">Create Admin</button>
+      </div>
+
+      <div id="regLockedNotice" class="auth-lock-notice hidden">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        <span>Registration locked. Unauthorized creation is restricted by portal governance.</span>
       </div>
 
       <div id="loginError" class="hidden" style="background: rgba(239,68,68,0.2); border: 1px solid var(--danger); padding: 10px; border-radius: 8px; font-size: 12px; color: #FCA5A5; text-align: center;"></div>
+      <div id="loginSuccess" class="hidden" style="background: rgba(16,185,129,0.15); border: 1px solid var(--emerald-primary); padding: 10px; border-radius: 8px; font-size: 12px; color: #6EE7B7; text-align: center;"></div>
 
+      <!-- SIGN IN FORM -->
       <form id="loginForm" onsubmit="handleLogin(event)" style="display: flex; flex-direction: column; gap: 14px;">
         <div class="form-group">
           <label class="form-label">Administrator Email</label>
-          <input type="email" id="loginEmail" class="form-input" required value="admin@haappyconnect.com" />
+          <input type="email" id="loginEmail" class="form-input" required placeholder="admin@haappyconnect.com" autocomplete="email" />
         </div>
         <div class="form-group">
           <label class="form-label">Password</label>
-          <input type="password" id="loginPassword" class="form-input" required value="AdminPass123!" />
+          <div class="input-wrapper">
+            <input type="password" id="loginPassword" class="form-input" required placeholder="••••••••••••" autocomplete="current-password" />
+            <button type="button" class="input-eye-btn" onclick="togglePasswordVisibility('loginPassword', this)" title="Show/Hide Password" aria-label="Toggle password visibility">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
         </div>
         <button type="submit" id="loginSubmitBtn" class="btn-primary">Unlock Operations Console</button>
+        <div class="auth-switch-link" id="loginSwitchPrompt">
+          <span>Need to set up an admin account? <a onclick="setAuthMode('signup')">Create Account</a></span>
+        </div>
+      </form>
+
+      <!-- SIGN UP FORM -->
+      <form id="signupForm" class="hidden" onsubmit="handleAdminSignup(event)" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label">Full Name (Optional)</label>
+          <input type="text" id="signupName" class="form-input" placeholder="Platform Administrator" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Admin Email</label>
+          <input type="email" id="signupEmail" class="form-input" required placeholder="admin@haappyconnect.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password (Min. 6 characters)</label>
+          <div class="input-wrapper">
+            <input type="password" id="signupPassword" class="form-input" required minlength="6" placeholder="••••••••••••" autocomplete="new-password" />
+            <button type="button" class="input-eye-btn" onclick="togglePasswordVisibility('signupPassword', this)" title="Show/Hide Password" aria-label="Toggle password visibility">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <div class="input-wrapper">
+            <input type="password" id="signupConfirmPassword" class="form-input" required minlength="6" placeholder="••••••••••••" autocomplete="new-password" />
+            <button type="button" class="input-eye-btn" onclick="togglePasswordVisibility('signupConfirmPassword', this)" title="Show/Hide Password" aria-label="Toggle password visibility">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" id="signupSubmitBtn" class="btn-primary">Create Administrator Account</button>
+        <div class="auth-switch-link">
+          <span>Already an administrator? <a onclick="setAuthMode('login')">Sign In</a></span>
+        </div>
       </form>
     </div>
   </div>
@@ -523,6 +678,7 @@
       <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn">Leaderboard</button>
       <button onclick="switchTab('transactions')" id="tab-transactions" class="tab-btn">Transaction Ledger (₦)</button>
       <button onclick="switchTab('consultations')" id="tab-consultations" class="tab-btn">Live Consultations</button>
+      <button onclick="switchTab('governance')" id="tab-governance" class="tab-btn">Platform Governance</button>
     </div>
 
     <!-- VIEW 1: EXPERT APPROVAL QUEUE -->
@@ -651,6 +807,49 @@
       </div>
     </section>
 
+    <!-- VIEW 5: PLATFORM GOVERNANCE & SECURITY -->
+    <section id="view-governance" class="hidden" style="display: none; flex-direction: column; gap: 20px;">
+      <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 16px; padding: 24px;">
+        <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 6px;">Administrator Security & Portal Lockdown</h3>
+        <p style="font-size: 13px; color: var(--muted-text); margin-bottom: 20px;">
+          Control administrator onboarding access. When registration is locked down, only existing authenticated administrators can access this portal and no new administrator accounts can be created.
+        </p>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="font-size: 14px; font-weight: 700;">Admin Account Registration</div>
+            <div id="govLockStatusLabel" style="font-size: 12px; color: var(--emerald-accent); margin-top: 2px;">Registration is currently Open</div>
+          </div>
+          <button id="govToggleRegBtn" onclick="toggleRegistrationLockdown()" class="btn-primary" style="width: auto; padding: 9px 20px; font-size: 13px;">
+            Lock Registration
+          </button>
+        </div>
+
+        <h3 style="font-size: 16px; font-weight: 800; margin-top: 28px; margin-bottom: 6px;">Platform Economics & Service Level Agreement</h3>
+        <p style="font-size: 13px; color: var(--muted-text); margin-bottom: 16px;">
+          Configure global marketplace defaults, escrow splits, and seeker-expert SLAs.
+        </p>
+
+        <form id="governanceForm" onsubmit="savePlatformSettings(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; align-items: flex-end;">
+          <div class="form-group">
+            <label class="form-label">Platform Fee (%)</label>
+            <input type="number" id="govPlatformFee" class="form-input" min="0" max="100" step="1" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Base Live Call Price / Min (₦)</label>
+            <input type="number" id="govBaseCallPrice" class="form-input" min="0" step="50" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Response SLA Window (Days)</label>
+            <input type="number" id="govSlaDays" class="form-input" min="1" max="30" step="1" required />
+          </div>
+          <div>
+            <button type="submit" id="govSaveBtn" class="btn-primary" style="height: 42px;">Save Platform Policies</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
   </main>
 
   <!-- TOAST -->
@@ -663,14 +862,26 @@
     let currentFilter = 'all';
     let searchDebounceTimer = null;
 
-    function getToken() { return localStorage.getItem('haappy_admin_token'); }
-    function setToken(token) { localStorage.setItem('haappy_admin_token', token); }
-    function removeToken() { localStorage.removeItem('haappy_admin_token'); }
+    let allowAdminRegistration = true;
+
+    function getToken() { 
+      return localStorage.getItem('haappy_admin_token') || localStorage.getItem('hc_admin_token'); 
+    }
+    function setToken(token) { 
+      localStorage.setItem('haappy_admin_token', token); 
+      localStorage.setItem('hc_admin_token', token);
+      document.cookie = `hc_admin_token=${encodeURIComponent(token)}; path=/; max-age=${180 * 24 * 60 * 60}; SameSite=Lax`;
+    }
+    function removeToken() { 
+      localStorage.removeItem('haappy_admin_token'); 
+      localStorage.removeItem('hc_admin_token');
+      document.cookie = 'hc_admin_token=; path=/; max-age=0; SameSite=Lax';
+    }
 
     // Fast fetch with AbortController timeout (4s max)
     async function fetchWithTimeout(url, options = {}) {
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 4000);
+      const id = setTimeout(() => controller.abort(), 6000);
       try {
         const response = await fetch(url, { ...options, signal: controller.signal });
         clearTimeout(id);
@@ -686,11 +897,81 @@
       toast.innerText = msg;
       toast.style.borderColor = isError ? '#EF4444' : '#059669';
       toast.classList.remove('hidden');
-      setTimeout(() => toast.classList.add('hidden'), 3000);
+      setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    function setAuthMode(mode) {
+      const isSignup = mode === 'signup';
+      if (isSignup && !allowAdminRegistration) {
+        showToast('Administrator registration is locked down to prevent unauthorized access', true);
+        return;
+      }
+      document.getElementById('authModeSignInBtn').classList.toggle('active', !isSignup);
+      document.getElementById('authModeSignUpBtn').classList.toggle('active', isSignup);
+      document.getElementById('loginForm').classList.toggle('hidden', isSignup);
+      document.getElementById('signupForm').classList.toggle('hidden', !isSignup);
+      document.getElementById('authModalTitle').innerText = isSignup ? 'Create Administrator Account' : 'Administrator Sign In';
+      document.getElementById('authModalSubtitle').innerText = isSignup 
+        ? 'Register or provision a verified administrator node with platform governance access.' 
+        : 'Enter administrator credentials to unlock the operations suite.';
+      const errBox = document.getElementById('loginError');
+      errBox.classList.add('hidden');
+      errBox.innerText = '';
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const isPass = input.type === 'password';
+      input.type = isPass ? 'text' : 'password';
+      btn.innerHTML = isPass ? `
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+        </svg>
+      ` : `
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+      `;
+    }
+
+    async function checkRegistrationStatus() {
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/registration-status`);
+        if (res.ok) {
+          const data = await res.json();
+          allowAdminRegistration = data.allowAdminRegistration !== false;
+          const regNotice = document.getElementById('regLockedNotice');
+          const signUpBtn = document.getElementById('authModeSignUpBtn');
+          const loginPrompt = document.getElementById('loginSwitchPrompt');
+          
+          if (!allowAdminRegistration) {
+            if (regNotice) regNotice.classList.remove('hidden');
+            if (signUpBtn) {
+              signUpBtn.disabled = true;
+              signUpBtn.title = 'Registration locked by administrator';
+            }
+            if (loginPrompt) loginPrompt.classList.add('hidden');
+            setAuthMode('login');
+          } else {
+            if (regNotice) regNotice.classList.add('hidden');
+            if (signUpBtn) {
+              signUpBtn.disabled = false;
+              signUpBtn.title = '';
+            }
+            if (loginPrompt) loginPrompt.classList.remove('hidden');
+          }
+        }
+      } catch (err) {
+        console.warn('Registration status check failed:', err);
+      }
     }
 
     async function checkAuth() {
       const token = getToken();
+      await checkRegistrationStatus();
+
       if (!token) {
         document.getElementById('loginModal').classList.remove('hidden');
         document.getElementById('adminUserBadge').classList.add('hidden');
@@ -720,7 +1001,7 @@
 
     async function handleLogin(e) {
       e.preventDefault();
-      const email = document.getElementById('loginEmail').value;
+      const email = document.getElementById('loginEmail').value.trim().toLowerCase();
       const password = document.getElementById('loginPassword').value;
       const btn = document.getElementById('loginSubmitBtn');
       const errBox = document.getElementById('loginError');
@@ -755,31 +1036,92 @@
       }
     }
 
+    async function handleAdminSignup(e) {
+      e.preventDefault();
+      const name = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+      const password = document.getElementById('signupPassword').value;
+      const confirmPassword = document.getElementById('signupConfirmPassword').value;
+      const btn = document.getElementById('signupSubmitBtn');
+      const errBox = document.getElementById('loginError');
+
+      if (!email || !password) {
+        errBox.innerText = 'Email and password are required';
+        errBox.classList.remove('hidden');
+        return;
+      }
+      if (password.length < 6) {
+        errBox.innerText = 'Password must be at least 6 characters long';
+        errBox.classList.remove('hidden');
+        return;
+      }
+      if (password !== confirmPassword) {
+        errBox.innerText = 'Passwords do not match';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'Creating Administrator...';
+      errBox.classList.add('hidden');
+
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/setup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name: name || undefined })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create administrator account');
+
+        setToken(data.token);
+        document.getElementById('loginModal').classList.add('hidden');
+        const badge = document.getElementById('adminUserBadge');
+        badge.classList.remove('hidden');
+        badge.style.display = 'flex';
+        document.getElementById('adminEmailDisplay').innerText = data.admin.email;
+        showToast('Administrator Account Created Successfully!');
+        fetchDashboardData();
+      } catch (err) {
+        errBox.innerText = err.message || 'Registration failed';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Create Administrator Account';
+      }
+    }
+
     function logoutAdmin() {
       removeToken();
       document.getElementById('loginModal').classList.remove('hidden');
       document.getElementById('adminUserBadge').classList.add('hidden');
       showToast('Logged out of Admin Suite');
+      checkRegistrationStatus();
     }
 
     function switchTab(tab) {
-      const tabs = ['experts', 'leaderboard', 'transactions', 'consultations'];
+      const tabs = ['experts', 'leaderboard', 'transactions', 'consultations', 'governance'];
       tabs.forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
         const view = document.getElementById(`view-${t}`);
         if (t === tab) {
-          btn.classList.add('active');
-          view.classList.remove('hidden');
-          view.style.display = 'flex';
+          if (btn) btn.classList.add('active');
+          if (view) {
+            view.classList.remove('hidden');
+            view.style.display = 'flex';
+          }
         } else {
-          btn.classList.remove('active');
-          view.classList.add('hidden');
-          view.style.display = 'none';
+          if (btn) btn.classList.remove('active');
+          if (view) {
+            view.classList.add('hidden');
+            view.style.display = 'none';
+          }
         }
       });
       if (tab === 'leaderboard') fetchLeaderboard();
       if (tab === 'transactions') fetchTransactions();
       if (tab === 'consultations') fetchConsultations();
+      if (tab === 'governance') fetchGovernanceSettings();
     }
 
     function setExpertFilter(filter) {
@@ -1006,6 +1348,107 @@
           `).join('');
       } catch (err) {
         bBody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #FCA5A5;">Error loading consultations</td></tr>`;
+      }
+    }
+
+    async function fetchGovernanceSettings() {
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/settings`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) throw new Error('Failed to load platform settings');
+        const data = await res.json();
+
+        allowAdminRegistration = data.allowAdminRegistration !== false;
+        updateGovUI();
+
+        document.getElementById('govPlatformFee').value = data.platformFeePercentage ?? 20;
+        document.getElementById('govBaseCallPrice').value = data.baseLiveCallPricePerMinute ?? 500;
+        document.getElementById('govSlaDays').value = data.responseSlaDays ?? 7;
+      } catch (err) {
+        showToast(err.message || 'Failed to fetch settings', true);
+      }
+    }
+
+    function updateGovUI() {
+      const label = document.getElementById('govLockStatusLabel');
+      const btn = document.getElementById('govToggleRegBtn');
+      if (!label || !btn) return;
+      if (allowAdminRegistration) {
+        label.innerText = 'Registration is currently Open (New admins can sign up)';
+        label.style.color = 'var(--emerald-accent)';
+        btn.innerText = 'Lock Down Registration';
+        btn.style.background = 'rgba(239, 68, 68, 0.2)';
+        btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        btn.style.color = '#F87171';
+      } else {
+        label.innerText = 'Registration is Locked Down (Unauthorized creation blocked)';
+        label.style.color = 'var(--amber-gold)';
+        btn.innerText = 'Unlock Registration';
+        btn.style.background = 'var(--emerald-primary)';
+        btn.style.borderColor = 'var(--emerald-primary)';
+        btn.style.color = '#FFFFFF';
+      }
+    }
+
+    async function toggleRegistrationLockdown() {
+      const btn = document.getElementById('govToggleRegBtn');
+      btn.disabled = true;
+      const newStatus = !allowAdminRegistration;
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/settings`, {
+          method: 'PATCH',
+          headers: { 
+            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ allowAdminRegistration: newStatus })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update registration status');
+
+        allowAdminRegistration = newStatus;
+        updateGovUI();
+        showToast(newStatus ? 'Admin registration unlocked' : 'Admin registration locked down!');
+      } catch (err) {
+        showToast(err.message || 'Failed to update lockdown', true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function savePlatformSettings(e) {
+      e.preventDefault();
+      const btn = document.getElementById('govSaveBtn');
+      btn.disabled = true;
+      btn.innerText = 'Saving...';
+
+      const platformFeePercentage = Number(document.getElementById('govPlatformFee').value);
+      const baseLiveCallPricePerMinute = Number(document.getElementById('govBaseCallPrice').value);
+      const responseSlaDays = Number(document.getElementById('govSlaDays').value);
+
+      try {
+        const res = await fetchWithTimeout(`${API_BASE}/settings`, {
+          method: 'PATCH',
+          headers: { 
+            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            platformFeePercentage,
+            baseLiveCallPricePerMinute,
+            responseSlaDays,
+            allowAdminRegistration
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save settings');
+        showToast('Platform governance & economics saved successfully');
+      } catch (err) {
+        showToast(err.message || 'Failed to save settings', true);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Save Platform Policies';
       }
     }
 

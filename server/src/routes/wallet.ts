@@ -125,7 +125,7 @@ router.post('/deposit', authenticate, async (req: AuthRequest, res: Response) =>
     }
 
     const amountInNaira = Number(amount);
-    const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+    const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
 
     // Production flow using Paystack API
     if (PAYSTACK_SECRET) {
@@ -220,7 +220,7 @@ router.post('/verify', authenticate, async (req: AuthRequest, res: Response) => 
       return res.json({ message: 'Transaction already completed', transaction });
     }
 
-    const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+    const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
 
     if (PAYSTACK_SECRET && !reference.startsWith('hc_mock_')) {
       // Fetch status from Paystack

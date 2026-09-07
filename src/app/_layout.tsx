@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
-import { getAuthToken, getRefreshToken, clearAuthTokens } from '@/lib/api';
+import { getAuthToken, getRefreshToken, clearAuthTokens, getCachedUserData } from '@/lib/api';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'nativewind';
@@ -153,27 +153,35 @@ export default function RootLayout() {
 
     const initializeAuth = async () => {
       const startTime = Date.now();
-      const minDisplayDuration = 2000; // 2 seconds minimum splash duration for branding & DB check
+      const minDisplayDuration = 1800; // 1.8s splash duration for branding
 
       try {
-        const savedToken = await getAuthToken();
-        const savedRefreshToken = await getRefreshToken();
+        const [savedToken, savedRefreshToken, cachedData] = await Promise.all([
+          getAuthToken(),
+          getRefreshToken(),
+          getCachedUserData(),
+        ]);
 
         if ((savedToken || savedRefreshToken) && active) {
-          useAuthStore.setState({ token: savedToken, refreshToken: savedRefreshToken });
+          useAuthStore.setState({
+            token: savedToken,
+            refreshToken: savedRefreshToken,
+            user: cachedData?.user || null,
+            profile: cachedData?.profile || null,
+          });
           
-          // Verify with database
-          await Promise.race([
-            loadUser(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 3000))
-          ]);
+          // Verify with database gracefully in background; do not wipe tokens if server takes >4s or is redeploying
+          try {
+            await Promise.race([
+              loadUser(),
+              new Promise((_, resolve) => setTimeout(resolve, 4000))
+            ]);
+          } catch (err) {
+            console.warn('Initial session fetch note:', err);
+          }
         }
       } catch (e) {
-        console.warn('Failed or timed out restoring session:', e);
-        if (active) {
-          await clearAuthTokens();
-          useAuthStore.setState({ token: null, refreshToken: null, user: null, profile: null, isGuest: false });
-        }
+        console.warn('Session restoration note:', e);
       } finally {
         const elapsed = Date.now() - startTime;
         const remaining = Math.max(0, minDisplayDuration - elapsed);
@@ -227,6 +235,15 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
+    const isAdmin = segments[0] === 'admin';
+    const isSupport = segments[0] === 'support';
+    const isExpertPublic = segments[0] === 'expert';
+    const isRoot = segments.length === 0 || segments[0] === 'index' || segments[0] === undefined;
+
+    // Never redirect away from admin governance portal, support desk, or public expert profiles
+    if (isAdmin || isSupport || isExpertPublic) {
+      return;
+    }
 
     if (!token) {
       // Unauthenticated flow
@@ -243,10 +260,15 @@ export default function RootLayout() {
           router.replace('/(onboarding)/role-selection' as any);
         }
       } else {
-        // Redirect to tabs if authenticated, onboarded, and in auth/onboarding group
-        if (inAuthGroup || inOnboardingGroup || segments.length === 0 || segments[0] === undefined) {
+        // Redirect to tabs if authenticated, onboarded, and in auth/onboarding group or root gate
+        if (inAuthGroup || inOnboardingGroup || isRoot) {
           router.replace('/(tabs)' as any);
         }
+      }
+    } else {
+      // Token exists, profile hydrating: forward immediately to tabs
+      if (inAuthGroup || isRoot) {
+        router.replace('/(tabs)' as any);
       }
     }
   }, [token, user, isReady, segments, isGuest, isLoading, fontsLoaded, fontError]);
@@ -272,6 +294,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

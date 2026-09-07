@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Alert, Pressable, Platform } from 'react-native';
+import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Alert, Pressable, Platform, StyleSheet } from 'react-native';
 import { X, CreditCard } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { useWalletStore } from '@/store/walletStore';
@@ -73,15 +73,15 @@ export default function DepositModal({ visible, onClose, onSuccess }: DepositMod
 
   return (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
     >
-      <View className="flex-1 justify-end bg-black/60">
-        <Pressable className="flex-1" onPress={onClose} />
+      <View className="flex-1 justify-center items-center bg-black/70 px-4">
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         
-        <View className="bg-white dark:bg-slate-900 rounded-t-[36px] p-6 pb-10 border-t border-slate-200 dark:border-slate-800 shadow-2xl">
+        <View className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full">
           {/* Header */}
           <View className="flex-row justify-between items-center mb-6">
             <View>

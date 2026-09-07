@@ -8,6 +8,7 @@ export interface IBooking extends Document {
   scheduledAt: Date;
   durationMinutes: number;
   meetingLink?: string;
+  notifiedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +22,7 @@ const BookingSchema = new Schema<IBooking>(
     scheduledAt: { type: Date, required: true },
     durationMinutes: { type: Number, required: true },
     meetingLink: { type: String, default: '' },
+    notifiedAt: { type: Date },
   },
   { timestamps: true }
 );

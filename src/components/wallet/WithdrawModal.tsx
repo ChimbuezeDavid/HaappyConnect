@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Alert, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Alert, Pressable, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { X, ArrowDownRight } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { useWalletStore } from '@/store/walletStore';
@@ -79,7 +79,7 @@ export default function WithdrawModal({ visible, onClose, onSuccess, availableBa
 
   return (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
@@ -88,10 +88,10 @@ export default function WithdrawModal({ visible, onClose, onSuccess, availableBa
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
         className="flex-1"
       >
-        <View className="flex-1 justify-end bg-black/60">
-          <Pressable className="flex-1" onPress={onClose} />
+        <View className="flex-1 justify-center items-center bg-black/70 px-4">
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
           
-          <View className="bg-white dark:bg-slate-900 rounded-t-[36px] p-6 pb-10 border-t border-slate-200 dark:border-slate-800 shadow-2xl max-h-[85%]">
+          <View className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full max-h-[88%]">
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Header */}
               <View className="flex-row justify-between items-center mb-6">

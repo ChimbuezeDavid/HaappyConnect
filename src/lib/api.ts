@@ -69,11 +69,38 @@ export const API_URL = getBaseUrl();
 const TOKEN_KEY = 'haappyconnect_jwt_token';
 const REFRESH_TOKEN_KEY = 'haappyconnect_refresh_token';
 
-// Retrieve access token from secure storage
+// Web cookie helpers for cross-session and cross-update persistence
+const getCookie = (name: string): string | null => {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return decodeURIComponent(parts.pop()?.split(';').shift() || '');
+  return null;
+};
+
+const setCookie = (name: string, val: string, days = 180) => {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  const maxAge = days * 24 * 60 * 60;
+  document.cookie = `${name}=${encodeURIComponent(val)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+};
+
+const deleteCookie = (name: string) => {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+};
+
+// Retrieve access token from secure storage with web cookie recovery
 export const getAuthToken = async (): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
-      return localStorage.getItem(TOKEN_KEY);
+      let token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+      if (!token) {
+        token = getCookie('haappy_token');
+        if (token && typeof localStorage !== 'undefined') {
+          localStorage.setItem(TOKEN_KEY, token);
+        }
+      }
+      return token;
     }
     return await SecureStore.getItemAsync(TOKEN_KEY);
   } catch (error) {
@@ -82,11 +109,14 @@ export const getAuthToken = async (): Promise<string | null> => {
   }
 };
 
-// Set access token in secure storage
+// Set access token in secure storage and persistent cookie
 export const setAuthToken = async (token: string): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.setItem(TOKEN_KEY, token);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(TOKEN_KEY, token);
+      }
+      setCookie('haappy_token', token, 30);
       return;
     }
     await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -95,11 +125,18 @@ export const setAuthToken = async (token: string): Promise<void> => {
   }
 };
 
-// Retrieve refresh token from secure storage
+// Retrieve refresh token from secure storage with web cookie recovery
 export const getRefreshToken = async (): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
-      return localStorage.getItem(REFRESH_TOKEN_KEY);
+      let refreshToken = typeof localStorage !== 'undefined' ? localStorage.getItem(REFRESH_TOKEN_KEY) : null;
+      if (!refreshToken) {
+        refreshToken = getCookie('haappy_refresh_token');
+        if (refreshToken && typeof localStorage !== 'undefined') {
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        }
+      }
+      return refreshToken;
     }
     return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
   } catch (error) {
@@ -108,11 +145,14 @@ export const getRefreshToken = async (): Promise<string | null> => {
   }
 };
 
-// Set refresh token in secure storage
+// Set refresh token in secure storage and persistent cookie
 export const setRefreshToken = async (refreshToken: string): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      }
+      setCookie('haappy_refresh_token', refreshToken, 180);
       return;
     }
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
@@ -133,7 +173,10 @@ export const setAuthTokens = async (token: string, refreshToken?: string): Promi
 export const removeAuthToken = async (): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.removeItem(TOKEN_KEY);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(TOKEN_KEY);
+      }
+      deleteCookie('haappy_token');
       return;
     }
     await SecureStore.deleteItemAsync(TOKEN_KEY);
@@ -142,17 +185,77 @@ export const removeAuthToken = async (): Promise<void> => {
   }
 };
 
-// Clear all session tokens
+const CACHED_USER_KEY = 'haappyconnect_cached_user';
+const CACHED_PROFILE_KEY = 'haappyconnect_cached_profile';
+
+// Retrieve cached user and profile for instantaneous boot and offline resilience
+export const getCachedUserData = async (): Promise<{ user: any | null; profile: any | null }> => {
+  try {
+    if (Platform.OS === 'web') {
+      const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem(CACHED_USER_KEY) : null;
+      const profileStr = typeof localStorage !== 'undefined' ? localStorage.getItem(CACHED_PROFILE_KEY) : null;
+      return {
+        user: userStr ? JSON.parse(userStr) : null,
+        profile: profileStr ? JSON.parse(profileStr) : null,
+      };
+    }
+    const [userStr, profileStr] = await Promise.all([
+      SecureStore.getItemAsync(CACHED_USER_KEY).catch(() => null),
+      SecureStore.getItemAsync(CACHED_PROFILE_KEY).catch(() => null),
+    ]);
+    return {
+      user: userStr ? JSON.parse(userStr) : null,
+      profile: profileStr ? JSON.parse(profileStr) : null,
+    };
+  } catch (error) {
+    return { user: null, profile: null };
+  }
+};
+
+// Cache user and profile in persistent storage
+export const setCachedUserData = async (user: any | null, profile: any | null): Promise<void> => {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof localStorage !== 'undefined') {
+        if (user) localStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+        else localStorage.removeItem(CACHED_USER_KEY);
+        if (profile) localStorage.setItem(CACHED_PROFILE_KEY, JSON.stringify(profile));
+        else localStorage.removeItem(CACHED_PROFILE_KEY);
+      }
+      return;
+    }
+    await Promise.all([
+      user
+        ? SecureStore.setItemAsync(CACHED_USER_KEY, JSON.stringify(user)).catch(() => {})
+        : SecureStore.deleteItemAsync(CACHED_USER_KEY).catch(() => {}),
+      profile
+        ? SecureStore.setItemAsync(CACHED_PROFILE_KEY, JSON.stringify(profile)).catch(() => {})
+        : SecureStore.deleteItemAsync(CACHED_PROFILE_KEY).catch(() => {}),
+    ]);
+  } catch (error) {
+    console.error('Error caching user data', error);
+  }
+};
+
+// Clear all session tokens and cached user identity
 export const clearAuthTokens = async (): Promise<void> => {
   try {
     if (Platform.OS === 'web') {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        localStorage.removeItem(CACHED_USER_KEY);
+        localStorage.removeItem(CACHED_PROFILE_KEY);
+      }
+      deleteCookie('haappy_token');
+      deleteCookie('haappy_refresh_token');
       return;
     }
     await Promise.all([
       SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {}),
       SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => {}),
+      SecureStore.deleteItemAsync(CACHED_USER_KEY).catch(() => {}),
+      SecureStore.deleteItemAsync(CACHED_PROFILE_KEY).catch(() => {}),
     ]);
   } catch (error) {
     console.error('Error clearing auth tokens', error);
@@ -197,6 +300,7 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
     ...options,
     headers,
     signal: controller.signal,
+    credentials: Platform.OS === 'web' ? 'include' : undefined,
   };
 
   if (options.bodyData) {
@@ -231,8 +335,9 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
           const currentRefreshToken = await getRefreshToken();
 
           if (currentRefreshToken) {
+            let isNetworkOrServerError = false;
             try {
-              console.log('[Auth Session] Access token expired. Attempting silent refresh...');
+              console.log('[Auth Session] Access token expired or unverified. Attempting silent refresh...');
               const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -248,9 +353,20 @@ export const apiRequest = async (endpoint: string, options: RequestOptions = {})
 
                 // Retry the original request with new token
                 return apiRequest(endpoint, { ...options, isRetryAfterRefresh: true });
+              } else if (refreshRes.status >= 500 || refreshRes.status === 502 || refreshRes.status === 503 || refreshRes.status === 504) {
+                // Server is updating or restarting on Render — DO NOT WIPE TOKENS!
+                isNetworkOrServerError = true;
               }
             } catch (refreshErr) {
-              console.warn('[Auth Session] Silent refresh request failed:', refreshErr);
+              console.warn('[Auth Session] Refresh request failed due to network/server update:', refreshErr);
+              isNetworkOrServerError = true;
+            }
+
+            if (isNetworkOrServerError) {
+              isRefreshing = false;
+              onTokenRefreshed(null);
+              console.warn('[Auth Session] Server currently updating / unavailable. Session preserved.');
+              throw new Error('Server is currently updating or temporarily unavailable. Please retry in a moment.');
             }
           }
 

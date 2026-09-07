@@ -42,7 +42,7 @@ const initialStates = (role: 'seeker' | 'expert' = 'seeker'): OnboardingState =>
   avatarUrl: '',
   interests: [],
   goals: '',
-  communicationStyle: 'Text',
+  communicationStyle: 'Any',
   headline: '',
   experience: '',
   categories: [],

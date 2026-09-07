@@ -63,95 +63,214 @@ export default function SubmitReviewModal({ visible, onClose, expertId, bookingI
     }
   };
 
+  const QUICK_TAGS = [
+    'Actionable Advice',
+    'Clear & Thorough',
+    'Punctual & Friendly',
+    'Great Value',
+    'Inspiring Mentorship',
+  ];
+
+  const handleTagToggle = (tag: string) => {
+    if (comment.includes(tag)) {
+      setComment(comment.replace(tag, '').replace(/,\s*,/g, ',').trim());
+    } else {
+      const separator = comment.trim().length > 0 ? ', ' : '';
+      setComment((prev) => `${prev.trim()}${separator}${tag}`);
+    }
+  };
+
+  const getRatingSentiment = () => {
+    switch (rating) {
+      case 5:
+        return { text: 'Outstanding & Transformative', emoji: '🌟', color: '#059669' };
+      case 4:
+        return { text: 'Very Good & Valuable', emoji: '😊', color: '#10B981' };
+      case 3:
+        return { text: 'Good & Met Expectations', emoji: '🙂', color: '#EAB308' };
+      case 2:
+        return { text: 'Fair - Needs Improvement', emoji: '😐', color: '#D97706' };
+      default:
+        return { text: 'Poor Experience', emoji: '😞', color: '#EF4444' };
+    }
+  };
+
+  const sentiment = getRatingSentiment();
+
   return (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        style={{ flex: 1 }}
       >
-        <View className="flex-1 justify-end bg-black/60">
-          <Pressable className="flex-1" onPress={onClose} />
+        <View 
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 16
+          }}
+        >
+          <Pressable 
+            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} 
+            onPress={onClose} 
+          />
           
-          <View className="bg-white dark:bg-slate-900 rounded-t-[36px] p-6 pb-10 border-t border-slate-200 dark:border-slate-800 shadow-2xl">
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Header */}
-              <View className="flex-row justify-between items-center mb-6">
-                <View>
-                  <Text className="text-xl font-extrabold text-slate-900 dark:text-white">Leave a Review</Text>
-                  <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Rate your consultation session</Text>
-                </View>
-                <TouchableOpacity 
-                  onPress={onClose}
-                  className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full"
+          <View 
+            style={{ width: '100%', maxWidth: 440 }}
+            className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl"
+          >
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-5">
+              <View className="flex-1 mr-3">
+                <Text className="text-xl font-black text-slate-900 dark:text-white">
+                  Leave a Review
+                </Text>
+                <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Rate your consultation session with this mentor
+                </Text>
+              </View>
+              <TouchableOpacity 
+                onPress={onClose}
+                className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full"
+                activeOpacity={0.7}
+              >
+                <X size={18} color={isDark ? '#cbd5e1' : '#475569'} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+              {/* Star Rating Section */}
+              <View className="items-center py-2 mb-2">
+                <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                  Overall Rating
+                </Text>
+                
+                {/* Horizontal Star Row (Guaranteed inline horizontal alignment) */}
+                <Animated.View 
+                  style={{ 
+                    flexDirection: 'row', 
+                    justifyContent: 'center', 
+                    alignItems: 'center',
+                    transform: [{ scale: bounceAnim }] 
+                  }}
                 >
-                  <X size={18} color={isDark ? '#cbd5e1' : '#475569'} />
-                </TouchableOpacity>
+                  {[1, 2, 3, 4, 5].map((starVal) => (
+                    <TouchableOpacity
+                      key={starVal}
+                      onPress={() => handleRatingSelect(starVal)}
+                      style={{ paddingHorizontal: 6, paddingVertical: 4 }}
+                      activeOpacity={0.7}
+                    >
+                      <Star 
+                        size={36} 
+                        color={starVal <= rating ? '#f59e0b' : (isDark ? '#334155' : '#cbd5e1')} 
+                        fill={starVal <= rating ? '#f59e0b' : 'transparent'} 
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </Animated.View>
+
+                {/* Dynamic Sentiment Feedback Badge */}
+                <View 
+                  style={{ backgroundColor: `${sentiment.color}15`, borderColor: `${sentiment.color}35` }}
+                  className="mt-3.5 px-3 py-1 rounded-full border flex-row items-center"
+                >
+                  <Text style={{ marginRight: 6 }}>{sentiment.emoji}</Text>
+                  <Text 
+                    style={{ color: sentiment.color }}
+                    className="text-xs font-black uppercase tracking-wider"
+                  >
+                    {sentiment.text}
+                  </Text>
+                </View>
               </View>
 
-              {/* Star Rating Selectors */}
-              <Text className="text-xs font-semibold text-slate-655 dark:text-slate-400 uppercase tracking-wider text-center mb-3">Overall Rating</Text>
-              
-              <Animated.View 
-                style={{ transform: [{ scale: bounceAnim }] }}
-                className="flex-row justify-center gap-3 mb-6"
-              >
-                {[1, 2, 3, 4, 5].map((starVal) => (
-                  <TouchableOpacity
-                    key={starVal}
-                    onPress={() => handleRatingSelect(starVal)}
-                    className="p-1"
-                    activeOpacity={0.6}
-                  >
-                    <Star 
-                      size={36} 
-                      color={starVal <= rating ? '#f59e0b' : (isDark ? '#334155' : '#cbd5e1')} 
-                      fill={starVal <= rating ? '#f59e0b' : 'transparent'} 
-                    />
-                  </TouchableOpacity>
-                ))}
-              </Animated.View>
-
-              {/* Rating Text description */}
-              <Text className="text-center font-extrabold text-slate-800 dark:text-slate-200 text-sm mb-6 uppercase tracking-wider">
-                {rating === 5 && 'Excellent'}
-                {rating === 4 && 'Good'}
-                {rating === 3 && 'Average'}
-                {rating === 2 && 'Poor'}
-                {rating === 1 && 'Terrible'}
-              </Text>
+              {/* Quick Feedback Tags */}
+              <View className="mb-4">
+                <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Highlight Highlights (Tap to add)
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {QUICK_TAGS.map((tag) => {
+                    const isSelected = comment.includes(tag);
+                    return (
+                      <TouchableOpacity
+                        key={tag}
+                        onPress={() => handleTagToggle(tag)}
+                        activeOpacity={0.7}
+                        className={`px-3 py-1.5 rounded-xl border ${
+                          isSelected
+                            ? 'bg-emerald-500/15 border-emerald-500/40'
+                            : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
+                        }`}
+                      >
+                        <Text className={`text-xs font-bold ${
+                          isSelected
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-slate-600 dark:text-slate-400'
+                        }`}>
+                          {isSelected ? '✓ ' : '+ '}{tag}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
 
               {/* Feedback Comment Input */}
-              <Text className="text-xs font-semibold text-slate-655 dark:text-slate-400 uppercase tracking-wider mb-2">Comment (Optional)</Text>
-              <TextInput
-                placeholder="Share your experience working with this expert..."
-                placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                value={comment}
-                onChangeText={setComment}
-                multiline={true}
-                numberOfLines={4}
-                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-slate-900 dark:text-white text-sm mb-6 min-h-[100px]"
-                textAlignVertical="top"
-              />
+              <View className="mb-5">
+                <View className="flex-row justify-between items-center mb-1.5">
+                  <Text className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Comment (Optional)
+                  </Text>
+                  <Text className="text-[10px] text-slate-400">
+                    {comment.length} / 500
+                  </Text>
+                </View>
+                <TextInput
+                  placeholder="Share details about the value you gained..."
+                  placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+                  value={comment}
+                  onChangeText={(text) => text.length <= 500 && setComment(text)}
+                  multiline={true}
+                  numberOfLines={3}
+                  className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 text-slate-900 dark:text-white text-sm min-h-[90px]"
+                  textAlignVertical="top"
+                />
+              </View>
 
-              {/* Submit Button */}
-              <TouchableOpacity
-                onPress={handleSubmit}
-                disabled={isSubmitting}
-                className={`w-full py-4.5 rounded-2xl flex-row justify-center items-center ${
-                  isSubmitting ? 'bg-primary-500/80' : 'bg-primary-500'
-                }`}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text className="text-white font-extrabold text-base">Submit Review</Text>
-                )}
-              </TouchableOpacity>
+              {/* Action Buttons */}
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={onClose}
+                  className="flex-1 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 items-center justify-center"
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-slate-700 dark:text-slate-300 font-bold text-sm">Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleSubmit}
+                  disabled={isSubmitting}
+                  className={`flex-1 py-3.5 rounded-2xl flex-row justify-center items-center ${
+                    isSubmitting ? 'bg-primary-600/70' : 'bg-primary-600 hover:bg-primary-700'
+                  }`}
+                  activeOpacity={0.85}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text className="text-white font-bold text-sm">Submit Review</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </View>
         </View>

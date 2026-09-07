@@ -17,8 +17,8 @@ export default function BookCallModal() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  // Form states
-  const [duration, setDuration] = useState<15 | 30 | 60>(30);
+  // Form states (Minnect Alignment: 15m min, 30m, 45m, 60m)
+  const [duration, setDuration] = useState<15 | 30 | 45 | 60>(30);
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [dateOptions] = useState<Date[]>(() => {
     const dates = [];
@@ -79,8 +79,8 @@ export default function BookCallModal() {
     fetchExpertDetails();
   }, [expertId]);
 
-  const hourlyRate = expert?.hourlyRate || 0;
-  const price = Math.round((hourlyRate / 60) * duration);
+  const perMinuteRate = expert?.callPricePerMinute || (expert?.hourlyRate ? Math.round(expert.hourlyRate / 60) : 500);
+  const price = perMinuteRate * duration;
 
   const handleBookCall = async () => {
     if (!selectedSlot) {
@@ -187,20 +187,25 @@ export default function BookCallModal() {
       )}
 
       {/* Duration Selector */}
-      <Text className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider mb-3">
-        Call Duration
-      </Text>
+      <View className="flex-row justify-between items-center mb-3">
+        <Text className="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
+          Call Duration
+        </Text>
+        <Text className="text-emerald-500 font-bold text-xs">
+          ₦{perMinuteRate.toLocaleString()}/min
+        </Text>
+      </View>
       <View className="flex-row mb-6 bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
-        {[15, 30, 60].map((d) => (
+        {([15, 30, 45, 60] as const).map((d) => (
           <TouchableOpacity
             key={d}
-            onPress={() => setDuration(d as any)}
+            onPress={() => setDuration(d)}
             className={`flex-1 py-3 rounded-xl items-center justify-center ${
-              duration === d ? 'bg-primary-500' : 'bg-transparent'
+              duration === d ? 'bg-primary-500 shadow-sm' : 'bg-transparent'
             }`}
           >
             <Text
-              className={`font-bold text-sm ${
+              className={`font-bold text-xs ${
                 duration === d ? 'text-white' : 'text-slate-600 dark:text-slate-400'
               }`}
             >

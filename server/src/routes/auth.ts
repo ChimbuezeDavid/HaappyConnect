@@ -11,11 +11,31 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkeyforhaappyconnect';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || (JWT_SECRET + '_refresh');
 
 export const generateAccessToken = (userId: any, role: string) => {
-  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: '30d' });
 };
 
 export const generateRefreshToken = (userId: any, role: string) => {
-  return jwt.sign({ userId, role }, JWT_REFRESH_SECRET, { expiresIn: '90d' });
+  return jwt.sign({ userId, role }, JWT_REFRESH_SECRET, { expiresIn: '180d' });
+};
+
+export const setSessionCookies = (res: Response, token: string, refreshToken?: string) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const cookies = [
+    `haappy_token=${token}; Path=/; Max-Age=${30 * 24 * 60 * 60}; SameSite=Lax${isProduction ? '; Secure' : ''}`,
+  ];
+  if (refreshToken) {
+    cookies.push(
+      `haappy_refresh_token=${refreshToken}; Path=/; Max-Age=${180 * 24 * 60 * 60}; SameSite=Lax${isProduction ? '; Secure' : ''}`
+    );
+  }
+  res.setHeader('Set-Cookie', cookies);
+};
+
+export const clearSessionCookies = (res: Response) => {
+  res.setHeader('Set-Cookie', [
+    'haappy_token=; Path=/; Max-Age=0; SameSite=Lax',
+    'haappy_refresh_token=; Path=/; Max-Age=0; SameSite=Lax',
+  ]);
 };
 
 export const storeRefreshToken = async (user: any, refreshToken: string) => {
@@ -52,6 +72,8 @@ router.post('/signup', async (req, res) => {
     const token = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id, user.role);
     await storeRefreshToken(user, refreshToken);
+
+    setSessionCookies(res, token, refreshToken);
 
     res.status(201).json({
       token,
@@ -99,6 +121,8 @@ router.post('/login', async (req, res) => {
       profile = await Profile.findOne({ user: user._id });
     }
 
+    setSessionCookies(res, token, refreshToken);
+
     res.json({
       token,
       refreshToken,
@@ -144,6 +168,8 @@ router.post('/refresh', async (req, res) => {
     user.refreshTokens.push(newRefreshToken);
     await user.save();
 
+    setSessionCookies(res, newAccessToken, newRefreshToken);
+
     res.json({
       token: newAccessToken,
       refreshToken: newRefreshToken,
@@ -169,6 +195,7 @@ router.post('/logout', async (req, res) => {
         }
       } catch (_) {}
     }
+    clearSessionCookies(res);
     res.json({ message: 'Logged out successfully' });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Error logging out' });
@@ -810,6 +837,8 @@ router.post('/social-login', async (req, res) => {
     if (user.isOnboarded) {
       profile = await Profile.findOne({ user: user._id });
     }
+
+    setSessionCookies(res, token, refreshToken);
 
     res.json({
       token,

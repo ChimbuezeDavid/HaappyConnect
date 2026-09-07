@@ -23,6 +23,10 @@ import {
   Award,
   ExternalLink,
   Search,
+  SlidersHorizontal,
+  Eye,
+  EyeOff,
+  ShieldCheck,
 } from 'lucide-react-native';
 import { api, API_URL } from '@/lib/api';
 
@@ -34,26 +38,99 @@ export default function AdminScreen() {
   const [adminToken, setAdminToken] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
+  // Admin Account Creation & Governance State
+  const [isCreateMode, setIsCreateMode] = useState(false);
+  const [adminName, setAdminName] = useState('');
+  const [allowAdminRegistration, setAllowAdminRegistration] = useState(true);
+  const [togglingRegistration, setTogglingRegistration] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState<string | null>(null);
+
   // Dashboard Data
-  const [tab, setTab] = useState<'verifications' | 'users' | 'consultations'>('verifications');
+  const [tab, setTab] = useState<'verifications' | 'users' | 'economics'>('verifications');
   const [loadingData, setLoadingData] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [verifications, setVerifications] = useState<any[]>([]);
   const [usersList, setUsersList] = useState<any[]>([]);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  // Check stored admin token on mount
-  useEffect(() => {
+  // Platform Economics State
+  const [platformFee, setPlatformFee] = useState('20');
+  const [baseCallPrice, setBaseCallPrice] = useState('500');
+  const [slaDays, setSlaDays] = useState('7');
+  const [savingEconomics, setSavingEconomics] = useState(false);
+  const [economicsSuccess, setEconomicsSuccess] = useState<string | null>(null);
+  const [economicsError, setEconomicsError] = useState<string | null>(null);
+
+  // Helper to retrieve admin token with cookie fallback
+  const getStoredAdminToken = (): string | null => {
     if (Platform.OS === 'web') {
-      const stored = localStorage.getItem('hc_admin_token');
-      if (stored) {
-        setAdminToken(stored);
+      let token = typeof localStorage !== 'undefined' ? (localStorage.getItem('hc_admin_token') || localStorage.getItem('haappy_admin_token')) : null;
+      if (!token && typeof document !== 'undefined') {
+        const match = document.cookie.match(/hc_admin_token=([^;]+)/);
+        if (match) {
+          token = decodeURIComponent(match[1]);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('hc_admin_token', token);
+            localStorage.setItem('haappy_admin_token', token);
+          }
+        }
+      }
+      return token;
+    }
+    return null;
+  };
+
+  const persistAdminToken = (token: string | null) => {
+    if (Platform.OS === 'web') {
+      if (typeof localStorage !== 'undefined') {
+        if (token) {
+          localStorage.setItem('hc_admin_token', token);
+          localStorage.setItem('haappy_admin_token', token);
+        } else {
+          localStorage.removeItem('hc_admin_token');
+          localStorage.removeItem('haappy_admin_token');
+        }
+      }
+      if (typeof document !== 'undefined') {
+        if (token) {
+          document.cookie = `hc_admin_token=${encodeURIComponent(token)}; path=/; max-age=${180 * 24 * 60 * 60}; SameSite=Lax`;
+        } else {
+          document.cookie = `hc_admin_token=; path=/; max-age=0; SameSite=Lax`;
+        }
       }
     }
+  };
+
+  // Check stored admin token and registration status on mount
+  useEffect(() => {
+    const stored = getStoredAdminToken();
+    if (stored) {
+      setAdminToken(stored);
+    }
+    fetchRegistrationStatus();
   }, []);
+
+  const fetchRegistrationStatus = async () => {
+    try {
+      const res = await fetch(`${API_URL}/admin/registration-status`);
+      if (res.ok) {
+        const data = await res.json();
+        const allowed = data.allowAdminRegistration !== false;
+        setAllowAdminRegistration(allowed);
+        if (!allowed) {
+          setIsCreateMode(false);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch admin registration status:', err);
+    }
+  };
 
   useEffect(() => {
     if (adminToken) {
@@ -68,6 +145,7 @@ export default function AdminScreen() {
     }
     setLoginLoading(true);
     setLoginError(null);
+    setCreateSuccess(null);
     try {
       const res = await fetch(`${API_URL}/admin/login`, {
         method: 'POST',
@@ -78,9 +156,7 @@ export default function AdminScreen() {
       if (!res.ok) throw new Error(data.error || 'Login failed');
 
       setAdminToken(data.token);
-      if (Platform.OS === 'web') {
-        localStorage.setItem('hc_admin_token', data.token);
-      }
+      persistAdminToken(data.token);
     } catch (err: any) {
       setLoginError(err.message || 'Invalid administrator credentials');
     } finally {
@@ -88,11 +164,49 @@ export default function AdminScreen() {
     }
   };
 
+  const handleAdminCreate = async () => {
+    if (!email || !password) {
+      setLoginError('Email and password are required');
+      return;
+    }
+    if (password.length < 6) {
+      setLoginError('Password must be at least 6 characters');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLoginError('Passwords do not match');
+      return;
+    }
+    setLoginLoading(true);
+    setLoginError(null);
+    setCreateSuccess(null);
+    try {
+      const res = await fetch(`${API_URL}/admin/setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: adminName.trim() || undefined,
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Admin creation failed');
+
+      setAdminToken(data.token);
+      persistAdminToken(data.token);
+      setCreateSuccess('Administrator account created successfully!');
+    } catch (err: any) {
+      setLoginError(err.message || 'Failed to create administrator account');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     setAdminToken(null);
-    if (Platform.OS === 'web') {
-      localStorage.removeItem('hc_admin_token');
-    }
+    persistAdminToken(null);
+    fetchRegistrationStatus();
   };
 
   const loadAdminData = async () => {
@@ -103,6 +217,11 @@ export default function AdminScreen() {
       const dashRes = await fetch(`${API_URL}/admin/dashboard`, {
         headers: { Authorization: `Bearer ${adminToken}` },
       });
+      if (dashRes.status === 401) {
+        setAdminToken(null);
+        persistAdminToken(null);
+        return;
+      }
       if (dashRes.ok) {
         const d = await dashRes.json();
         setStats(d.summary || null);
@@ -125,11 +244,83 @@ export default function AdminScreen() {
           const uData = await uRes.json();
           setUsersList(uData.users || []);
         }
+      } else if (tab === 'economics') {
+        const sRes = await fetch(`${API_URL}/admin/settings`, {
+          headers: { Authorization: `Bearer ${adminToken}` },
+        });
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          setPlatformFee(String(sData.platformFeePercentage ?? 20));
+          setBaseCallPrice(String(sData.baseLiveCallPricePerMinute ?? 500));
+          setSlaDays(String(sData.responseSlaDays ?? 7));
+          setAllowAdminRegistration(sData.allowAdminRegistration !== false);
+        }
       }
     } catch (err) {
       console.warn('Admin fetch error:', err);
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const handleToggleRegistrationLockdown = async () => {
+    if (!adminToken) return;
+    setTogglingRegistration(true);
+    setEconomicsSuccess(null);
+    setEconomicsError(null);
+    try {
+      const newStatus = !allowAdminRegistration;
+      const res = await fetch(`${API_URL}/admin/settings`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          allowAdminRegistration: newStatus,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update admin registration status');
+      setAllowAdminRegistration(newStatus);
+      setEconomicsSuccess(
+        newStatus
+          ? 'Admin registration unlocked! New admin accounts can now be created.'
+          : 'Admin registration locked down! Unauthorized signup is now prevented.'
+      );
+    } catch (err: any) {
+      setEconomicsError(err.message || 'Failed to update registration status');
+    } finally {
+      setTogglingRegistration(false);
+    }
+  };
+
+  const handleSaveEconomics = async () => {
+    if (!adminToken) return;
+    setSavingEconomics(true);
+    setEconomicsSuccess(null);
+    setEconomicsError(null);
+    try {
+      const res = await fetch(`${API_URL}/admin/settings`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          platformFeePercentage: Number(platformFee),
+          baseLiveCallPricePerMinute: Number(baseCallPrice),
+          responseSlaDays: Number(slaDays),
+          allowAdminRegistration: allowAdminRegistration,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update economics');
+      setEconomicsSuccess('Platform economics and security policy updated successfully!');
+    } catch (err: any) {
+      setEconomicsError(err.message || 'Failed to save economics settings');
+    } finally {
+      setSavingEconomics(false);
     }
   };
 
@@ -163,10 +354,10 @@ export default function AdminScreen() {
         className="justify-center items-center px-6"
       >
         <View
-          style={{ backgroundColor: '#131A22', borderColor: '#222D3D', maxWidth: 460 }}
+          style={{ backgroundColor: '#131A22', borderColor: '#222D3D', maxWidth: 480 }}
           className="w-full rounded-3xl p-8 border shadow-2xl"
         >
-          <View className="flex-row items-center mb-4">
+          <View className="flex-row items-center mb-6">
             <View className="p-3 bg-emerald-500/10 rounded-2xl mr-3">
               <ShieldAlert size={28} color="#059669" />
             </View>
@@ -176,9 +367,93 @@ export default function AdminScreen() {
             </View>
           </View>
 
+          {/* Mode Switcher Tabs */}
+          <View className="flex-row bg-[#18222E] rounded-2xl p-1 mb-6 border border-[#243242]">
+            <TouchableOpacity
+              onPress={() => {
+                setIsCreateMode(false);
+                setLoginError(null);
+                setCreateSuccess(null);
+              }}
+              style={{
+                backgroundColor: !isCreateMode ? '#059669' : 'transparent',
+              }}
+              className="flex-1 py-2.5 rounded-xl items-center"
+            >
+              <Text
+                style={{
+                  color: !isCreateMode ? '#FFFFFF' : '#94A3B8',
+                  fontWeight: '700',
+                }}
+                className="text-xs uppercase tracking-wider"
+              >
+                Sign In
+              </Text>
+            </TouchableOpacity>
+
+            {allowAdminRegistration ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setIsCreateMode(true);
+                  setLoginError(null);
+                  setCreateSuccess(null);
+                }}
+                style={{
+                  backgroundColor: isCreateMode ? '#059669' : 'transparent',
+                }}
+                className="flex-1 py-2.5 rounded-xl items-center"
+              >
+                <Text
+                  style={{
+                    color: isCreateMode ? '#FFFFFF' : '#94A3B8',
+                    fontWeight: '700',
+                  }}
+                  className="text-xs uppercase tracking-wider"
+                >
+                  Create Admin
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View className="flex-1 py-2.5 rounded-xl items-center flex-row justify-center opacity-60">
+                <Lock size={12} color="#94A3B8" style={{ marginRight: 4 }} />
+                <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                  Registration Locked
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {!allowAdminRegistration && (
+            <View className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 mb-4 flex-row items-center">
+              <Lock size={16} color="#F59E0B" style={{ marginRight: 8 }} />
+              <Text className="text-amber-400 text-xs flex-1">
+                New administrator registration is locked down to prevent unauthorized access.
+              </Text>
+            </View>
+          )}
+
           {loginError && (
             <View className="bg-red-500/15 border border-red-500/30 rounded-xl p-3 mb-4">
               <Text className="text-red-400 text-xs font-semibold">{loginError}</Text>
+            </View>
+          )}
+
+          {createSuccess && (
+            <View className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-3 mb-4">
+              <Text className="text-emerald-400 text-xs font-semibold">{createSuccess}</Text>
+            </View>
+          )}
+
+          {isCreateMode && (
+            <View className="mb-4">
+              <Text className="text-slate-400 text-xs font-bold uppercase mb-1">Full Name (Optional)</Text>
+              <TextInput
+                value={adminName}
+                onChangeText={setAdminName}
+                placeholder="Platform Administrator"
+                placeholderTextColor="#475569"
+                className="w-full bg-[#18222E] border border-[#243242] rounded-2xl px-4 py-3 text-white text-sm"
+              />
             </View>
           )}
 
@@ -191,31 +466,95 @@ export default function AdminScreen() {
               placeholderTextColor="#475569"
               className="w-full bg-[#18222E] border border-[#243242] rounded-2xl px-4 py-3 text-white text-sm"
               autoCapitalize="none"
+              keyboardType="email-address"
             />
           </View>
 
-          <View className="mb-6">
+          <View className={isCreateMode ? "mb-4" : "mb-6"}>
             <Text className="text-slate-400 text-xs font-bold uppercase mb-1">Password</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••••••"
-              placeholderTextColor="#475569"
-              secureTextEntry
-              className="w-full bg-[#18222E] border border-[#243242] rounded-2xl px-4 py-3 text-white text-sm"
-            />
+            <View className="flex-row items-center bg-[#18222E] border border-[#243242] rounded-2xl px-4">
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••••••"
+                placeholderTextColor="#475569"
+                secureTextEntry={!showPassword}
+                className="flex-1 py-3 text-white text-sm"
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                className="p-1"
+              >
+                {showPassword ? (
+                  <EyeOff size={18} color="#94A3B8" />
+                ) : (
+                  <Eye size={18} color="#94A3B8" />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
+
+          {isCreateMode && (
+            <View className="mb-6">
+              <Text className="text-slate-400 text-xs font-bold uppercase mb-1">Confirm Password</Text>
+              <View className="flex-row items-center bg-[#18222E] border border-[#243242] rounded-2xl px-4">
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="••••••••••••"
+                  placeholderTextColor="#475569"
+                  secureTextEntry={!showConfirmPassword}
+                  className="flex-1 py-3 text-white text-sm"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  className="p-1"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={18} color="#94A3B8" />
+                  ) : (
+                    <Eye size={18} color="#94A3B8" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           <TouchableOpacity
-            onPress={handleAdminLogin}
+            onPress={isCreateMode ? handleAdminCreate : handleAdminLogin}
             disabled={loginLoading}
-            className="w-full bg-primary-500 py-3.5 rounded-2xl items-center justify-center shadow-lg"
+            className="w-full bg-primary-500 py-3.5 rounded-2xl items-center justify-center shadow-lg active:opacity-90"
           >
             {loginLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-white font-bold text-base">Sign In to Dashboard</Text>
+              <Text className="text-white font-bold text-base">
+                {isCreateMode ? 'Create Administrator Account' : 'Sign In to Dashboard'}
+              </Text>
             )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              if (!isCreateMode && !allowAdminRegistration) return;
+              setIsCreateMode(!isCreateMode);
+              setLoginError(null);
+              setCreateSuccess(null);
+            }}
+            disabled={!isCreateMode && !allowAdminRegistration}
+            className="mt-4 items-center py-2"
+          >
+            <Text className="text-slate-400 text-xs">
+              {isCreateMode ? (
+                <>Already an administrator? <Text className="text-emerald-400 font-bold">Sign In</Text></>
+              ) : allowAdminRegistration ? (
+                <>Need to set up an admin account? <Text className="text-emerald-400 font-bold">Create Account</Text></>
+              ) : (
+                <Text className="text-slate-500 italic">Registration locked by governance policy</Text>
+              )}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -296,6 +635,16 @@ export default function AdminScreen() {
           >
             <Text className={`font-bold text-sm ${tab === 'users' ? 'text-white' : 'text-slate-400'}`}>
               User Registry
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setTab('economics')}
+            className={`px-5 py-2.5 rounded-xl ${
+              tab === 'economics' ? 'bg-primary-500' : 'bg-[#131A22]'
+            }`}
+          >
+            <Text className={`font-bold text-sm ${tab === 'economics' ? 'text-white' : 'text-slate-400'}`}>
+              Platform Economics & SLA
             </Text>
           </TouchableOpacity>
         </View>
@@ -416,7 +765,7 @@ export default function AdminScreen() {
               ))
             )}
           </View>
-        ) : (
+        ) : tab === 'users' ? (
           <View>
             {usersList.map((u) => (
               <View
@@ -436,6 +785,166 @@ export default function AdminScreen() {
                 </View>
               </View>
             ))}
+          </View>
+        ) : (
+          <View className="max-w-2xl">
+            <View className="bg-[#131A22] border border-[#222D3D] rounded-3xl p-6 mb-6">
+              <View className="flex-row items-center mb-4">
+                <View className="p-2.5 bg-emerald-500/10 rounded-2xl mr-3">
+                  <SlidersHorizontal size={22} color="#059669" />
+                </View>
+                <View>
+                  <Text className="text-white text-lg font-black">Platform Economics & Governance</Text>
+                  <Text className="text-slate-400 text-xs">Configure take-rates, dynamic call base pricing, and escrow SLA</Text>
+                </View>
+              </View>
+
+              {economicsSuccess && (
+                <View className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 mb-5 flex-row items-center">
+                  <CheckCircle size={18} color="#059669" style={{ marginRight: 8 }} />
+                  <Text className="text-emerald-400 text-xs font-semibold flex-1">{economicsSuccess}</Text>
+                </View>
+              )}
+
+              {economicsError && (
+                <View className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-5 flex-row items-center">
+                  <XCircle size={18} color="#EF4444" style={{ marginRight: 8 }} />
+                  <Text className="text-red-400 text-xs font-semibold flex-1">{economicsError}</Text>
+                </View>
+              )}
+
+              {/* 1. Platform Fee / Split */}
+              <View className="mb-5 pb-5 border-b border-[#1E293B]">
+                <Text className="text-white text-sm font-bold mb-1">Platform Commission Fee (%)</Text>
+                <Text className="text-slate-400 text-xs mb-3">
+                  Default 20% (giving experts an 80% payout on all consultations and calls). Admin can adjust dynamically.
+                </Text>
+                <View className="flex-row items-center gap-3">
+                  <TextInput
+                    value={platformFee}
+                    onChangeText={setPlatformFee}
+                    placeholder="20"
+                    placeholderTextColor="#475569"
+                    keyboardType="numeric"
+                    className="w-32 bg-[#18222E] border border-[#243242] rounded-2xl px-4 py-3 text-white text-base font-bold text-center"
+                  />
+                  <View className="bg-slate-800/80 px-4 py-3 rounded-2xl">
+                    <Text className="text-emerald-400 text-xs font-bold">
+                      Expert Payout: {100 - (Number(platformFee) || 0)}%
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 2. Base Live Call Price Per Minute */}
+              <View className="mb-5 pb-5 border-b border-[#1E293B]">
+                <Text className="text-white text-sm font-bold mb-1">Live Call Base Rate Per Minute (₦)</Text>
+                <Text className="text-slate-400 text-xs mb-3">
+                  Minimum platform base rate for live 1:1 calls. Dynamically matches macroeconomic ups and downs.
+                </Text>
+                <View className="flex-row items-center gap-3">
+                  <TextInput
+                    value={baseCallPrice}
+                    onChangeText={setBaseCallPrice}
+                    placeholder="500"
+                    placeholderTextColor="#475569"
+                    keyboardType="numeric"
+                    className="w-40 bg-[#18222E] border border-[#243242] rounded-2xl px-4 py-3 text-white text-base font-bold text-center"
+                  />
+                  <Text className="text-slate-400 text-xs">
+                    (e.g., ₦{(Number(baseCallPrice) || 500) * 15} for minimum 15-min call slot)
+                  </Text>
+                </View>
+              </View>
+
+              {/* 3. Escrow Hold / Response SLA Days */}
+              <View className="mb-6">
+                <Text className="text-white text-sm font-bold mb-1">Consultation Response SLA (Days)</Text>
+                <Text className="text-slate-400 text-xs mb-3">
+                  Escrow hold window. If an expert fails to answer within this period, funds are automatically refunded to seeker with push notifications.
+                </Text>
+                <View className="flex-row items-center gap-3">
+                  <TextInput
+                    value={slaDays}
+                    onChangeText={setSlaDays}
+                    placeholder="7"
+                    placeholderTextColor="#475569"
+                    keyboardType="numeric"
+                    className="w-32 bg-[#18222E] border border-[#243242] rounded-2xl px-4 py-3 text-white text-base font-bold text-center"
+                  />
+                  <Text className="text-slate-400 text-xs">Days auto-refund escrow hold</Text>
+                </View>
+              </View>
+
+              {/* 4. Portal Security & Registration Access Control */}
+              <View className="mb-6 pt-5 border-t border-[#1E293B]">
+                <View className="flex-row items-center justify-between mb-2">
+                  <View className="flex-row items-center">
+                    <Lock size={18} color="#F59E0B" style={{ marginRight: 8 }} />
+                    <Text className="text-white text-sm font-bold">Admin Registration Access</Text>
+                  </View>
+                  <View
+                    className={`px-3 py-1 rounded-full ${
+                      allowAdminRegistration ? 'bg-emerald-500/20' : 'bg-red-500/20'
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-bold uppercase ${
+                        allowAdminRegistration ? 'text-emerald-400' : 'text-red-400'
+                      }`}
+                    >
+                      {allowAdminRegistration ? 'Open / Permitted' : 'Locked Down'}
+                    </Text>
+                  </View>
+                </View>
+                <Text className="text-slate-400 text-xs mb-4">
+                  {allowAdminRegistration
+                    ? 'Registration is currently ENABLED. Anyone visiting the admin portal can create an administrator account. Disable registration now that your admin account is setup to prevent unauthorized access.'
+                    : 'Registration is currently LOCKED DOWN. New admin account signups are completely disabled on this portal. Only existing administrators can log in.'}
+                </Text>
+                <TouchableOpacity
+                  onPress={handleToggleRegistrationLockdown}
+                  disabled={togglingRegistration}
+                  style={{
+                    backgroundColor: allowAdminRegistration ? '#7F1D1D' : '#065F46',
+                    borderColor: allowAdminRegistration ? '#DC2626' : '#059669',
+                  }}
+                  className="w-full py-3 rounded-2xl items-center justify-center border flex-row"
+                >
+                  {togglingRegistration ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <>
+                      {allowAdminRegistration ? (
+                        <Lock size={16} color="#FCA5A5" style={{ marginRight: 8 }} />
+                      ) : (
+                        <ShieldCheck size={16} color="#6EE7B7" style={{ marginRight: 8 }} />
+                      )}
+                      <Text
+                        style={{ color: allowAdminRegistration ? '#FECACA' : '#A7F3D0' }}
+                        className="font-bold text-xs uppercase tracking-wider"
+                      >
+                        {allowAdminRegistration
+                          ? 'Disable Registration (Lock Down Portal)'
+                          : 'Enable Registration (Unlock Portal)'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleSaveEconomics}
+                disabled={savingEconomics}
+                className="w-full bg-primary-500 py-3.5 rounded-2xl items-center justify-center shadow-lg active:opacity-90"
+              >
+                {savingEconomics ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text className="text-white font-bold text-sm">Save Economic Policies</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </ScrollView>

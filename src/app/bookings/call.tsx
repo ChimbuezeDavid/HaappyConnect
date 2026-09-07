@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Platform, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Platform, Animated, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { Camera } from 'expo-camera';
-import { PhoneOff, VideoOff, MicOff, AlertCircle } from 'lucide-react-native';
+import { PhoneOff, VideoOff, MicOff, AlertCircle, ExternalLink } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { requestCameraPermission, requestAudioPermission } from '@/services/permissions';
 
@@ -29,19 +29,21 @@ function PulsingTimer({ text, color }: { text: string; color: string }) {
 export default function CallScreen() {
   const router = useRouter();
   const { user, profile } = useAuthStore();
-  const { meetingLink, durationMinutes, partnerName, bookingId, expertId } = useLocalSearchParams<{
+  const { meetingLink, durationMinutes, partnerName, bookingId, expertId, scheduledAt } = useLocalSearchParams<{
     meetingLink: string;
     durationMinutes: string;
     partnerName: string;
     bookingId: string;
     expertId: string;
+    scheduledAt?: string;
   }>();
 
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [hasAudioPermission, setHasAudioPermission] = useState<boolean | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [isGracePeriod, setIsGracePeriod] = useState(false);
+  const [callPhase, setCallPhase] = useState<'waiting' | 'active' | 'grace' | 'expired'>('active');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const graceAlertShownRef = useRef(false);
 
   const handleExit = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -78,48 +80,64 @@ export default function CallScreen() {
 
     requestPermissions();
 
-    // Initialize countdown timer
-    const totalSeconds = parseInt(durationMinutes || '30') * 60;
-    setTimeLeft(totalSeconds);
-
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [durationMinutes]);
+  }, []);
 
-  // Start countdown when permissions are ready
+  // Synchronized UTC Timer based on scheduled appointment window
   useEffect(() => {
-    if (hasCameraPermission && hasAudioPermission) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            // Reached 0: start 60s grace period
-            if (!isGracePeriod) {
-              setIsGracePeriod(true);
-              Alert.alert(
-                'Time Limit Reached',
-                'Your booked duration has ended. The call will automatically terminate in 60 seconds.'
-              );
-              return 60; // 60 seconds grace period countdown
-            } else {
-              // Grace period ended -> automatically hang up
-              clearInterval(timerRef.current!);
-              Alert.alert('Call Expired', 'The consultation call time limit was reached.');
-              handleExit();
-              return 0;
-            }
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    if (!hasCameraPermission || !hasAudioPermission) return;
+
+    const durationMins = parseInt(durationMinutes || '30', 10) || 30;
+    const durationMs = durationMins * 60 * 1000;
+    const startTimeMs = scheduledAt ? new Date(scheduledAt).getTime() : Date.now();
+    const endTimeMs = startTimeMs + durationMs;
+
+    const updateClock = () => {
+      const now = Date.now();
+      if (now < startTimeMs) {
+        // Pre-call waiting window
+        const remainingUntilStart = Math.ceil((startTimeMs - now) / 1000);
+        setCallPhase('waiting');
+        setTimeLeft(remainingUntilStart);
+      } else if (now >= startTimeMs && now < endTimeMs) {
+        // Active call window - strictly derived from endTimeMs - now
+        // Both seeker and expert see identical second-for-second time!
+        const remainingInCall = Math.max(0, Math.floor((endTimeMs - now) / 1000));
+        setCallPhase('active');
+        setTimeLeft(remainingInCall);
+      } else if (now >= endTimeMs && now < endTimeMs + 60 * 1000) {
+        // 60-second grace period
+        const remainingGrace = Math.max(0, Math.floor((endTimeMs + 60 * 1000 - now) / 1000));
+        setCallPhase('grace');
+        setTimeLeft(remainingGrace);
+        if (!graceAlertShownRef.current) {
+          graceAlertShownRef.current = true;
+          Alert.alert(
+            'Time Limit Reached',
+            'Your booked consultation duration has ended. The call will automatically terminate in 60 seconds.'
+          );
+        }
+      } else {
+        // Window expired
+        setCallPhase('expired');
+        setTimeLeft(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+        Alert.alert('Consultation Ended', 'The scheduled consultation time limit was reached.');
+        handleExit();
+      }
+    };
+
+    updateClock();
+    timerRef.current = setInterval(updateClock, 1000);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [hasCameraPermission, hasAudioPermission, isGracePeriod]);
+  }, [hasCameraPermission, hasAudioPermission, scheduledAt, durationMinutes]);
 
-  // Format remaining seconds into MM:SS
+  // Format seconds into MM:SS
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -190,8 +208,14 @@ export default function CallScreen() {
   }
 
   // Inject username and optimize mobile Jitsi experience using URL parameters
+  // Ensure we use fairmeeting.net (open public Jitsi domain requiring zero 8x8 login)
+  let cleanMeetingLink = (meetingLink || '').trim();
+  if (cleanMeetingLink.includes('meet.jit.si')) {
+    cleanMeetingLink = cleanMeetingLink.replace('meet.jit.si', 'fairmeeting.net');
+  }
+
   const userDisplayName = profile?.fullName || user?.email?.split('@')[0] || 'User';
-  const optimizedJitsiUrl = `${meetingLink}` +
+  const optimizedJitsiUrl = `${cleanMeetingLink}` +
     `#config.prejoinPageEnabled=false` +
     `&config.disableDeepLinking=true` +
     `&config.startWithAudioMuted=false` +
@@ -204,8 +228,8 @@ export default function CallScreen() {
     `&config.toolbarButtons=["microphone","camera","chat","tileview","select-background","videobackgroundblur"]` +
     `&userInfo.displayName="${encodeURIComponent(userDisplayName)}"`;
 
-  // Warning color shift (red text below 5 minutes)
-  const isTimeRunningOut = timeLeft < 300 || isGracePeriod;
+  // Warning color shift (red text below 5 minutes or in grace period)
+  const isTimeRunningOut = (callPhase === 'active' && timeLeft < 300) || callPhase === 'grace';
 
   return (
     <View className="flex-1 bg-slate-955">
@@ -245,13 +269,21 @@ export default function CallScreen() {
             {partnerName || 'Live Consultation'}
           </Text>
           <Text className="text-slate-400 text-[10px] mt-0.5 uppercase tracking-wide">
-            {isGracePeriod ? 'Grace Period' : 'Video Session'}
+            {callPhase === 'waiting'
+              ? 'Waiting Room'
+              : callPhase === 'grace'
+              ? 'Grace Period'
+              : 'Video Session'}
           </Text>
         </View>
 
         {/* Timer */}
         <View className="bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-800/80 mr-3">
-          {isTimeRunningOut ? (
+          {callPhase === 'waiting' ? (
+            <Text className="font-mono font-bold text-xs text-amber-400">
+              Starts in {formatTime(timeLeft)}
+            </Text>
+          ) : isTimeRunningOut ? (
             <PulsingTimer text={formatTime(timeLeft)} color="#ef4444" />
           ) : (
             <Text className="font-mono font-bold text-sm text-emerald-400">
@@ -260,14 +292,31 @@ export default function CallScreen() {
           )}
         </View>
 
-        {/* End Call Button */}
-        <TouchableOpacity
-          onPress={handleHangup}
-          className="bg-red-500 p-3.5 rounded-2xl shadow-lg shadow-red-500/30"
-          activeOpacity={0.8}
-        >
-          <PhoneOff size={16} color="#fff" />
-        </TouchableOpacity>
+        {/* Action Buttons */}
+        <View className="flex-row items-center">
+          <TouchableOpacity
+            onPress={() => {
+              if (cleanMeetingLink) {
+                Linking.openURL(cleanMeetingLink).catch(() => {
+                  Alert.alert('Error', 'Could not open external browser.');
+                });
+              }
+            }}
+            className="bg-slate-800 p-3.5 rounded-2xl mr-2.5 border border-slate-700"
+            activeOpacity={0.8}
+          >
+            <ExternalLink size={16} color="#38bdf8" />
+          </TouchableOpacity>
+
+          {/* End Call Button */}
+          <TouchableOpacity
+            onPress={handleHangup}
+            className="bg-red-500 p-3.5 rounded-2xl shadow-lg shadow-red-500/30"
+            activeOpacity={0.8}
+          >
+            <PhoneOff size={16} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );

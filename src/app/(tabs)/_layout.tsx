@@ -49,7 +49,7 @@ export default function TabLayout() {
         fontWeight: '600',
         textAlign: 'center',
         marginTop: 2,
-        lineHeight: 12,
+        paddingBottom: 2,
       }}
     >
       {label}
@@ -77,10 +77,11 @@ export default function TabLayout() {
               }),
               fontWeight: '600',
               marginTop: 2,
+              paddingBottom: 2,
             },
             tabBarItemStyle: {
               paddingHorizontal: 0,
-              paddingVertical: 4,
+              paddingVertical: 0,
               justifyContent: 'center',
               alignItems: 'center',
             },
@@ -88,9 +89,9 @@ export default function TabLayout() {
               backgroundColor: surfaceColor,
               borderTopColor: borderColor,
               borderTopWidth: 1,
-              height: Platform.OS === 'web' ? 68 : Math.max(64, 58 + insets.bottom),
-              paddingBottom: Platform.OS === 'web' ? 8 : (insets.bottom > 0 ? insets.bottom : 8),
-              paddingTop: 4,
+              height: Platform.OS === 'web' ? 76 : Math.max(68, 58 + insets.bottom),
+              paddingBottom: Platform.OS === 'web' ? 10 : (insets.bottom > 0 ? insets.bottom : 8),
+              paddingTop: 6,
             },
             headerShown: !isDesktop, // Hide header on desktop
             headerStyle: {

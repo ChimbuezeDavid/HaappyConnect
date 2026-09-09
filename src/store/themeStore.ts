@@ -13,7 +13,7 @@ interface ThemeState {
 const THEME_KEY = 'user_theme_preference';
 
 export const useThemeStore = create<ThemeState>((set) => ({
-  theme: 'dark',
+  theme: 'system',
   setTheme: async (theme) => {
     try {
       if (Platform.OS === 'web') {
@@ -34,7 +34,7 @@ export const useThemeStore = create<ThemeState>((set) => ({
       if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
         set({ theme: savedTheme });
       } else {
-        set({ theme: 'dark' });
+        set({ theme: 'system' });
       }
     } catch (e) {
       console.warn('Error loading theme preference:', e);

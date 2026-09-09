@@ -8,14 +8,13 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
  */
 export default function Root({ children }: PropsWithChildren) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <title>HaappyConnect</title>
         <meta name="description" content="Connect with top mentors and experts for live consultations." />
-        <meta name="theme-color" content="#0B0F14" />
 
         {/* Favicons & App Icons */}
         <link rel="icon" href="/favicon.ico" />
@@ -24,21 +23,20 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
 
-        {/* Theme persistence: prevent theme flash */}
+        {/* Theme persistence: follow system theme by default, or user preference if set */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
                   var saved = localStorage.getItem('user_theme_preference');
-                  if (saved === 'light') {
-                    document.documentElement.classList.remove('dark');
-                  } else {
+                  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  if (saved === 'dark' || ((!saved || saved === 'system') && prefersDark)) {
                     document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
                   }
-                } catch (e) {
-                  document.documentElement.classList.add('dark');
-                }
+                } catch (e) {}
               })();
             `,
           }}

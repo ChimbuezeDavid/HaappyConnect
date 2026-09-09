@@ -1,7 +1,20 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Alert, Pressable, Platform, StyleSheet } from 'react-native';
-import { X, CreditCard } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  Platform,
+  StyleSheet,
+  KeyboardAvoidingView,
+  ScrollView,
+} from 'react-native';
+import { X, CreditCard, ShieldCheck } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { useWalletStore } from '@/store/walletStore';
 import * as WebBrowser from 'expo-web-browser';
@@ -27,9 +40,23 @@ export default function DepositModal({ visible, onClose, onSuccess }: DepositMod
     }
   }, [visible]);
 
+  const formatWithCommas = (text: string): string => {
+    // Remove any character that isn't a digit or dot
+    const clean = text.replace(/[^0-9.]/g, '');
+    if (!clean) return '';
+    const parts = clean.split('.');
+    const integerPart = parts[0] ? Number(parts[0]).toLocaleString('en-US') : '';
+    if (parts.length > 1) {
+      return `${integerPart}.${parts[1].slice(0, 2)}`;
+    }
+    return integerPart;
+  };
+
+  const numericAmount = parseFloat(amount.replace(/,/g, ''));
+  const isValid = !isNaN(numericAmount) && numericAmount > 0;
+
   const handleDeposit = async () => {
-    const numericAmount = parseFloat(amount.replace(/,/g, ''));
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    if (!isValid) {
       Alert.alert('Invalid Amount', 'Please enter a valid deposit amount greater than zero.');
       return;
     }
@@ -71,6 +98,12 @@ export default function DepositModal({ visible, onClose, onSuccess }: DepositMod
     }
   };
 
+  const getButtonText = () => {
+    if (isActionLoading) return 'Redirecting to Paystack...';
+    if (!isValid) return 'Enter Deposit Amount';
+    return `Proceed to Pay ₦${numericAmount.toLocaleString()}`;
+  };
+
   return (
     <Modal
       animationType="fade"
@@ -78,99 +111,126 @@ export default function DepositModal({ visible, onClose, onSuccess }: DepositMod
       visible={visible}
       onRequestClose={onClose}
     >
-      <View className="flex-1 justify-center items-center bg-black/70 px-4">
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        
-        <View className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full">
-          {/* Header */}
-          <View className="flex-row justify-between items-center mb-6">
-            <View>
-              <Text className="text-xl font-extrabold text-slate-900 dark:text-white">Deposit Funds</Text>
-              <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Credit your wallet securely</Text>
-            </View>
-            <TouchableOpacity 
-              onPress={onClose}
-              className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <View className="flex-1 justify-center items-center bg-black/70 px-4 py-6">
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          
+          <View className="bg-white dark:bg-slate-900 rounded-[28px] p-6 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full max-h-[92%]">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
             >
-              <X size={18} color={isDark ? '#cbd5e1' : '#475569'} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Amount Input */}
-          <View className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 mb-5 flex-row items-center">
-            <Text className="text-3xl font-extrabold text-slate-900 dark:text-white mr-2">₦</Text>
-            <TextInput
-              keyboardType="numeric"
-              placeholder="0.00"
-              placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-              value={amount}
-              onChangeText={(text) => {
-                const clean = text.replace(/[^0-9.]/g, '');
-                setAmount(clean);
-              }}
-              className="flex-1 text-3xl font-extrabold text-slate-900 dark:text-white p-0"
-              style={{ textAlignVertical: 'center' }}
-            />
-          </View>
-
-          {/* Presets */}
-          <Text className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-3">Quick Presets</Text>
-          <View className="flex-row flex-wrap gap-2.5 mb-6">
-            {presets.map((val) => {
-              const isSelected = parseFloat(amount) === val;
-              return (
-                <TouchableOpacity
-                  key={val}
-                  onPress={() => setAmount(val.toString())}
-                  className={`border py-3 px-4 rounded-xl ${
-                    isSelected
-                      ? 'bg-primary-500/10 border-primary-500 dark:bg-primary-500/15'
-                      : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-800'
-                  }`}
+              {/* Header */}
+              <View className="flex-row justify-between items-center mb-5">
+                <View>
+                  <Text className="text-xl font-extrabold text-slate-900 dark:text-white">Deposit Funds</Text>
+                  <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Credit your wallet securely</Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={onClose}
+                  className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full"
+                  accessibilityRole="button"
+                  accessibilityLabel="Close deposit dialog"
                 >
-                  <Text className={`font-bold text-sm ${
-                    isSelected ? 'text-primary-600 dark:text-primary-400' : 'text-slate-850 dark:text-slate-200'
-                  }`}>
-                    ₦{val.toLocaleString()}
-                  </Text>
+                  <X size={18} color={isDark ? '#cbd5e1' : '#475569'} />
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+              </View>
 
-          {/* Pay Button */}
-          {(() => {
-            const numericAmount = parseFloat(amount);
-            const isValid = !isNaN(numericAmount) && numericAmount > 0;
-            return (
+              {/* Amount Input with digit separator */}
+              <View className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 mb-5 flex-row items-center">
+                <Text className="text-2xl sm:text-3xl font-extrabold text-primary-600 dark:text-primary-400 mr-2">₦</Text>
+                <TextInput
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+                  value={amount}
+                  onChangeText={(text) => {
+                    const formatted = formatWithCommas(text);
+                    setAmount(formatted);
+                  }}
+                  className="flex-1 text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white p-0"
+                  style={{ textAlignVertical: 'center' }}
+                />
+                {isValid && (
+                  <View className="bg-primary-500/15 dark:bg-primary-500/20 px-2.5 py-1 rounded-full">
+                    <Text className="text-[11px] font-bold text-primary-600 dark:text-primary-400">NGN</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Presets */}
+              <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                Quick Presets
+              </Text>
+              <View className="flex-row flex-wrap gap-2.5 mb-6">
+                {presets.map((val) => {
+                  const isSelected = numericAmount === val;
+                  return (
+                    <TouchableOpacity
+                      key={val}
+                      onPress={() => setAmount(val.toLocaleString('en-US'))}
+                      activeOpacity={0.7}
+                      className={`border py-2.5 px-3.5 rounded-xl ${
+                        isSelected
+                          ? 'bg-primary-500/10 border-primary-500 dark:bg-primary-500/20 dark:border-primary-400'
+                          : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80'
+                      }`}
+                    >
+                      <Text className={`font-bold text-sm ${
+                        isSelected ? 'text-primary-600 dark:text-primary-400' : 'text-slate-800 dark:text-slate-200'
+                      }`}>
+                        ₦{val.toLocaleString()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Pay Button */}
               <TouchableOpacity
                 onPress={handleDeposit}
                 disabled={isActionLoading || !isValid}
-                className={`w-full py-4.5 rounded-2xl flex-row justify-center items-center ${
+                activeOpacity={0.85}
+                className={`w-full py-4 rounded-2xl flex-row justify-center items-center shadow-sm ${
                   !isValid
                     ? 'bg-slate-200 dark:bg-slate-800 opacity-60'
                     : isActionLoading
                       ? 'bg-primary-500/80'
-                      : 'bg-primary-500 shadow-lg shadow-primary-500/20'
+                      : 'bg-primary-500 active:bg-primary-600 shadow-primary-500/25 shadow-lg'
                 }`}
               >
                 {isActionLoading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <>
-                    <CreditCard size={18} color="#fff" className="mr-2" />
-                    <Text className="text-white font-extrabold text-base ml-2">Proceed to Checkout</Text>
+                    <CreditCard size={18} color="#fff" />
+                    <Text className="text-white font-extrabold text-base ml-2.5">
+                      {getButtonText()}
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
-            );
-          })()}
 
-          <Text className="text-center text-xs text-slate-400 dark:text-slate-500 mt-4 leading-normal">
-            Transactions are processed through Paystack. By clicking proceed, you agree to our payment terms.
-          </Text>
+              {/* Security & Terms Reassurance Badge */}
+              <View className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 items-center">
+                <View className="flex-row items-center justify-center mb-1">
+                  <ShieldCheck size={14} color="#059669" />
+                  <Text className="text-xs font-semibold text-slate-700 dark:text-slate-300 ml-1.5">
+                    Secured by Paystack • 256-bit SSL
+                  </Text>
+                </View>
+                <Text className="text-[11px] text-slate-400 dark:text-slate-500 text-center leading-tight">
+                  By proceeding, you agree to our payment terms. Funds are credited instantly to your wallet.
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

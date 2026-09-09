@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { Sparkles, MessageSquare, PhoneCall, ArrowRight } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useColorScheme } from 'nativewind';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Slide {
   title: string;
@@ -32,6 +33,7 @@ export default function WelcomeScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
 
   // Immediate fail-safe: authenticated users must NEVER see the welcome screen
   useEffect(() => {
@@ -54,7 +56,7 @@ export default function WelcomeScreen() {
       subtitle: 'On Demand',
       description:
         'Connect with top tech founders, coaches, and financial advisors for personalized 1:1 paid advice.',
-      icon: <Sparkles size={32} color="#059669" />,
+      icon: <Sparkles size={34} color="#059669" />,
       accentColor: '#059669',
     },
     {
@@ -62,7 +64,7 @@ export default function WelcomeScreen() {
       subtitle: 'Get Answered',
       description:
         'Text, voice, or video, submit your question and pay only when the expert responds.',
-      icon: <MessageSquare size={32} color="#0ea5e9" />,
+      icon: <MessageSquare size={34} color="#0ea5e9" />,
       accentColor: '#0ea5e9',
     },
     {
@@ -70,7 +72,7 @@ export default function WelcomeScreen() {
       subtitle: 'Face to Face',
       description:
         'Book scheduled video consultations through integrated calendar and video rooms.',
-      icon: <PhoneCall size={32} color="#10b981" />,
+      icon: <PhoneCall size={34} color="#10b981" />,
       accentColor: '#10b981',
     },
   ];
@@ -94,24 +96,30 @@ export default function WelcomeScreen() {
   };
 
   const currentSlide = slides[activeIndex];
+  const topPadding = Math.max(insets.top, Platform.OS === 'web' ? 20 : 16) + 12;
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'web' ? 24 : 16) + 12;
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
+    <View style={{ flex: 1, backgroundColor: isDark ? '#020617' : '#ffffff' }}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Top Brand */}
+      {/* Top Navigation / Brand Header */}
       <View
         style={{
-          paddingTop: 64,
+          paddingTop: topPadding,
           paddingHorizontal: 24,
+          paddingBottom: 12,
+          flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'space-between',
         }}
         accessible={true}
         accessibilityRole="header"
       >
+        <View style={{ width: 48 }} />
         <Text
           style={{
-            fontSize: 20,
+            fontSize: 21,
             fontWeight: '800',
             color: isDark ? '#fff' : '#0f172a',
             letterSpacing: -0.5,
@@ -120,6 +128,30 @@ export default function WelcomeScreen() {
           Haappy
           <Text style={{ color: '#059669' }}>Connect</Text>
         </Text>
+        <TouchableOpacity
+          onPress={() => {
+            useAuthStore.getState().setGuest(true);
+            router.replace('/(tabs)' as any);
+          }}
+          style={{
+            width: 48,
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            paddingVertical: 4,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Skip intro"
+        >
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: '600',
+              color: isDark ? '#94a3b8' : '#64748b',
+            }}
+          >
+            Skip
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Carousel or Side-by-Side Cards */}
@@ -204,7 +236,7 @@ export default function WelcomeScreen() {
           </View>
         </View>
       ) : (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
+        <View style={{ flex: 1 }}>
           <ScrollView
             ref={scrollViewRef}
             horizontal
@@ -212,6 +244,8 @@ export default function WelcomeScreen() {
             showsHorizontalScrollIndicator={false}
             onScroll={handleScroll}
             scrollEventThrottle={16}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1 }}
             accessibilityRole="adjustable"
             accessibilityLabel={`Feature carousel, slide ${activeIndex + 1} of ${slides.length}`}
             accessibilityHint="Swipe left or right to browse features"
@@ -221,6 +255,7 @@ export default function WelcomeScreen() {
                 key={idx}
                 style={{
                   width: width,
+                  height: '100%',
                   paddingHorizontal: 32,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -231,15 +266,20 @@ export default function WelcomeScreen() {
                 {/* Icon */}
                 <View
                   style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 24,
+                    width: 84,
+                    height: 84,
+                    borderRadius: 26,
                     backgroundColor: `${slide.accentColor}15`,
-                    borderWidth: 1,
+                    borderWidth: 1.5,
                     borderColor: `${slide.accentColor}30`,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: 32,
+                    marginBottom: 28,
+                    shadowColor: slide.accentColor,
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: isDark ? 0 : 0.1,
+                    shadowRadius: 12,
+                    elevation: 3,
                   }}
                 >
                   {slide.icon}
@@ -248,24 +288,24 @@ export default function WelcomeScreen() {
                 {/* Title block */}
                 <Text
                   style={{
-                    fontSize: 32,
+                    fontSize: 30,
                     fontWeight: '900',
                     color: isDark ? '#fff' : '#0f172a',
                     textAlign: 'center',
-                    letterSpacing: -1,
-                    lineHeight: 38,
+                    letterSpacing: -0.8,
+                    lineHeight: 36,
                   }}
                 >
                   {slide.title}
                 </Text>
                 <Text
                   style={{
-                    fontSize: 32,
+                    fontSize: 30,
                     fontWeight: '900',
                     color: slide.accentColor,
                     textAlign: 'center',
-                    letterSpacing: -1,
-                    lineHeight: 38,
+                    letterSpacing: -0.8,
+                    lineHeight: 36,
                     marginBottom: 16,
                   }}
                 >
@@ -274,10 +314,11 @@ export default function WelcomeScreen() {
 
                 <Text
                   style={{
-                    fontSize: 15,
-                    color: isDark ? '#94a3b8' : '#475569',
+                    fontSize: 15.5,
+                    color: isDark ? '#94a3b8' : '#64748b',
                     textAlign: 'center',
                     lineHeight: 24,
+                    maxWidth: 320,
                     paddingHorizontal: 8,
                   }}
                 >
@@ -290,14 +331,14 @@ export default function WelcomeScreen() {
       )}
 
       {/* Bottom section */}
-      <View style={{ paddingHorizontal: 24, paddingBottom: 48 }}>
+      <View style={{ paddingHorizontal: 24, paddingBottom: bottomPadding }}>
         {/* Dots */}
         {!isDesktop && (
           <View
             style={{
               flexDirection: 'row',
               justifyContent: 'center',
-              marginBottom: 32,
+              marginBottom: 24,
               gap: 8,
             }}
             accessible={true}
@@ -309,8 +350,8 @@ export default function WelcomeScreen() {
                 style={{
                   height: 6,
                   borderRadius: 3,
-                  width: activeIndex === idx ? 24 : 6,
-                  backgroundColor: activeIndex === idx ? currentSlide.accentColor : (isDark ? '#1e293b' : '#cbd5e1'),
+                  width: activeIndex === idx ? 26 : 6,
+                  backgroundColor: activeIndex === idx ? currentSlide.accentColor : (isDark ? '#1e293b' : '#e2e8f0'),
                 }}
               />
             ))}
@@ -332,21 +373,26 @@ export default function WelcomeScreen() {
           accessibilityLabel={isDesktop || activeIndex === slides.length - 1 ? 'Get started' : 'Next'}
           style={{
             backgroundColor: isDesktop ? '#059669' : currentSlide.accentColor,
-            paddingVertical: 18,
+            paddingVertical: 16,
             borderRadius: 16,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: 56,
+            minHeight: 54,
             maxWidth: isDesktop ? 400 : undefined,
             width: '100%',
             alignSelf: 'center',
+            shadowColor: currentSlide.accentColor,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 10,
+            elevation: 3,
           }}
         >
           <Text
             style={{
               color: '#fff',
-              fontSize: 17,
+              fontSize: 16,
               fontWeight: '700',
               marginRight: 8,
             }}

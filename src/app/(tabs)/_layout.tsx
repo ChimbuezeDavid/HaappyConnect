@@ -36,19 +36,20 @@ export default function TabLayout() {
   const borderColor = isDark ? '#222D3D' : '#E7E1D8';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
 
-  const renderTabLabel = (label: string) => (props: any) => (
+  const renderTabLabel = (label: string) => ({ color }: { color: string }) => (
     <Text
       numberOfLines={1}
-      adjustsFontSizeToFit
-      minimumFontScale={0.75}
-      allowFontScaling={false}
       style={{
-        color: props.color,
+        color,
         fontSize: 10,
-        fontFamily: 'Inter_600SemiBold',
+        fontFamily: Platform.select({
+          web: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          default: 'Inter_600SemiBold',
+        }),
         fontWeight: '600',
         textAlign: 'center',
         marginTop: 2,
+        lineHeight: 12,
       }}
     >
       {label}
@@ -66,17 +67,30 @@ export default function TabLayout() {
           screenOptions={{
             tabBarActiveTintColor: activeColor,
             tabBarInactiveTintColor: inactiveColor,
+            tabBarShowLabel: true,
+            tabBarLabelPosition: 'below-icon',
+            tabBarLabelStyle: {
+              fontSize: 10,
+              fontFamily: Platform.select({
+                web: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                default: 'Inter_600SemiBold',
+              }),
+              fontWeight: '600',
+              marginTop: 2,
+            },
             tabBarItemStyle: {
               paddingHorizontal: 0,
-              paddingVertical: 2,
+              paddingVertical: 4,
+              justifyContent: 'center',
+              alignItems: 'center',
             },
             tabBarStyle: isDesktop ? { display: 'none' } : {
               backgroundColor: surfaceColor,
               borderTopColor: borderColor,
               borderTopWidth: 1,
-              height: 60 + insets.bottom,
-              paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-              paddingTop: 6,
+              height: Platform.OS === 'web' ? 68 : Math.max(64, 58 + insets.bottom),
+              paddingBottom: Platform.OS === 'web' ? 8 : (insets.bottom > 0 ? insets.bottom : 8),
+              paddingTop: 4,
             },
             headerShown: !isDesktop, // Hide header on desktop
             headerStyle: {
@@ -97,7 +111,7 @@ export default function TabLayout() {
             options={{
               title: isExpert ? 'Dashboard' : 'Explore',
               tabBarLabel: renderTabLabel(isExpert ? 'Dashboard' : 'Explore'),
-              tabBarIcon: ({ color, size }) => <Compass size={size} color={color} />,
+              tabBarIcon: ({ color }) => <Compass size={22} color={color} />,
               headerShown: false, // Index has its own top greeting header, prevent redundant Expl... bar
             }}
           />
@@ -107,7 +121,7 @@ export default function TabLayout() {
               href: null,
               title: 'Search',
               tabBarLabel: renderTabLabel('Search'),
-              tabBarIcon: ({ color, size }) => <Search size={size} color={color} />,
+              tabBarIcon: ({ color }) => <Search size={22} color={color} />,
               headerTitle: 'Search',
             }}
           />
@@ -116,7 +130,7 @@ export default function TabLayout() {
             options={{
               title: 'Messages',
               tabBarLabel: renderTabLabel('Messages'),
-              tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
+              tabBarIcon: ({ color }) => <MessageSquare size={22} color={color} />,
               headerTitle: isExpert ? 'Client Messages' : 'Messages',
               tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
             }}
@@ -126,7 +140,7 @@ export default function TabLayout() {
             options={{
               title: isExpert ? 'Queue' : 'Sessions',
               tabBarLabel: renderTabLabel(isExpert ? 'Queue' : 'Sessions'),
-              tabBarIcon: ({ color, size }) => <CalendarDays size={size} color={color} />,
+              tabBarIcon: ({ color }) => <CalendarDays size={22} color={color} />,
               headerTitle: isExpert ? 'Consultation Queue' : 'My Consultations',
             }}
           />
@@ -135,7 +149,7 @@ export default function TabLayout() {
             options={{
               title: isExpert ? 'Earnings' : 'Wallet',
               tabBarLabel: renderTabLabel(isExpert ? 'Earnings' : 'Wallet'),
-              tabBarIcon: ({ color, size }) => <Wallet size={size} color={color} />,
+              tabBarIcon: ({ color }) => <Wallet size={22} color={color} />,
               headerTitle: isExpert ? 'Earnings' : 'Naira Wallet (₦)',
             }}
           />
@@ -144,7 +158,7 @@ export default function TabLayout() {
             options={{
               title: isExpert ? 'Suite' : 'Space',
               tabBarLabel: renderTabLabel(isExpert ? 'Suite' : 'Space'),
-              tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+              tabBarIcon: ({ color }) => <User size={22} color={color} />,
               headerTitle: isExpert ? 'Consultancy Suite' : 'My Space & Growth',
             }}
           />

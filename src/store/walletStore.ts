@@ -21,7 +21,7 @@ interface WalletState {
   fetchTransactions: (refresh?: boolean, filterType?: string, search?: string) => Promise<void>;
   depositFunds: (amount: number, redirectUri: string) => Promise<{ authorizationUrl: string; reference: string; isMock: boolean }>;
   verifyDeposit: (reference: string) => Promise<void>;
-  withdrawFunds: (data: { amount: number; bankName: string; accountNumber: string; accountName: string }) => Promise<void>;
+  withdrawFunds: (data: { amount: number; bankName: string; bankCode?: string; accountNumber: string; accountName: string }) => Promise<void>;
   clearWalletState: () => void;
 }
 

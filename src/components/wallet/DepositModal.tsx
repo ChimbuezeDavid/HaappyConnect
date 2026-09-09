@@ -20,6 +20,8 @@ import { useWalletStore } from '@/store/walletStore';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
+import { api } from '@/lib/api';
+
 interface DepositModalProps {
   visible: boolean;
   onClose: () => void;
@@ -86,11 +88,17 @@ export default function DepositModal({ visible, onClose, onSuccess }: DepositMod
             onClose();
             setAmount('');
           } else {
-            Alert.alert('Payment Declined', 'The transaction was cancelled or failed.');
+            // Clean up cancelled payment record immediately from database
+            if (data.reference) {
+              await api.post('/wallet/cancel-pending', { reference: data.reference }).catch(() => {});
+            }
+            Alert.alert('Payment Cancelled', 'The checkout session was cancelled.');
           }
         } else {
-          // If the browser was closed before completing
-          Alert.alert('Payment Pending', 'Checkout session was closed. We will verify transactions shortly.');
+          // If the browser was closed before completing, delete the pending record immediately
+          if (data.reference) {
+            await api.post('/wallet/cancel-pending', { reference: data.reference }).catch(() => {});
+          }
         }
       }
     } catch (error: any) {

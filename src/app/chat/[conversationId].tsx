@@ -14,7 +14,8 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  Modal
+  Modal,
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
@@ -22,8 +23,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useChatStore, ChatMessage } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
+import * as WebBrowser from 'expo-web-browser';
+import * as ExpoLinking from 'expo-linking';
 import {
   ChevronLeft,
+  ChevronRight,
   MoreVertical,
   Send,
   Image as ImageIcon,
@@ -47,7 +51,8 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
-  PhoneCall
+  PhoneCall,
+  Sparkles
 } from 'lucide-react-native';
 import { useAudioPlayer, useAudioRecorder, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
@@ -503,6 +508,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
   // Consultation Gating & Active Package State
   const [consultationStatus, setConsultationStatus] = useState<{
     isGated: boolean;
+    expertUserId?: string;
     expertProfileId?: string;
     expertName?: string;
     textQuestionPrice?: number;
@@ -519,6 +525,60 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
 
   const [activeQuestion, setActiveQuestion] = useState<any>(null);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
+
+  // In-chat rate picker & direct Paystack purchase state
+  const [packagePickerVisible, setPackagePickerVisible] = useState(false);
+  const [isPurchasingPackage, setIsPurchasingPackage] = useState(false);
+
+  const handlePurchasePackage = async (type: 'text' | 'video') => {
+    const targetExpertId = consultationStatus.expertUserId || consultationStatus.expertProfileId;
+    if (!targetExpertId) {
+      Alert.alert('Error', 'Mentor profile information not loaded yet.');
+      return;
+    }
+    setIsPurchasingPackage(true);
+    try {
+      const redirectUri = ExpoLinking.createURL('consultation-callback');
+      const initData = await api.post('/question/initiate', {
+        expertId: targetExpertId,
+        type,
+        seekerContent: inputText.trim() || `Consultation inquiry with ${consultationStatus.expertName || 'Mentor'}`,
+        redirect_uri: redirectUri,
+      });
+
+      if (initData && initData.authorizationUrl) {
+        if (Platform.OS === 'web') {
+          window.location.href = initData.authorizationUrl;
+          return;
+        }
+
+        const result = await WebBrowser.openAuthSessionAsync(initData.authorizationUrl, redirectUri);
+        if (result.type === 'success' && result.url) {
+          const parsed = ExpoLinking.parse(result.url);
+          const { reference, status } = parsed.queryParams || {};
+          if (reference && (status === 'success' || !status)) {
+            await api.post('/question/verify-payment', { reference });
+            setPackagePickerVisible(false);
+            await checkConsultationStatus();
+            if (conversationId) {
+              await fetchMessages(conversationId);
+            }
+            if (inputText.trim()) {
+              await sendMessage(conversationId, inputText.trim());
+              setInputText('');
+            }
+            Alert.alert('Consultation Activated', 'Your package is now active. You can chat directly with your mentor!');
+          } else {
+            Alert.alert('Payment Incomplete', 'Payment was cancelled or failed.');
+          }
+        }
+      }
+    } catch (err: any) {
+      Alert.alert('Checkout Failed', err.message || 'Could not launch Paystack checkout.');
+    } finally {
+      setIsPurchasingPackage(false);
+    }
+  };
 
   // Dispute reporting modal state
   const [disputeModalVisible, setDisputeModalVisible] = useState(false);
@@ -640,24 +700,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
     if (!inputText.trim() || !conversationId) return;
 
     if (consultationStatus.isGated) {
-      Alert.alert(
-        'Paid Consultation Required',
-        `Direct communication with ${consultationStatus.expertName || 'this mentor'} requires booking an active consultation.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'View Services',
-            onPress: () => {
-              if (consultationStatus.expertProfileId) {
-                router.push({
-                  pathname: '/expert/[id]',
-                  params: { id: consultationStatus.expertProfileId }
-                } as any);
-              }
-            }
-          }
-        ]
-      );
+      setPackagePickerVisible(true);
       return;
     }
 
@@ -1030,54 +1073,28 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
         />
       )}
 
-      {/* Paid Consultation Gating Banner */}
+      {/* Paid Consultation Rate Banner */}
       {consultationStatus.isGated && (
-        <View className="mx-4 mb-3 p-4 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 rounded-3xl shadow-sm">
-          <View className="flex-row items-center mb-1">
-            <Lock size={15} color="#d97706" style={{ marginRight: 6 }} />
-            <Text className="text-amber-800 dark:text-amber-300 font-extrabold text-xs uppercase tracking-wider">
-              Paid Consultation Required
+        <View className="mx-4 mb-2.5 p-3.5 bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 rounded-2xl flex-row items-center justify-between shadow-sm">
+          <View className="flex-1 mr-3">
+            <View className="flex-row items-center mb-0.5">
+              <Sparkles size={14} color="#059669" style={{ marginRight: 6 }} />
+              <Text className="text-emerald-900 dark:text-emerald-300 font-extrabold text-xs">
+                Consult with {consultationStatus.expertName || 'Mentor'}
+              </Text>
+            </View>
+            <Text className="text-slate-600 dark:text-slate-400 text-[11px] leading-tight">
+              Select an advisory rate package to send questions directly.
             </Text>
           </View>
-          <Text className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed mb-3">
-            Direct communication with {consultationStatus.expertName || 'this mentor'} requires booking an active advisory package.
-          </Text>
-          <View className="flex-row gap-2">
-            <TouchableOpacity
-              onPress={() => {
-                if (consultationStatus.expertProfileId) {
-                  router.push({
-                    pathname: '/seeker/ask-question',
-                    params: { expertId: consultationStatus.expertProfileId, initialType: 'text' }
-                  } as any);
-                }
-              }}
-              className="flex-1 bg-emerald-600 py-2.5 px-3 rounded-xl items-center flex-row justify-center"
-              activeOpacity={0.85}
-            >
-              <MessageSquare size={13} color="#fff" style={{ marginRight: 6 }} />
-              <Text className="text-white text-xs font-bold" numberOfLines={1}>
-                Ask (₦{(consultationStatus.textPackagePrice || consultationStatus.textQuestionPrice || 3000).toLocaleString()})
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                if (consultationStatus.expertProfileId) {
-                  router.push({
-                    pathname: '/seeker/book-call',
-                    params: { expertId: consultationStatus.expertProfileId }
-                  } as any);
-                }
-              }}
-              className="flex-1 bg-slate-900 dark:bg-white py-2.5 px-3 rounded-xl items-center flex-row justify-center"
-              activeOpacity={0.85}
-            >
-              <PhoneCall size={13} color={isDark ? '#0f172a' : '#fff'} style={{ marginRight: 6 }} />
-              <Text className="text-white dark:text-slate-900 text-xs font-bold" numberOfLines={1}>
-                Book Call (₦{(consultationStatus.callPricePerMinute || 500).toLocaleString()}/min)
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={() => setPackagePickerVisible(true)}
+            className="bg-emerald-600 px-3.5 py-2 rounded-xl flex-row items-center shadow-sm"
+            activeOpacity={0.85}
+          >
+            <Text className="text-white text-xs font-bold mr-1">Choose Rate</Text>
+            <ChevronRight size={13} color="#fff" />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -1089,7 +1106,7 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
           </Text>
         </View>
       ) : (
-        <View className="py-4 px-4 flex-row items-center border-t border-slate-150 dark:border-slate-900 bg-white dark:bg-slate-950 shadow-lg">
+        <View className="py-3 px-4 flex-row items-center border-t border-slate-150 dark:border-slate-900 bg-white dark:bg-slate-950 shadow-lg">
           {/* Attachment Button */}
           {!consultationStatus.isGated && (
             <TouchableOpacity
@@ -1114,27 +1131,35 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
             <TextInput
               value={inputText}
               onChangeText={handleInputChange}
-              editable={!consultationStatus.isGated}
-              placeholder={consultationStatus.isGated ? "Paid consultation required to message..." : "Type a message..."}
-              placeholderTextColor={consultationStatus.isGated ? "#f59e0b" : "#94a3b8"}
+              editable={true}
+              placeholder={consultationStatus.isGated ? `Ask ${consultationStatus.expertName || 'mentor'} a question...` : "Type a message..."}
+              placeholderTextColor={consultationStatus.isGated ? "#059669" : "#94a3b8"}
               multiline
               className={`flex-1 bg-slate-50 dark:bg-slate-900 border ${
                 consultationStatus.isGated
-                  ? 'border-amber-500/30 opacity-70'
+                  ? 'border-emerald-500/40'
                   : 'border-slate-200 dark:border-slate-800'
-              } text-slate-950 dark:text-white rounded-2xl px-4 py-3 text-sm max-h-24 shadow-inner`}
+              } text-slate-955 dark:text-white rounded-2xl px-4 py-3 text-sm max-h-24 shadow-inner`}
             />
           )}
 
           {/* Media Send Buttons */}
-          {!consultationStatus.isGated && (
-            inputText.trim().length > 0 ? (
+          {inputText.trim().length > 0 ? (
+            <TouchableOpacity
+              onPress={handleSend}
+              className="p-3 bg-emerald-600 rounded-full ml-2.5 shadow-md shadow-emerald-600/20"
+              activeOpacity={0.8}
+            >
+              <Send size={18} color="#fff" />
+            </TouchableOpacity>
+          ) : (
+            consultationStatus.isGated ? (
               <TouchableOpacity
-                onPress={handleSend}
-                className="p-3 bg-emerald-600 rounded-full ml-2.5 shadow-md shadow-emerald-600/20"
+                onPress={() => setPackagePickerVisible(true)}
+                className="p-3 bg-emerald-600/15 border border-emerald-500/30 rounded-full ml-2.5 shadow-sm"
                 activeOpacity={0.8}
               >
-                <Send size={18} color="#fff" />
+                <Sparkles size={18} color="#059669" />
               </TouchableOpacity>
             ) : (
               !isRecording && (
@@ -1324,6 +1349,211 @@ export default function ChatRoomScreen({ conversationIdProp, isInlineProp }: Cha
                 </>
               )}
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* In-Chat Consultation Rate & Package Picker Modal (No emojis, Lucide icons only) */}
+      <Modal
+        visible={packagePickerVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setPackagePickerVisible(false)}
+      >
+        <View className="flex-1 bg-black/75 justify-end">
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPackagePickerVisible(false)} />
+          <View className="bg-white dark:bg-slate-900 rounded-t-[32px] p-6 max-h-[85%] border-t border-slate-200 dark:border-slate-800 shadow-2xl">
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-4">
+              <View className="flex-1 pr-3">
+                <View className="flex-row items-center mb-1">
+                  <Sparkles size={18} color="#059669" style={{ marginRight: 6 }} />
+                  <Text className="text-slate-900 dark:text-white font-extrabold text-lg">
+                    Select Consultation Rate
+                  </Text>
+                </View>
+                <Text className="text-slate-500 dark:text-slate-400 text-xs">
+                  Direct advisory with {consultationStatus.expertName || 'Mentor'}. Choose your package to activate chat.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setPackagePickerVisible(false)}
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800"
+              >
+                <X size={18} color={isDark ? '#cbd5e1' : '#64748b'} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} className="space-y-4">
+              {/* Option 1: Written Advisory */}
+              <View className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl">
+                <View className="flex-row justify-between items-start mb-2">
+                  <View className="flex-row items-center">
+                    <View className="p-2.5 bg-emerald-500/10 rounded-xl mr-3">
+                      <MessageSquare size={20} color="#059669" />
+                    </View>
+                    <View>
+                      <Text className="text-slate-900 dark:text-white font-bold text-sm">
+                        Written Consultation
+                      </Text>
+                      <Text className="text-slate-500 dark:text-slate-400 text-xs">
+                        {consultationStatus.textPackageCount || 3} Questions included
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="items-end">
+                    <Text className="text-emerald-600 dark:text-emerald-400 font-extrabold text-base">
+                      ₦{(consultationStatus.textPackagePrice || consultationStatus.textQuestionPrice || 3000).toLocaleString()}
+                    </Text>
+                    <Text className="text-slate-400 text-[10px]">package</Text>
+                  </View>
+                </View>
+
+                {/* Bullets */}
+                <View className="py-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1 mb-3">
+                  <View className="flex-row items-center mb-1">
+                    <CheckCircle2 size={13} color="#059669" style={{ marginRight: 6 }} />
+                    <Text className="text-slate-600 dark:text-slate-300 text-xs">
+                      Detailed, actionable guidance via chat
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center mb-1">
+                    <Clock size={13} color="#059669" style={{ marginRight: 6 }} />
+                    <Text className="text-slate-600 dark:text-slate-300 text-xs">
+                      Reply within {consultationStatus.responseWindowDays || 3} business days
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <ShieldCheck size={13} color="#059669" style={{ marginRight: 6 }} />
+                    <Text className="text-slate-600 dark:text-slate-300 text-xs">
+                      100% Escrow Protection & money-back guarantee
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => handlePurchasePackage('text')}
+                  disabled={isPurchasingPackage}
+                  className="w-full bg-emerald-600 py-3 rounded-xl flex-row justify-center items-center shadow-sm active:opacity-90"
+                >
+                  {isPurchasingPackage ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Text className="text-white font-bold text-xs mr-1">Pay with Paystack</Text>
+                      <ChevronRight size={14} color="#fff" />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Option 2: Video Advisory */}
+              <View className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl">
+                <View className="flex-row justify-between items-start mb-2">
+                  <View className="flex-row items-center">
+                    <View className="p-2.5 bg-blue-500/10 rounded-xl mr-3">
+                      <Video size={20} color="#2563eb" />
+                    </View>
+                    <View>
+                      <Text className="text-slate-900 dark:text-white font-bold text-sm">
+                        Video Consultation
+                      </Text>
+                      <Text className="text-slate-500 dark:text-slate-400 text-xs">
+                        {consultationStatus.videoPackageCount || 1} Video Response included
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="items-end">
+                    <Text className="text-blue-600 dark:text-blue-400 font-extrabold text-base">
+                      ₦{(consultationStatus.videoPackagePrice || consultationStatus.videoResponsePrice || 5000).toLocaleString()}
+                    </Text>
+                    <Text className="text-slate-400 text-[10px]">package</Text>
+                  </View>
+                </View>
+
+                {/* Bullets */}
+                <View className="py-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1 mb-3">
+                  <View className="flex-row items-center mb-1">
+                    <CheckCircle2 size={13} color="#2563eb" style={{ marginRight: 6 }} />
+                    <Text className="text-slate-600 dark:text-slate-300 text-xs">
+                      Personalized video reply from mentor
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center mb-1">
+                    <Clock size={13} color="#2563eb" style={{ marginRight: 6 }} />
+                    <Text className="text-slate-600 dark:text-slate-300 text-xs">
+                      Delivered within {consultationStatus.responseWindowDays || 3} business days
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <ShieldCheck size={13} color="#2563eb" style={{ marginRight: 6 }} />
+                    <Text className="text-slate-600 dark:text-slate-300 text-xs">
+                      100% Escrow Protection & money-back guarantee
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => handlePurchasePackage('video')}
+                  disabled={isPurchasingPackage}
+                  className="w-full bg-blue-600 py-3 rounded-xl flex-row justify-center items-center shadow-sm active:opacity-90"
+                >
+                  {isPurchasingPackage ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Text className="text-white font-bold text-xs mr-1">Pay with Paystack</Text>
+                      <ChevronRight size={14} color="#fff" />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Option 3: Live 1-on-1 Call */}
+              {consultationStatus.callPricePerMinute && (
+                <View className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl mb-4">
+                  <View className="flex-row justify-between items-start mb-2">
+                    <View className="flex-row items-center">
+                      <View className="p-2.5 bg-violet-500/10 rounded-xl mr-3">
+                        <PhoneCall size={20} color="#7c3aed" />
+                      </View>
+                      <View>
+                        <Text className="text-slate-900 dark:text-white font-bold text-sm">
+                          Live 1-on-1 Call
+                        </Text>
+                        <Text className="text-slate-500 dark:text-slate-400 text-xs">
+                          Real-time audio / video call
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="items-end">
+                      <Text className="text-violet-600 dark:text-violet-400 font-extrabold text-base">
+                        ₦{consultationStatus.callPricePerMinute.toLocaleString()}
+                      </Text>
+                      <Text className="text-slate-400 text-[10px]">per min</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      setPackagePickerVisible(false);
+                      if (consultationStatus.expertProfileId) {
+                        router.push({
+                          pathname: '/seeker/book-call',
+                          params: { expertId: consultationStatus.expertProfileId }
+                        } as any);
+                      }
+                    }}
+                    className="w-full bg-slate-900 dark:bg-white py-3 rounded-xl flex-row justify-center items-center shadow-sm active:opacity-90 mt-2"
+                  >
+                    <Text className="text-white dark:text-slate-900 font-bold text-xs mr-1">
+                      Schedule Live Call
+                    </Text>
+                    <ChevronRight size={14} color={isDark ? '#0f172a' : '#fff'} />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>

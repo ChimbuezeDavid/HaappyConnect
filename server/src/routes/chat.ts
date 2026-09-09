@@ -298,6 +298,7 @@ router.get('/conversations/:id/consultation-status', authenticate, async (req: A
 
     return res.json({
       isGated,
+      expertUserId: otherUserId,
       expertProfileId: expertProfile?._id,
       expertName: expertProfile?.fullName || 'Expert Mentor',
       textQuestionPrice: expertProfile?.textQuestionPrice || 5000,

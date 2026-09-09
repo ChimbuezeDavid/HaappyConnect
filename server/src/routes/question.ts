@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import mongoose from 'mongoose';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { Question } from '../models/Question';
 import { Profile } from '../models/Profile';
@@ -54,17 +55,23 @@ router.post('/initiate', authenticate, async (req: AuthRequest, res: Response) =
       return res.status(400).json({ error: 'ExpertId and consultation content are required' });
     }
 
-    if (expertId === req.userId) {
+    const expertProfile = await Profile.findOne({
+      $or: [
+        { user: expertId },
+        ...(mongoose.isValidObjectId(expertId) ? [{ _id: expertId }] : [])
+      ]
+    });
+    if (!expertProfile) {
+      return res.status(404).json({ error: 'Expert profile not found' });
+    }
+
+    const resolvedExpertUserId = expertProfile.user.toString();
+    if (resolvedExpertUserId === req.userId) {
       return res.status(400).json({ error: 'You cannot submit a consultation to yourself' });
     }
 
     if (!['text', 'voice', 'video'].includes(type)) {
       return res.status(400).json({ error: 'Invalid question type' });
-    }
-
-    const expertProfile = await Profile.findOne({ user: expertId });
-    if (!expertProfile) {
-      return res.status(404).json({ error: 'Expert profile not found' });
     }
 
     const seekerUser = await User.findById(req.userId);
@@ -89,15 +96,15 @@ router.post('/initiate', authenticate, async (req: AuthRequest, res: Response) =
 
     // Get or create canonical single lifetime thread between seeker and expert
     let conv = await Conversation.findOne({
-      participants: { $all: [req.userId, expertId] }
+      participants: { $all: [req.userId, resolvedExpertUserId] }
     }).sort({ updatedAt: -1 });
 
     if (!conv) {
       conv = new Conversation({
-        participants: [req.userId, expertId],
+        participants: [req.userId, resolvedExpertUserId],
         unreadCounts: [
           { user: req.userId, count: 0 },
-          { user: expertId, count: 0 }
+          { user: resolvedExpertUserId, count: 0 }
         ]
       });
       await conv.save();
@@ -107,7 +114,7 @@ router.post('/initiate', authenticate, async (req: AuthRequest, res: Response) =
 
     const question = new Question({
       seeker: req.userId,
-      expert: expertId,
+      expert: resolvedExpertUserId,
       conversation: conv._id,
       type,
       status: 'payment_pending',

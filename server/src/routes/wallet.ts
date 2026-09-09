@@ -79,6 +79,9 @@ router.get('/transactions', authenticate, async (req: AuthRequest, res: Response
 
     if (status && status !== 'all') {
       query.status = status;
+    } else {
+      // By default, exclude uncompleted pending deposits (abandoned checkout sessions)
+      query.$nor = [{ type: 'deposit', status: 'pending' }];
     }
 
     if (search) {
@@ -107,6 +110,29 @@ router.get('/transactions', authenticate, async (req: AuthRequest, res: Response
     res.status(500).json({ error: error.message || 'Server error fetching transaction history' });
   }
 });
+
+// POST & DELETE /api/wallet/cancel-pending - Delete abandoned or cancelled pending transactions
+const handleCancelPending = async (req: AuthRequest, res: Response) => {
+  try {
+    const reference = (req.body?.reference || req.query?.reference) as string;
+    if (!reference) {
+      return res.status(400).json({ error: 'Transaction reference is required' });
+    }
+
+    // Permanently remove uncompleted pending deposit
+    const result = await Transaction.deleteMany({
+      reference,
+      user: req.userId,
+      status: 'pending'
+    });
+
+    res.json({ message: 'Cancelled transaction removed', deletedCount: result.deletedCount });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error purging cancelled transaction' });
+  }
+};
+router.post('/cancel-pending', authenticate, handleCancelPending);
+router.delete('/cancel-pending', authenticate, handleCancelPending);
 
 // POST /api/wallet/deposit - Initialize a deposit (Paystack or Fallback Sandbox)
 router.post('/deposit', authenticate, async (req: AuthRequest, res: Response) => {
@@ -256,10 +282,131 @@ router.post('/verify', authenticate, async (req: AuthRequest, res: Response) => 
   }
 });
 
-// POST /api/wallet/withdraw - Initiate payout request (Experts only)
+// Default Nigerian commercial banks & fintechs for offline/sandbox fallback
+const DEFAULT_NIGERIAN_BANKS = [
+  { name: 'Access Bank', code: '044', slug: 'access-bank' },
+  { name: 'Guaranty Trust Bank (GTBank)', code: '058', slug: 'guaranty-trust-bank' },
+  { name: 'Zenith Bank', code: '057', slug: 'zenith-bank' },
+  { name: 'First Bank of Nigeria', code: '011', slug: 'first-bank-of-nigeria' },
+  { name: 'United Bank for Africa (UBA)', code: '033', slug: 'united-bank-for-africa' },
+  { name: 'OPay (Paycom)', code: '999992', slug: 'paycom' },
+  { name: 'PalmPay', code: '999991', slug: 'palmpay' },
+  { name: 'Kuda Bank', code: '50211', slug: 'kuda-bank' },
+  { name: 'Moniepoint Microfinance Bank', code: '50515', slug: 'moniepoint-mfb-ng' },
+  { name: 'Stanbic IBTC Bank', code: '221', slug: 'stanbic-ibtc-bank' },
+  { name: 'Fidelity Bank', code: '070', slug: 'fidelity-bank' },
+  { name: 'First City Monument Bank (FCMB)', code: '214', slug: 'first-city-monument-bank' },
+  { name: 'Sterling Bank', code: '232', slug: 'sterling-bank' },
+  { name: 'Union Bank of Nigeria', code: '032', slug: 'union-bank-of-nigeria' },
+  { name: 'Wema Bank', code: '035', slug: 'wema-bank' },
+  { name: 'Ecobank Nigeria', code: '050', slug: 'ecobank-nigeria' },
+  { name: 'Polaris Bank', code: '076', slug: 'polaris-bank' },
+  { name: 'Jaiz Bank', code: '301', slug: 'jaiz-bank' },
+  { name: 'Taj Bank', code: '302', slug: 'taj-bank' },
+  { name: 'VFD Microfinance Bank', code: '566', slug: 'vfd' },
+  { name: 'Rubies MFB', code: '125', slug: 'rubies-mfb' },
+  { name: 'Carbon', code: '565', slug: 'carbon' },
+  { name: 'FairMoney MFB', code: '51318', slug: 'fairmoney-mfb' },
+];
+
+let cachedBanksList: any[] = [];
+let lastBankFetchTimestamp = 0;
+
+// GET /api/wallet/banks - List supported Nigerian commercial banks & fintechs
+router.get('/banks', authenticate, async (_req: AuthRequest, res: Response) => {
+  try {
+    const now = Date.now();
+    // Use cached list if fresh (< 12 hours)
+    if (cachedBanksList.length > 0 && now - lastBankFetchTimestamp < 12 * 60 * 60 * 1000) {
+      return res.json({ banks: cachedBanksList });
+    }
+
+    const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
+    if (PAYSTACK_SECRET) {
+      try {
+        const response = await fetch('https://api.paystack.co/bank?country=nigeria&perPage=100', {
+          headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` }
+        });
+        const data = await response.json() as any;
+        if (data.status && Array.isArray(data.data) && data.data.length > 0) {
+          cachedBanksList = data.data.map((b: any) => ({
+            name: b.name,
+            code: b.code,
+            slug: b.slug,
+            active: b.active
+          }));
+          lastBankFetchTimestamp = now;
+          return res.json({ banks: cachedBanksList });
+        }
+      } catch (fetchErr) {
+        console.warn('Failed to fetch banks from Paystack API, falling back to built-in list', fetchErr);
+      }
+    }
+
+    return res.json({ banks: DEFAULT_NIGERIAN_BANKS });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error loading bank directory' });
+  }
+});
+
+// GET /api/wallet/resolve-account - Real-time NIBSS NUBAN Account Name Enquiry
+router.get('/resolve-account', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const accountNumber = (req.query.account_number as string || '').trim();
+    const bankCode = (req.query.bank_code as string || '').trim();
+
+    if (!accountNumber || accountNumber.length !== 10) {
+      return res.status(400).json({ error: 'Valid 10-digit account number is required' });
+    }
+    if (!bankCode) {
+      return res.status(400).json({ error: 'Bank code is required' });
+    }
+
+    const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
+
+    if (PAYSTACK_SECRET) {
+      const url = `https://api.paystack.co/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`;
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` }
+      });
+      const data = await response.json() as any;
+      if (data.status && data.data) {
+        return res.json({
+          accountNumber: data.data.account_number,
+          accountName: data.data.account_name,
+          bankId: data.data.bank_id,
+          isVerified: true
+        });
+      } else {
+        return res.status(400).json({ error: data.message || 'Could not verify account name with NIBSS' });
+      }
+    }
+
+    // Mock NIBSS resolution fallback for sandbox testing
+    const mockNames = [
+      'CHIMBUEZE DAVID NWOSU',
+      'AMARA GLORY OKONKWO',
+      'OLUWASEUN ADEYEMI BABATUNDE',
+      'EMMANUEL KELVIN EZE',
+      'CHINELO FAITH UCHE'
+    ];
+    const hashIndex = (parseInt(accountNumber.slice(-2), 10) || 0) % mockNames.length;
+    return res.json({
+      accountNumber,
+      accountName: mockNames[hashIndex],
+      bankId: 0,
+      isVerified: true,
+      isMock: true
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error resolving account name' });
+  }
+});
+
+// POST /api/wallet/withdraw - Initiate automated payout request (Experts only)
 router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { amount, bankName, accountNumber, accountName } = req.body;
+    const { amount, bankName, bankCode, accountNumber, accountName } = req.body;
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'Valid payout amount is required' });
@@ -268,29 +415,82 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response) =
       return res.status(400).json({ error: 'Bank details (name, account number, account name) are required' });
     }
 
-
-
     const balanceMetrics = await calculateBalance(req.userId!);
     if (balanceMetrics.availableBalance < amount) {
       return res.status(400).json({ error: 'Insufficient available balance to complete withdrawal' });
     }
 
+    const PAYSTACK_SECRET = (process.env.PAYSTACK_SECRET_KEY || '').trim();
+    let transferReference = `payout_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    let paystackTransferResult: any = null;
+
+    if (PAYSTACK_SECRET && bankCode) {
+      try {
+        // Step 1: Create or fetch Transfer Recipient on Paystack
+        const recipientRes = await fetch('https://api.paystack.co/transferrecipient', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            type: 'nuban',
+            name: accountName,
+            account_number: accountNumber,
+            bank_code: bankCode,
+            currency: 'NGN'
+          })
+        });
+
+        const recipientData = await recipientRes.json() as any;
+        if (recipientData.status && recipientData.data?.recipient_code) {
+          const recipientCode = recipientData.data.recipient_code;
+
+          // Step 2: Initiate automated transfer over NIP
+          const transferRes = await fetch('https://api.paystack.co/transfer', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${PAYSTACK_SECRET}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              source: 'balance',
+              amount: Math.round(Number(amount) * 100), // Kobo conversion
+              recipient: recipientCode,
+              reason: `HaappyConnect Advisory Earnings Payout to ${accountName}`,
+              reference: transferReference
+            })
+          });
+          paystackTransferResult = await transferRes.json() as any;
+        }
+      } catch (transferErr) {
+        console.error('Paystack automated transfer error:', transferErr);
+      }
+    }
+
+    const isDirectSuccess = paystackTransferResult?.status === true && (paystackTransferResult.data?.status === 'success' || paystackTransferResult.data?.status === 'pending');
+
     const transaction = new Transaction({
       user: req.userId,
       amount: -Number(amount),
       type: 'withdrawal',
-      status: 'pending',
+      status: isDirectSuccess ? 'success' : 'pending',
+      reference: transferReference,
       description: `Payout to ${bankName} (${accountNumber})`,
       metadata: {
         bankName,
+        bankCode,
         accountNumber,
-        accountName
+        accountName,
+        paystackTransfer: paystackTransferResult
       }
     });
     await transaction.save();
 
     res.status(201).json({
-      message: 'Withdrawal payout request submitted successfully',
+      message: isDirectSuccess 
+        ? 'Withdrawal dispatched directly to your bank account'
+        : 'Withdrawal payout request submitted successfully',
       transaction
     });
   } catch (error: any) {

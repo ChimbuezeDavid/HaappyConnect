@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  FlatList,
 } from 'react-native';
 import {
   X,
@@ -21,9 +22,19 @@ import {
   CheckCircle2,
   ShieldCheck,
   AlertCircle,
+  ChevronDown,
+  Search,
+  Check,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { useWalletStore } from '@/store/walletStore';
+import { api } from '@/lib/api';
+
+interface BankItem {
+  name: string;
+  code: string;
+  slug?: string;
+}
 
 interface WithdrawModalProps {
   visible: boolean;
@@ -39,34 +50,123 @@ export default function WithdrawModal({
   availableBalance,
 }: WithdrawModalProps) {
   const [amount, setAmount] = useState('');
-  const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankCode, setBankCode] = useState('');
   const [accountName, setAccountName] = useState('');
+
+  // Bank directory and picker modal
+  const [bankPickerVisible, setBankPickerVisible] = useState(false);
+  const [bankSearch, setBankSearch] = useState('');
+  const [banks, setBanks] = useState<BankItem[]>([]);
+  const [isLoadingBanks, setIsLoadingBanks] = useState(false);
+
+  // NIBSS resolution states
+  const [isResolvingName, setIsResolvingName] = useState(false);
+  const [resolutionError, setResolutionError] = useState<string | null>(null);
+  const [isNameVerified, setIsNameVerified] = useState(false);
+
   const { withdrawFunds, isActionLoading } = useWalletStore();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  const formatWithCommas = (text: string): string => {
+    const clean = text.replace(/[^0-9.]/g, '');
+    if (!clean) return '';
+    const parts = clean.split('.');
+    const integerPart = parts[0] ? Number(parts[0]).toLocaleString('en-US') : '';
+    if (parts.length > 1) {
+      return `${integerPart}.${parts[1].slice(0, 2)}`;
+    }
+    return integerPart;
+  };
 
   const numericAmount = parseFloat(amount.replace(/,/g, ''));
   const isAmountEntered = !isNaN(numericAmount) && numericAmount > 0;
   const isAmountValid = isAmountEntered && numericAmount <= availableBalance;
   const isAccountNumberValid = accountNumber.trim().length === 10;
-  const isBankNameValid = bankName.trim().length >= 2;
-  const isAccountNameValid = accountName.trim().length >= 2;
+  const isBankSelected = bankCode.trim().length > 0;
 
   const isFormValid =
-    isAmountValid && isAccountNumberValid && isBankNameValid && isAccountNameValid;
+    isAmountValid && isAccountNumberValid && isBankSelected && isNameVerified && accountName.trim().length > 0;
   const flatFee = 50;
   const netSettlement =
     isAmountValid && numericAmount > flatFee ? numericAmount - flatFee : 0;
 
+  // Load banks list on open
   useEffect(() => {
     if (visible) {
       setAmount('');
-      setBankName('');
       setAccountNumber('');
+      setBankName('');
+      setBankCode('');
       setAccountName('');
+      setIsNameVerified(false);
+      setResolutionError(null);
+
+      // Fetch banks
+      const loadBanks = async () => {
+        setIsLoadingBanks(true);
+        try {
+          const res = await api.get('/wallet/banks');
+          if (res?.banks && Array.isArray(res.banks)) {
+            setBanks(res.banks);
+          }
+        } catch (err) {
+          console.warn('Failed to load banks directory', err);
+        } finally {
+          setIsLoadingBanks(false);
+        }
+      };
+      loadBanks();
     }
   }, [visible]);
+
+  // Live NIBSS Name Resolution trigger
+  useEffect(() => {
+    if (isAccountNumberValid && isBankSelected) {
+      let isCurrent = true;
+      setIsResolvingName(true);
+      setResolutionError(null);
+      setIsNameVerified(false);
+      setAccountName('');
+
+      const resolveTimeout = setTimeout(async () => {
+        try {
+          const res = await api.get(`/wallet/resolve-account?account_number=${encodeURIComponent(accountNumber.trim())}&bank_code=${encodeURIComponent(bankCode)}`);
+          if (isCurrent && res && res.accountName) {
+            setAccountName(res.accountName);
+            setIsNameVerified(true);
+            setResolutionError(null);
+          }
+        } catch (err: any) {
+          if (isCurrent) {
+            setIsNameVerified(false);
+            setResolutionError(err.message || 'Could not verify account name with NIBSS');
+          }
+        } finally {
+          if (isCurrent) {
+            setIsResolvingName(false);
+          }
+        }
+      }, 350); // slight debounce
+
+      return () => {
+        isCurrent = false;
+        clearTimeout(resolveTimeout);
+      };
+    } else {
+      setIsNameVerified(false);
+      setAccountName('');
+      setResolutionError(null);
+    }
+  }, [accountNumber, bankCode, isAccountNumberValid, isBankSelected]);
+
+  const filteredBanks = useMemo(() => {
+    if (!bankSearch.trim()) return banks;
+    const q = bankSearch.toLowerCase();
+    return banks.filter((b) => b.name.toLowerCase().includes(q));
+  }, [banks, bankSearch]);
 
   const handleWithdraw = async () => {
     if (!isAmountEntered) {
@@ -82,8 +182,8 @@ export default function WithdrawModal({
       return;
     }
 
-    if (!isBankNameValid || !isAccountNumberValid || !isAccountNameValid) {
-      Alert.alert('Missing Details', 'Please complete all destination bank account details.');
+    if (!isAccountNumberValid || !isBankSelected || !isNameVerified) {
+      Alert.alert('Incomplete Bank Verification', 'Please ensure your account number and bank are verified.');
       return;
     }
 
@@ -91,12 +191,13 @@ export default function WithdrawModal({
       await withdrawFunds({
         amount: numericAmount,
         bankName: bankName.trim(),
+        bankCode: bankCode.trim(),
         accountNumber: accountNumber.trim(),
         accountName: accountName.trim(),
       });
       Alert.alert(
-        'Payout Requested',
-        `Your withdrawal of ₦${numericAmount.toLocaleString()} has been queued for bank transfer.`
+        'Payout Dispatched',
+        `Your withdrawal of ₦${numericAmount.toLocaleString()} has been queued for bank transfer to ${accountName}.`
       );
       onSuccess();
       onClose();
@@ -107,7 +208,7 @@ export default function WithdrawModal({
 
   const setAmountPercentage = (pct: number) => {
     const val = Math.floor(availableBalance * pct);
-    setAmount(val.toString());
+    setAmount(val.toLocaleString('en-US'));
   };
 
   const getButtonText = () => {
@@ -115,7 +216,9 @@ export default function WithdrawModal({
     if (!isAmountEntered) return 'Enter Withdrawal Amount';
     if (numericAmount > availableBalance) return 'Amount Exceeds Balance';
     if (!isAccountNumberValid) return 'Enter 10-Digit Account Number';
-    if (!isBankNameValid || !isAccountNameValid) return 'Complete Bank Details';
+    if (!isBankSelected) return 'Select Destination Bank';
+    if (isResolvingName) return 'Verifying Account Name...';
+    if (!isNameVerified) return 'Invalid Account Details';
     return `Withdraw ₦${numericAmount.toLocaleString()}`;
   };
 
@@ -138,7 +241,7 @@ export default function WithdrawModal({
 
         <View
           style={{
-            maxHeight: Platform.OS === 'web' ? ('88vh' as any) : '85%',
+            maxHeight: Platform.OS === 'web' ? ('90vh' as any) : '90%',
           }}
           className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-11/12 overflow-hidden flex-col"
         >
@@ -188,7 +291,7 @@ export default function WithdrawModal({
               </Text>
             </View>
 
-            {/* Amount Section */}
+            {/* Step A: Amount Section with Thousands Separator */}
             <View className="mb-4">
               <Text className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                 Withdrawal Amount
@@ -200,13 +303,13 @@ export default function WithdrawModal({
                     : 'border-slate-200 dark:border-slate-700'
                 }`}
               >
-                <Text className="text-2xl font-black text-slate-400 mr-2">₦</Text>
+                <Text className="text-2xl font-black text-primary-600 dark:text-primary-400 mr-2">₦</Text>
                 <TextInput
                   keyboardType="numeric"
-                  placeholder="0.00"
+                  placeholder="0"
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   value={amount}
-                  onChangeText={(text) => setAmount(text.replace(/[^0-9.]/g, ''))}
+                  onChangeText={(text) => setAmount(formatWithCommas(text))}
                   className="flex-1 text-2xl font-black text-slate-900 dark:text-white p-0"
                 />
               </View>
@@ -232,7 +335,7 @@ export default function WithdrawModal({
                 ].map((item) => {
                   const targetVal = Math.floor(availableBalance * item.val);
                   const isSelected =
-                    amount.length > 0 && Math.abs(parseFloat(amount) - targetVal) < 1.0;
+                    amount.length > 0 && Math.abs(numericAmount - targetVal) < 1.0;
 
                   return (
                     <TouchableOpacity
@@ -262,7 +365,7 @@ export default function WithdrawModal({
 
             {/* Settlement Breakdown Summary */}
             {isAmountValid && (
-              <View className="bg-slate-50 dark:bg-slate-950/70 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 mb-5">
+              <View className="bg-slate-50 dark:bg-slate-950/70 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 mb-4">
                 <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                   Payout Breakdown
                 </Text>
@@ -276,7 +379,7 @@ export default function WithdrawModal({
                 </View>
                 <View className="flex-row justify-between mb-2">
                   <Text className="text-slate-500 dark:text-slate-400 text-xs">
-                    Transfer Fee
+                    NIP Transfer Fee
                   </Text>
                   <Text className="text-slate-900 dark:text-white font-bold text-xs">
                     ₦{flatFee.toLocaleString()}.00
@@ -293,84 +396,134 @@ export default function WithdrawModal({
               </View>
             )}
 
-            {/* Destination Bank Account Fields */}
+            {/* Destination Bank Account Fields in Sequence */}
             <View className="mb-4">
-              <View className="flex-row items-center mb-2.5">
+              <View className="flex-row items-center mb-3">
                 <Building2 size={14} color={isDark ? '#94a3b8' : '#64748b'} style={{ marginRight: 6 }} />
                 <Text className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   Destination Bank Account
                 </Text>
               </View>
 
-              <View className="space-y-3">
-                {/* Bank Name */}
-                <View>
-                  <Text className="text-[11px] font-bold text-slate-400 mb-1 uppercase">
-                    Bank Name
+              {/* 1. Account Number (NUBAN) with 10-digit counter */}
+              <View className="mb-3">
+                <View className="flex-row justify-between items-center mb-1">
+                  <Text className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                    1. Account Number (NUBAN)
                   </Text>
-                  <TextInput
-                    placeholder="e.g. GTBank, Kuda, Zenith, Access"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    value={bankName}
-                    onChangeText={setBankName}
-                    className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-sm"
-                  />
+                  <View className="flex-row items-center">
+                    {isAccountNumberValid ? (
+                      <View className="flex-row items-center bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
+                        <CheckCircle2 size={11} color="#059669" style={{ marginRight: 3 }} />
+                        <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                          10 Digits
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text className="text-[10px] font-bold text-slate-400">
+                        {accountNumber.length}/10 digits
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <TextInput
+                  keyboardType="numeric"
+                  maxLength={10}
+                  placeholder="Enter 10-digit NUBAN"
+                  placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
+                  value={accountNumber}
+                  onChangeText={(text) => {
+                    setAccountNumber(text.replace(/[^0-9]/g, ''));
+                  }}
+                  className={`bg-slate-50 dark:bg-slate-800/60 border rounded-xl px-3.5 py-3 text-slate-900 dark:text-white text-sm ${
+                    accountNumber.length > 0 && !isAccountNumberValid
+                      ? 'border-amber-500/70'
+                      : 'border-slate-200 dark:border-slate-700'
+                  }`}
+                />
+              </View>
+
+              {/* 2. Bank Name (Searchable Select Option) */}
+              <View className="mb-3">
+                <Text className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">
+                  2. Select Bank
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setBankPickerVisible(true)}
+                  activeOpacity={0.75}
+                  className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 flex-row items-center justify-between"
+                >
+                  <Text
+                    className={`text-sm ${
+                      bankName ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-400 dark:text-slate-500'
+                    }`}
+                    numberOfLines={1}
+                  >
+                    {bankName || 'Choose your Nigerian bank...'}
+                  </Text>
+                  <ChevronDown size={16} color={isDark ? '#94a3b8' : '#64748b'} />
+                </TouchableOpacity>
+              </View>
+
+              {/* 3. Account Name (Auto-resolved via NIBSS) */}
+              <View className="mb-2">
+                <View className="flex-row justify-between items-center mb-1">
+                  <Text className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                    3. Registered Account Name
+                  </Text>
+                  {isNameVerified && (
+                    <View className="flex-row items-center bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
+                      <ShieldCheck size={11} color="#059669" style={{ marginRight: 3 }} />
+                      <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        NIBSS Verified
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
-                {/* Account Number (NUBAN) with 10-digit counter */}
-                <View className="mt-2.5">
-                  <View className="flex-row justify-between items-center mb-1">
-                    <Text className="text-[11px] font-bold text-slate-400 uppercase">
-                      Account Number (NUBAN)
+                {isResolvingName ? (
+                  <View className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-3 flex-row items-center">
+                    <ActivityIndicator size="small" color="#059669" style={{ marginRight: 8 }} />
+                    <Text className="text-xs text-slate-500 dark:text-slate-400 italic">
+                      Verifying account name with NIBSS...
                     </Text>
-                    <View className="flex-row items-center">
-                      {isAccountNumberValid ? (
-                        <View className="flex-row items-center bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                          <CheckCircle2 size={11} color="#059669" style={{ marginRight: 3 }} />
-                          <Text className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                            10 Digits
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text className="text-[10px] font-bold text-slate-400">
-                          {accountNumber.length}/10 digits
-                        </Text>
-                      )}
-                    </View>
                   </View>
-                  <TextInput
-                    keyboardType="numeric"
-                    maxLength={10}
-                    placeholder="10-digit account number"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    value={accountNumber}
-                    onChangeText={(text) => setAccountNumber(text.replace(/[^0-9]/g, ''))}
-                    className={`bg-slate-50 dark:bg-slate-800/60 border rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-sm ${
-                      accountNumber.length > 0 && !isAccountNumberValid
-                        ? 'border-amber-500/70'
+                ) : (
+                  <View
+                    className={`bg-slate-50 dark:bg-slate-800/60 border rounded-xl px-3.5 py-3 ${
+                      isNameVerified
+                        ? 'border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-500/5'
+                        : resolutionError
+                        ? 'border-red-500/40'
                         : 'border-slate-200 dark:border-slate-700'
                     }`}
-                  />
-                </View>
+                  >
+                    <Text
+                      className={`text-sm ${
+                        isNameVerified
+                          ? 'text-slate-900 dark:text-white font-extrabold uppercase tracking-wide'
+                          : 'text-slate-400 dark:text-slate-500 italic'
+                      }`}
+                      numberOfLines={1}
+                    >
+                      {accountName || (isAccountNumberValid && isBankSelected ? 'Account verification pending' : 'Auto-retrieved after selecting bank')}
+                    </Text>
+                  </View>
+                )}
 
-                {/* Account Name */}
-                <View className="mt-2.5">
-                  <Text className="text-[11px] font-bold text-slate-400 mb-1 uppercase">
-                    Account Holder Name
-                  </Text>
-                  <TextInput
-                    placeholder="Full registered name on account"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    value={accountName}
-                    onChangeText={setAccountName}
-                    className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-white text-sm"
-                  />
-                </View>
+                {resolutionError && (
+                  <View className="flex-row items-center mt-1.5 ml-1">
+                    <AlertCircle size={12} color="#EF4444" style={{ marginRight: 4 }} />
+                    <Text className="text-[11px] text-red-500 font-semibold">
+                      {resolutionError}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           </ScrollView>
 
-          {/* 3. STICKY FOOTER CTA (PROPORTIONATE, ACCESSIBLE, FIXED AT BOTTOM) */}
+          {/* 3. STICKY FOOTER CTA */}
           <View className="px-6 py-4 border-t border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900">
             <TouchableOpacity
               onPress={handleWithdraw}
@@ -407,6 +560,102 @@ export default function WithdrawModal({
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* 4. SEARCHABLE BANK SELECTOR MODAL */}
+        <Modal
+          visible={bankPickerVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setBankPickerVisible(false)}
+        >
+          <View className="flex-1 justify-end bg-black/60">
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setBankPickerVisible(false)} />
+            <View
+              style={{ maxHeight: '80%' }}
+              className="bg-white dark:bg-slate-900 rounded-t-[32px] p-6 border-t border-slate-200 dark:border-slate-800 shadow-2xl"
+            >
+              {/* Modal Header */}
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-lg font-black text-slate-900 dark:text-white">
+                  Select Nigerian Bank
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setBankPickerVisible(false)}
+                  className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full"
+                >
+                  <X size={16} color={isDark ? '#cbd5e1' : '#64748b'} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Search Box */}
+              <View className="bg-slate-100 dark:bg-slate-800/80 rounded-2xl px-4 py-2.5 flex-row items-center mb-4 border border-slate-200/80 dark:border-slate-700/80">
+                <Search size={16} color={isDark ? '#94a3b8' : '#64748b'} style={{ marginRight: 8 }} />
+                <TextInput
+                  placeholder="Search bank name (e.g. Kuda, OPay, GTBank)..."
+                  placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+                  value={bankSearch}
+                  onChangeText={setBankSearch}
+                  className="flex-1 text-sm font-semibold text-slate-900 dark:text-white p-0"
+                  autoFocus
+                />
+                {bankSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setBankSearch('')}>
+                    <X size={14} color={isDark ? '#94a3b8' : '#64748b'} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Banks List */}
+              {isLoadingBanks ? (
+                <View className="py-12 items-center justify-center">
+                  <ActivityIndicator size="small" color="#059669" />
+                  <Text className="text-xs text-slate-400 mt-2">Loading bank directory...</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={filteredBanks}
+                  keyExtractor={(item) => item.code}
+                  showsVerticalScrollIndicator={false}
+                  renderItem={({ item }) => {
+                    const isSelected = bankCode === item.code;
+                    return (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setBankName(item.name);
+                          setBankCode(item.code);
+                          setBankPickerVisible(false);
+                          setBankSearch('');
+                        }}
+                        activeOpacity={0.7}
+                        className={`py-3.5 px-4 rounded-2xl flex-row justify-between items-center mb-1.5 ${
+                          isSelected
+                            ? 'bg-emerald-500/10 border border-emerald-500/30'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <Text
+                          className={`text-sm font-bold ${
+                            isSelected
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-slate-800 dark:text-slate-200'
+                          }`}
+                        >
+                          {item.name}
+                        </Text>
+                        {isSelected && <Check size={16} color="#059669" />}
+                      </TouchableOpacity>
+                    );
+                  }}
+                  ListEmptyComponent={
+                    <View className="py-8 items-center">
+                      <Text className="text-xs text-slate-400">No bank found matching "{bankSearch}"</Text>
+                    </View>
+                  }
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </Modal>
   );

@@ -10,6 +10,7 @@ import { Review } from './models/Review';
 import { Transaction } from './models/Transaction';
 import { Conversation } from './models/Conversation';
 import { Message } from './models/Message';
+import { SystemSettings } from './models/SystemSettings';
 
 dotenv.config();
 
@@ -47,13 +48,22 @@ export async function clearAndSeedCategories() {
       Review.deleteMany({}),
       Transaction.deleteMany({}),
       Conversation.deleteMany({}),
-      Message.deleteMany({})
+      Message.deleteMany({}),
+      SystemSettings.deleteMany({})
     ]);
     console.log('All user data and transactions cleanly wiped.');
 
-    console.log('Seeding official platform categories...');
+    console.log('Seeding official platform categories and system settings...');
     const categories = await Category.insertMany(categoriesData);
     console.log(`Seeded ${categories.length} official categories.`);
+
+    await SystemSettings.create({
+      platformFeePercentage: 20,
+      baseLiveCallPricePerMinute: 500,
+      responseSlaDays: 7,
+      allowAdminRegistration: true,
+    });
+    console.log('System settings initialized with standard platform defaults.');
 
     console.log('\n======================================================');
     console.log('✅ DATABASE FULLY CLEARED FOR REAL BETA TESTING');

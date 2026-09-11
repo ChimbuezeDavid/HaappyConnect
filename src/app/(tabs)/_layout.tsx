@@ -36,7 +36,7 @@ export default function TabLayout() {
   const borderColor = isDark ? '#222D3D' : '#E7E1D8';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
 
-  const renderTabLabel = (label: string) => ({ color }: { color: string }) => (
+  const renderTabLabel = (label: string) => ({ color }: { color: any }) => (
     <Text
       numberOfLines={1}
       style={{
@@ -93,18 +93,7 @@ export default function TabLayout() {
               paddingBottom: Platform.OS === 'web' ? 10 : (insets.bottom > 0 ? insets.bottom : 8),
               paddingTop: 6,
             },
-            headerShown: !isDesktop, // Hide header on desktop
-            headerStyle: {
-              backgroundColor: surfaceColor,
-              shadowColor: 'transparent',
-              borderBottomWidth: 1,
-              borderBottomColor: borderColor,
-            },
-            headerTitleStyle: {
-              color: textColor,
-              fontFamily: 'PlusJakartaSans_600SemiBold',
-              fontSize: 17,
-            },
+            headerShown: false,
           }}
         >
           <Tabs.Screen

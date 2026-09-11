@@ -29,12 +29,14 @@ import {
 } from 'lucide-react-native';
 import SignInWall from '@/components/ui/SignInWall';
 import { useColorScheme } from 'nativewind';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SubmitReviewModal from '@/components/review/SubmitReviewModal';
 import { useChatStore } from '@/store/chatStore';
 import { getAvatarUrl } from '@/lib/avatar';
 
 export default function BookingsScreen() {
   const { user, token, isGuest } = useAuthStore();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { tab, promptReview, expertId, promptComplete } = useLocalSearchParams<{
     tab?: string;
@@ -238,7 +240,13 @@ export default function BookingsScreen() {
   }, [bookings, questions, activeFilter, searchQuery]);
 
   return (
-    <View className={`flex-1 w-full ${isDesktop ? 'px-8' : 'max-w-2xl self-center px-4'}`} style={{ backgroundColor: isDark ? '#020617' : '#f8fafc' }}>
+    <View 
+      className={`flex-1 w-full ${isDesktop ? 'px-8' : 'max-w-2xl self-center px-4'}`} 
+      style={{ 
+        backgroundColor: isDark ? '#020617' : '#f8fafc',
+        paddingTop: isDesktop ? 0 : (insets.top > 0 ? insets.top + 6 : 10),
+      }}
+    >
       {/* Search & Single-Row Filter Header */}
       <View className="mt-3 mb-2 space-y-2.5">
         {/* Search Input Bar */}

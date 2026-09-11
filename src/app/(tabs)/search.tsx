@@ -5,10 +5,12 @@ import { api } from '@/lib/api';
 import { Profile, Category } from '@/types';
 import { Search, Star, Sparkles, CheckCircle2, SlidersHorizontal, X, Check, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAvatarUrl } from '@/lib/avatar';
 
 export default function SearchScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { category: urlCategory, query: urlQuery, sort: urlSort } = useLocalSearchParams<{ category?: string; query?: string; sort?: string }>();
   
   const [query, setQuery] = useState('');
@@ -114,8 +116,12 @@ export default function SearchScreen() {
 
   return (
     <View 
-      className={`flex-1 bg-slate-50 dark:bg-slate-955 pt-4 w-full ${isDesktop ? 'px-8' : 'px-4 max-w-2xl self-center'}`} 
-      style={{ backgroundColor: isDark ? '#020617' : '#f8fafc', paddingBottom: 80 }}
+      className={`flex-1 bg-slate-50 dark:bg-slate-955 w-full ${isDesktop ? 'px-8' : 'px-4 max-w-2xl self-center'}`} 
+      style={{ 
+        backgroundColor: isDark ? '#020617' : '#f8fafc', 
+        paddingTop: isDesktop ? 16 : (insets.top > 0 ? insets.top + 8 : 16),
+        paddingBottom: 80 
+      }}
     >
       {/* Desktop Page Title Header */}
       {isDesktop && (

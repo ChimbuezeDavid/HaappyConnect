@@ -34,6 +34,7 @@ import {
 } from 'lucide-react-native';
 import SignInWall from '@/components/ui/SignInWall';
 import { useColorScheme } from 'nativewind';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format, parseISO } from 'date-fns';
 
 // Modals
@@ -43,6 +44,7 @@ import TransactionDetailModal from '@/components/wallet/TransactionDetailModal';
 
 export default function WalletScreen() {
   const { user, profile, token, isGuest } = useAuthStore();
+  const insets = useSafeAreaInsets();
   const {
     availableBalance,
     pendingBalance,
@@ -169,7 +171,7 @@ export default function WalletScreen() {
           maxWidth: isDesktop ? 920 : undefined,
           alignSelf: 'center',
           paddingHorizontal: isDesktop ? 36 : 18,
-          paddingTop: isDesktop ? 28 : 16,
+          paddingTop: isDesktop ? 28 : (insets.top > 0 ? insets.top + 10 : 16),
           paddingBottom: isDesktop ? 48 : 120,
         }}
         refreshControl={

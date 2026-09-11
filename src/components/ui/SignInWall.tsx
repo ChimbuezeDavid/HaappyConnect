@@ -4,9 +4,11 @@ import { useRouter } from 'expo-router';
 import { Lock, LogIn, UserPlus, Sparkles } from 'lucide-react-native';
 import { useAuthStore } from '@/store/authStore';
 import { useColorScheme } from 'nativewind';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SignInWall() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { setGuest } = useAuthStore();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -21,8 +23,13 @@ export default function SignInWall() {
 
   return (
     <ScrollView
-      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-      style={{ backgroundColor: isDark ? '#020617' : '#f8fafc', paddingHorizontal: 24, paddingVertical: 48 }}
+      contentContainerStyle={{ 
+        flexGrow: 1, 
+        justifyContent: 'center',
+        paddingTop: insets.top > 0 ? insets.top + 16 : 32,
+        paddingBottom: insets.bottom > 0 ? insets.bottom + 32 : 48,
+      }}
+      style={{ backgroundColor: isDark ? '#020617' : '#f8fafc', paddingHorizontal: 24 }}
     >
       <View
         style={{

@@ -17,11 +17,13 @@ import { useChatStore, Conversation } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { Search, MessageSquare, User } from 'lucide-react-native';
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ChatRoomScreen from '../chat/[conversationId]';
 import SignInWall from '@/components/ui/SignInWall';
 
 export default function MessagesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { conversationId } = useLocalSearchParams<{ conversationId?: string }>();
   const { conversations, fetchConversations, isLoadingConversations, markAsRead } = useChatStore();
   const { user, isGuest } = useAuthStore();
@@ -311,7 +313,13 @@ export default function MessagesScreen() {
 
   // Mobile viewport layout
   return (
-    <View className="flex-1 bg-white dark:bg-slate-950" style={{ backgroundColor: isDark ? '#020617' : '#ffffff' }}>
+    <View 
+      className="flex-1 bg-white dark:bg-slate-950" 
+      style={{ 
+        backgroundColor: isDark ? '#020617' : '#ffffff',
+        paddingTop: insets.top > 0 ? insets.top : 0,
+      }}
+    >
       {/* Search Bar */}
       <View className="px-4 py-3 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/30">
         <View className="flex-row items-center bg-slate-100 dark:bg-slate-800 rounded-2xl px-3.5 py-2">

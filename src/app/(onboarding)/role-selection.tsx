@@ -16,23 +16,15 @@ export default function RoleSelectionScreen() {
   
   const [selectedRole, setSelectedRole] = useState<'seeker' | 'expert' | null>(null);
 
-  // Pre-select based on existing register selection or store draft
+  // Automatically forward all users directly to the unified onboarding wizard as a seeker
   useEffect(() => {
-    if (storeRole) {
-      setSelectedRole(storeRole);
-    } else if (user?.role) {
-      setSelectedRole(user.role);
-    }
-  }, [user, storeRole]);
+    updateDraft({ role: 'seeker' });
+    router.replace('/(onboarding)/wizard' as any);
+  }, []);
 
   const handleContinue = () => {
-    if (!selectedRole) return;
-    
-    // Save to Zustand onboarding store draft
-    updateDraft({ role: selectedRole });
-    
-    // Go to next wizard setup flow
-    router.push('/(onboarding)/wizard' as any);
+    updateDraft({ role: 'seeker' });
+    router.replace('/(onboarding)/wizard' as any);
   };
 
   return (

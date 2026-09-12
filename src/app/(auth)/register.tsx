@@ -123,7 +123,7 @@ export default function RegisterScreen() {
           if (isUserOnboarded) {
             router.replace('/(tabs)');
           } else {
-            router.replace('/(onboarding)/role-selection');
+            router.replace('/(onboarding)/wizard');
           }
         }
       };

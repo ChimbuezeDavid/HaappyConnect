@@ -13,10 +13,12 @@ import {
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profile, logout } = useAuthStore();
+  const { user, profile, logout, activeViewMode } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  const isExpert = user?.role === 'expert' && (activeViewMode ? activeViewMode === 'expert' : true);
 
   const conversations = useChatStore((state) => state.conversations);
   const totalUnread = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
@@ -34,7 +36,7 @@ export default function Sidebar() {
 
   const navItems = [
     {
-      label: 'Discover',
+      label: isExpert ? 'Dashboard' : 'Discover',
       path: '/',
       icon: Compass,
       isActive: pathname === '/' || pathname === '/(tabs)'
@@ -53,19 +55,19 @@ export default function Sidebar() {
       badge: totalUnread > 0 ? totalUnread : undefined
     },
     {
-      label: 'Bookings',
+      label: isExpert ? 'Queue' : 'Bookings',
       path: '/bookings',
       icon: CalendarDays,
       isActive: pathname === '/bookings' || pathname.startsWith('/bookings/')
     },
     {
-      label: user?.role === 'expert' ? 'Earnings' : 'Wallet',
+      label: isExpert ? 'Earnings' : 'Wallet',
       path: '/wallet',
       icon: Wallet,
       isActive: pathname === '/wallet' || pathname.startsWith('/(tabs)/wallet')
     },
     {
-      label: 'Profile',
+      label: isExpert ? 'Suite' : 'Profile',
       path: '/profile',
       icon: User,
       isActive: pathname === '/profile' || pathname.startsWith('/(tabs)/profile')

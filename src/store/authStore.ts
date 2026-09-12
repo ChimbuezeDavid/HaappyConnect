@@ -60,6 +60,9 @@ interface AuthState {
   loginWithOAuth: (token: string, refreshToken: string | null, user: User, profile?: Profile | null) => Promise<void>;
   updateLocalProfile: (updates: Partial<Profile>) => void;
   clearError: () => void;
+  activeViewMode: 'seeker' | 'expert' | null;
+  setViewMode: (mode: 'seeker' | 'expert') => void;
+  toggleViewMode: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -70,6 +73,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isGuest: false,
   isLoading: false,
   error: null,
+  activeViewMode: null,
+
+  setViewMode: (mode) => set({ activeViewMode: mode }),
+  toggleViewMode: () => {
+    const current = get().activeViewMode || (get().user?.role === 'expert' ? 'expert' : 'seeker');
+    set({ activeViewMode: current === 'expert' ? 'seeker' : 'expert' });
+  },
 
   clearError: () => set({ error: null }),
   updateLocalProfile: (updates: Partial<Profile>) => {
@@ -181,6 +191,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         profile: null,
         isGuest: false,
         isLoading: false,
+        activeViewMode: null,
       });
       // Tear down dependent stores to prevent stale data between sessions
       try {

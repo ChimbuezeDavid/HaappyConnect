@@ -91,6 +91,9 @@ export default function OnboardingWizard() {
     if (!draft.fullName && profile?.fullName) {
       updates.fullName = profile.fullName;
     }
+    if (draft.role !== 'seeker') {
+      updates.role = 'seeker';
+    }
     if (Object.keys(updates).length > 0) {
       draft.updateDraft(updates);
     }

@@ -54,7 +54,7 @@ import {
 } from 'lucide-react-native';
 
 export default function DiscoverScreen() {
-  const { user, profile, isGuest, updateLocalProfile } = useAuthStore();
+  const { user, profile, isGuest, updateLocalProfile, activeViewMode } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
@@ -198,7 +198,7 @@ export default function DiscoverScreen() {
     return `${greet}, ${profile?.fullName?.split(' ')[0] || 'there'}`;
   };
 
-  const isExpert = user?.role === 'expert' && !isGuest;
+  const isExpert = user?.role === 'expert' && !isGuest && (activeViewMode ? activeViewMode === 'expert' : true);
   // Exclude current expert from discovery recommendations so they never see themselves
   const filteredExperts = isExpert && profile
     ? experts.filter(e => e._id !== profile._id && (e.user as any)?._id !== user?.id)

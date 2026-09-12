@@ -36,6 +36,7 @@ import {
   PhoneCall,
   Lock,
   LifeBuoy,
+  Briefcase,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SignInWall from '@/components/ui/SignInWall';
@@ -46,7 +47,7 @@ import AppScreen from '@/components/ui/AppScreen';
 import PasswordChangeModal from '@/components/profile/PasswordChangeModal';
 
 export default function ProfileScreen() {
-  const { user, profile, logout, updateOnboarding, isGuest } = useAuthStore();
+  const { user, profile, logout, updateOnboarding, isGuest, activeViewMode, toggleViewMode } = useAuthStore();
   const router = useRouter();
 
   // Edit Seeker Profile State
@@ -79,7 +80,7 @@ export default function ProfileScreen() {
     return <SignInWall />;
   }
 
-  const isExpert = user?.role === 'expert';
+  const isExpert = user?.role === 'expert' && (activeViewMode ? activeViewMode === 'expert' : true);
 
   const handleLogout = async () => {
     await logout();
@@ -515,19 +516,38 @@ export default function ProfileScreen() {
     isExpert ? (
       /* EXPERT: Consultancy Suite Controls */
       <View style={{ marginBottom: 16 }}>
-        <Text
-          style={{
-            fontSize: 11,
-            fontFamily: 'PlusJakartaSans_700Bold',
-            textTransform: 'uppercase',
-            letterSpacing: 1,
-            color: isDark ? '#64748B' : '#94A3B8',
-            marginBottom: 10,
-            marginLeft: 4,
-          }}
-        >
-          Consultancy Suite
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginLeft: 4 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontFamily: 'PlusJakartaSans_700Bold',
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+              color: isDark ? '#64748B' : '#94A3B8',
+            }}
+          >
+            Consultancy Suite
+          </Text>
+
+          {/* Mode Switcher: Switch to Seeker View */}
+          <TouchableOpacity
+            onPress={() => toggleViewMode()}
+            activeOpacity={0.7}
+            style={{
+              backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: isDark ? '#34D399' : '#059669', marginRight: 4 }}>
+              Switch to Seeker View
+            </Text>
+            <ChevronRight size={12} color={isDark ? '#34D399' : '#059669'} />
+          </TouchableOpacity>
+        </View>
 
         {/* Edit Professional Listing */}
         <TouchableOpacity
@@ -801,6 +821,133 @@ export default function ProfileScreen() {
     ) : (
       /* SEEKER: My Space & Growth Controls */
       <View style={{ marginBottom: 16 }}>
+        {/* If user is an expert who switched to Seeker View */}
+        {user?.role === 'expert' ? (
+          <TouchableOpacity
+            onPress={() => toggleViewMode()}
+            activeOpacity={0.85}
+            style={{
+              backgroundColor: isDark ? '#10B98115' : '#ECFDF5',
+              borderColor: isDark ? '#05966950' : '#A7F3D0',
+              borderWidth: 1,
+              borderRadius: 20,
+              padding: 16,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <View
+                style={{
+                  backgroundColor: '#059669',
+                  width: 38,
+                  height: 38,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <Briefcase size={18} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                  You are in Seeker Mode
+                </Text>
+                <Text style={{ fontSize: 11, color: isDark ? '#94A3B8' : '#64748B', marginTop: 2 }}>
+                  Switch back to your Consultancy Suite & requests
+                </Text>
+              </View>
+            </View>
+            <View style={{ backgroundColor: '#059669', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold' }}>
+                Open Suite
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          /* Seeker: Become an Expert Callout Card */
+          <TouchableOpacity
+            onPress={() => router.push('/expert/apply' as any)}
+            activeOpacity={0.85}
+            style={{
+              backgroundColor: isDark ? '#064E3B20' : '#ECFDF5',
+              borderColor: isDark ? '#05966940' : '#A7F3D0',
+              borderWidth: 1,
+              borderRadius: 20,
+              padding: 18,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <View
+                style={{
+                  backgroundColor: '#059669',
+                  width: 40,
+                  height: 40,
+                  borderRadius: 14,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 14,
+                  marginTop: 2,
+                }}
+              >
+                <Sparkles size={20} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontFamily: 'PlusJakartaSans_700Bold',
+                      color: isDark ? '#F8FAFC' : '#0F172A',
+                    }}
+                  >
+                    Share Your Expertise
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: isDark ? '#10B98130' : '#10B98120',
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      borderRadius: 999,
+                    }}
+                  >
+                    <Text style={{ fontSize: 9, fontFamily: 'Inter_700Bold', color: '#059669' }}>
+                      EARN ₦
+                    </Text>
+                  </View>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Inter_400Regular',
+                    color: isDark ? '#94A3B8' : '#64748B',
+                    lineHeight: 18,
+                    marginBottom: 10,
+                  }}
+                >
+                  Set your advisory rates, answer questions, host 1:1 sessions, and earn directly into your Naira wallet.
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: 'PlusJakartaSans_600SemiBold',
+                      color: '#059669',
+                      marginRight: 4,
+                    }}
+                  >
+                    Set Up Advisory Practice
+                  </Text>
+                  <ChevronRight size={15} color="#059669" />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
         <Text
           style={{
             fontSize: 11,

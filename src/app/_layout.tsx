@@ -257,7 +257,7 @@ export default function RootLayout() {
       if (!user.isOnboarded) {
         // Redirect to onboarding if not completed and not in onboarding group
         if (!inOnboardingGroup) {
-          router.replace('/(onboarding)/role-selection' as any);
+          router.replace('/(onboarding)/wizard' as any);
         }
       } else {
         // Redirect to tabs if authenticated, onboarded, and in auth/onboarding group or root gate

@@ -10,7 +10,7 @@ import Sidebar from '@/components/ui/Sidebar';
 import DesktopHeader from '@/components/ui/DesktopHeader';
 
 export default function TabLayout() {
-  const { user, token } = useAuthStore();
+  const { user, token, activeViewMode } = useAuthStore();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -28,7 +28,7 @@ export default function TabLayout() {
     }
   }, [token]);
 
-  const isExpert = user?.role === 'expert';
+  const isExpert = user?.role === 'expert' && (activeViewMode ? activeViewMode === 'expert' : true);
 
   const activeColor = isDark ? '#10B981' : '#059669';
   const inactiveColor = isDark ? '#64748b' : '#94a3b8';

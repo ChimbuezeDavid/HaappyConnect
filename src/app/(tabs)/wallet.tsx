@@ -43,7 +43,7 @@ import WithdrawModal from '@/components/wallet/WithdrawModal';
 import TransactionDetailModal from '@/components/wallet/TransactionDetailModal';
 
 export default function WalletScreen() {
-  const { user, profile, token, isGuest } = useAuthStore();
+  const { user, profile, token, isGuest, activeViewMode } = useAuthStore();
   const insets = useSafeAreaInsets();
   const {
     availableBalance,
@@ -72,7 +72,7 @@ export default function WalletScreen() {
   const isDark = colorScheme === 'dark';
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
-  const isExpert = user?.role === 'expert';
+  const isExpert = user?.role === 'expert' && (activeViewMode ? activeViewMode === 'expert' : true);
 
   const loadData = async (refresh = true) => {
     if (isGuest || !token) return;

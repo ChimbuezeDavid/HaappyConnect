@@ -10,7 +10,7 @@ import { Search, Bell, Wallet, ShieldCheck, Sparkles, User, LogOut } from 'lucid
 export default function DesktopHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profile, isGuest } = useAuthStore();
+  const { user, profile, isGuest, activeViewMode } = useAuthStore();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -28,19 +28,19 @@ export default function DesktopHeader() {
     }
   }, [user, isGuest, pathname]);
 
+  const isExpert = user?.role === 'expert' && (activeViewMode ? activeViewMode === 'expert' : true);
+
   const getSectionTitle = () => {
     if (pathname === '/' || pathname === '/(tabs)') {
-      return user?.role === 'expert' ? 'Consultancy Dashboard' : 'Explore & Mentorship';
+      return isExpert ? 'Consultancy Dashboard' : 'Explore & Mentorship';
     }
     if (pathname.includes('search')) return 'Search Directory';
     if (pathname.includes('messages') || pathname.includes('chat')) return 'Communications & Chat';
-    if (pathname.includes('bookings')) return user?.role === 'expert' ? 'Client Requests Queue' : 'My Scheduled Sessions';
+    if (pathname.includes('bookings')) return isExpert ? 'Client Requests Queue' : 'My Scheduled Sessions';
     if (pathname.includes('wallet')) return 'Naira Wallet & Escrow Ledger';
-    if (pathname.includes('profile')) return user?.role === 'expert' ? 'Consultancy Suite Settings' : 'My Space & Growth Goals';
+    if (pathname.includes('profile')) return isExpert ? 'Consultancy Suite Settings' : 'My Space & Growth Goals';
     return 'HaappyConnect';
   };
-
-  const isExpert = user?.role === 'expert';
 
   return (
     <View

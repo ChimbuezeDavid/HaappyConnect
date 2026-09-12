@@ -35,7 +35,7 @@ import { useChatStore } from '@/store/chatStore';
 import { getAvatarUrl } from '@/lib/avatar';
 
 export default function BookingsScreen() {
-  const { user, token, isGuest } = useAuthStore();
+  const { user, token, isGuest, activeViewMode } = useAuthStore();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { tab, promptReview, expertId, promptComplete } = useLocalSearchParams<{
@@ -174,7 +174,7 @@ export default function BookingsScreen() {
     }
   };
 
-  const isExpert = user?.role === 'expert';
+  const isExpert = user?.role === 'expert' && (activeViewMode ? activeViewMode === 'expert' : true);
 
   const activeBookingsCount = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length;
   const completedBookingsCount = bookings.filter(b => b.status === 'completed' || b.status === 'cancelled').length;

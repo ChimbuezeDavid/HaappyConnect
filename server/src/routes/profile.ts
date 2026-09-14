@@ -105,8 +105,15 @@ router.post('/setup', authenticate, async (req: AuthRequest, res: Response) => {
       if (availabilityImmediate !== undefined) profile.availabilityImmediate = availabilityImmediate;
       if (availabilityNote !== undefined) profile.availabilityNote = availabilityNote;
       if (visibility !== undefined) profile.visibility = visibility;
-      profile.avatarUrl = avatarUrl !== undefined ? avatarUrl : profile.avatarUrl;
-      profile.bio = bio !== undefined ? bio : profile.bio;
+      if (bio !== undefined) profile.bio = bio;
+      if (avatarUrl && avatarUrl.trim()) {
+        const isNewDicebear = avatarUrl.includes('dicebear');
+        const hasExistingPhoto = profile.avatarUrl && !profile.avatarUrl.includes('dicebear') && !profile.avatarUrl.includes('placeholder');
+        if (!isNewDicebear || !hasExistingPhoto) {
+          profile.avatarUrl = avatarUrl;
+        }
+      }
+
       profile.headline = headline !== undefined ? headline : profile.headline;
       profile.hourlyRate = hourlyRate !== undefined ? hourlyRate : profile.hourlyRate;
       profile.textQuestionPrice = textQuestionPrice !== undefined ? textQuestionPrice : profile.textQuestionPrice;

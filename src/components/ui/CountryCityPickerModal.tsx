@@ -159,7 +159,9 @@ export default function CountryCityPickerModal({
         <View
           style={{
             backgroundColor: isDark ? '#0F172A' : '#FAF8F5',
-            maxHeight: '80%',
+            height: Platform.OS === 'web' ? 'auto' : 540,
+            maxHeight: '85%',
+            minHeight: Platform.OS === 'web' ? 420 : 480,
           }}
           className="w-full max-w-md p-5 rounded-[28px] border border-slate-200 dark:border-slate-800 shadow-2xl"
         >
@@ -231,6 +233,8 @@ export default function CountryCityPickerModal({
               data={filteredCountries}
               keyExtractor={(item) => item}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={{ flex: 1 }}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   onPress={() => handleCountrySelect(item)}
@@ -247,7 +251,7 @@ export default function CountryCityPickerModal({
               )}
             />
           ) : (
-            <View className="flex-1">
+            <View className="flex-1" style={{ flex: 1 }}>
               {/* Custom city input if other */}
               <View className="mb-2">
                 <Text className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
@@ -286,6 +290,8 @@ export default function CountryCityPickerModal({
                 data={filteredCities}
                 keyExtractor={(item) => item}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                style={{ flex: 1 }}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     onPress={() => handleCitySelect(item)}

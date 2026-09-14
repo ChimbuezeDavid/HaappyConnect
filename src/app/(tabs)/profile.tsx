@@ -37,6 +37,7 @@ import {
   Lock,
   LifeBuoy,
   Briefcase,
+  MapPin,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SignInWall from '@/components/ui/SignInWall';
@@ -45,6 +46,7 @@ import { useColorScheme } from 'nativewind';
 import { useThemeStore } from '@/store/themeStore';
 import AppScreen from '@/components/ui/AppScreen';
 import PasswordChangeModal from '@/components/profile/PasswordChangeModal';
+import { getAvatarUrl } from '@/lib/avatar';
 
 export default function ProfileScreen() {
   const { user, profile, logout, updateOnboarding, isGuest, activeViewMode, toggleViewMode } = useAuthStore();
@@ -177,9 +179,7 @@ export default function ProfileScreen() {
       <View style={{ position: 'relative', marginBottom: 12 }}>
         <Image
           source={{
-            uri:
-              profile?.avatarUrl ||
-              `https://api.dicebear.com/7.x/adventurer/svg?seed=${profile?.fullName || 'user'}`,
+            uri: getAvatarUrl(profile?.avatarUrl, profile?.fullName),
           }}
           style={{
             width: 92,
@@ -234,6 +234,19 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      {profile?.username ? (
+        <Text
+          style={{
+            fontSize: 13,
+            color: '#059669',
+            fontFamily: 'Inter_600SemiBold',
+            marginTop: 2,
+          }}
+        >
+          @{profile.username}
+        </Text>
+      ) : null}
+
       {isExpert && profile?.headline ? (
         <Text
           style={{
@@ -261,6 +274,138 @@ export default function ProfileScreen() {
           {user?.email}
         </Text>
       </View>
+
+      {/* Badges: Location & Membership Status */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {profile?.location ? (
+          <View
+            style={{
+              backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            <MapPin size={12} color={isDark ? '#94A3B8' : '#64748B'} style={{ marginRight: 4 }} />
+            <Text style={{ fontSize: 11, color: isDark ? '#94A3B8' : '#64748B', fontFamily: 'Inter_500Medium' }}>
+              {profile.location}
+            </Text>
+          </View>
+        ) : null}
+
+        <View
+          style={{
+            backgroundColor: isExpert ? (isDark ? '#10B98120' : '#05966915') : (isDark ? '#1E293B' : '#F1F5F9'),
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+            borderRadius: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <Sparkles size={12} color={isExpert ? '#059669' : (isDark ? '#94A3B8' : '#64748B')} style={{ marginRight: 4 }} />
+          <Text
+            style={{
+              fontSize: 11,
+              color: isExpert ? '#059669' : (isDark ? '#94A3B8' : '#64748B'),
+              fontFamily: 'Inter_600SemiBold',
+            }}
+          >
+            {isExpert ? 'Verified Expert' : 'Seeker'}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderWalletCard = () => (
+    <View
+      style={{
+        backgroundColor: isDark ? '#131A22' : '#FFFFFF',
+        borderColor: isDark ? '#222D3D' : '#E7E1D8',
+        borderWidth: 1,
+        borderRadius: 20,
+        padding: 18,
+        marginBottom: 16,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            fontFamily: 'PlusJakartaSans_700Bold',
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            color: isDark ? '#64748B' : '#94A3B8',
+          }}
+        >
+          Financials & Escrow
+        </Text>
+        <View
+          style={{
+            backgroundColor: isDark ? '#10B98120' : '#05966915',
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            borderRadius: 8,
+          }}
+        >
+          <Text style={{ fontSize: 10, fontFamily: 'Inter_700Bold', color: '#059669' }}>
+            SECURE ESCROW
+          </Text>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        onPress={() => router.push('/(tabs)/wallet')}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor: isDark ? '#0B0F14' : '#F8FAFC',
+          borderColor: isDark ? '#222D3D' : '#E2E8F0',
+          borderWidth: 1,
+          borderRadius: 16,
+          padding: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <View
+            style={{
+              backgroundColor: isDark ? '#F59E0B20' : '#F59E0B15',
+              padding: 10,
+              borderRadius: 12,
+              marginRight: 14,
+            }}
+          >
+            <Wallet size={20} color="#F59E0B" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 15,
+                fontFamily: 'PlusJakartaSans_600SemiBold',
+                color: isDark ? '#F8FAFC' : '#0F172A',
+              }}
+            >
+              Naira Wallet (₦)
+            </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                color: isDark ? '#64748B' : '#94A3B8',
+                marginTop: 2,
+                fontFamily: 'Inter_400Regular',
+              }}
+            >
+              {isExpert ? 'Available earnings, pending escrow & withdrawal' : 'Deposit funds, transaction receipts & payment status'}
+            </Text>
+          </View>
+        </View>
+        <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
+      </TouchableOpacity>
     </View>
   );
 
@@ -767,56 +912,6 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
         </TouchableOpacity>
 
-        {/* Wallet & Financial Receipts Shortcut for Experts */}
-        <TouchableOpacity
-          onPress={() => router.push('/(tabs)/wallet')}
-          activeOpacity={0.7}
-          style={{
-            backgroundColor: isDark ? '#131A22' : '#FFFFFF',
-            borderColor: isDark ? '#222D3D' : '#E7E1D8',
-            borderWidth: 1,
-            borderRadius: 18,
-            padding: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <View
-              style={{
-                backgroundColor: isDark ? '#F59E0B20' : '#F59E0B15',
-                padding: 10,
-                borderRadius: 12,
-                marginRight: 14,
-              }}
-            >
-              <Wallet size={18} color="#F59E0B" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontFamily: 'PlusJakartaSans_600SemiBold',
-                  color: isDark ? '#F8FAFC' : '#0F172A',
-                }}
-              >
-                Earnings (₦)
-              </Text>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: isDark ? '#64748B' : '#94A3B8',
-                  marginTop: 2,
-                  fontFamily: 'Inter_400Regular',
-                }}
-              >
-                Available balance, pending escrow & withdrawal
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
-        </TouchableOpacity>
       </View>
     ) : (
       /* SEEKER: My Space & Growth Controls */
@@ -1013,57 +1108,6 @@ export default function ProfileScreen() {
           </View>
           <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
         </TouchableOpacity>
-
-        {/* Wallet & Financial Receipts Shortcut */}
-        <TouchableOpacity
-          onPress={() => router.push('/(tabs)/wallet')}
-          activeOpacity={0.7}
-          style={{
-            backgroundColor: isDark ? '#131A22' : '#FFFFFF',
-            borderColor: isDark ? '#222D3D' : '#E7E1D8',
-            borderWidth: 1,
-            borderRadius: 18,
-            padding: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <View
-              style={{
-                backgroundColor: isDark ? '#F59E0B20' : '#F59E0B15',
-                padding: 10,
-                borderRadius: 12,
-                marginRight: 14,
-              }}
-            >
-              <Wallet size={18} color="#F59E0B" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 15,
-                  fontFamily: 'PlusJakartaSans_600SemiBold',
-                  color: isDark ? '#F8FAFC' : '#0F172A',
-                }}
-              >
-                Naira Wallet & Receipts (₦)
-              </Text>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: isDark ? '#64748B' : '#94A3B8',
-                  marginTop: 2,
-                  fontFamily: 'Inter_400Regular',
-                }}
-              >
-                Deposit funds, view escrow & history
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={18} color={isDark ? '#475569' : '#94A3B8'} />
-        </TouchableOpacity>
       </View>
     )
   );
@@ -1081,12 +1125,13 @@ export default function ProfileScreen() {
     >
       {isDesktop ? (
         <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start', width: '100%' }}>
-          {/* Left Column: Identity, Security, Theme, Logout */}
+          {/* Left Column: Identity, Financials, Appearance, Security, Support, Logout */}
           <View style={{ width: 360 }}>
             {renderIdentityCard()}
+            {renderWalletCard()}
+            {renderThemeCard()}
             {renderSecurityCard()}
             {renderSupportCard()}
-            {renderThemeCard()}
             {renderLogoutCard()}
           </View>
 
@@ -1099,9 +1144,10 @@ export default function ProfileScreen() {
         <View>
           {renderIdentityCard()}
           {renderManagementHub()}
+          {renderWalletCard()}
+          {renderThemeCard()}
           {renderSecurityCard()}
           {renderSupportCard()}
-          {renderThemeCard()}
           {renderLogoutCard()}
         </View>
       )}
@@ -1177,7 +1223,7 @@ export default function ProfileScreen() {
                   }}
                 >
                   {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} style={{ width: '100%', height: '100%' }} />
+                    <Image source={{ uri: getAvatarUrl(avatarUrl, fullName) }} style={{ width: '100%', height: '100%' }} />
                   ) : (
                     <User size={36} color={isDark ? '#475569' : '#94A3B8'} />
                   )}

@@ -37,6 +37,7 @@ import {
 } from 'lucide-react-native';
 import Confetti from '@/components/ui/Confetti';
 import CountryCityPickerModal from '@/components/ui/CountryCityPickerModal';
+import { getAvatarUrl } from '@/lib/avatar';
 
 export default function OnboardingWizard() {
   const router = useRouter();
@@ -173,27 +174,23 @@ export default function OnboardingWizard() {
     }
   };
 
-  const skipAvatar = () => {
-    // Generate a default dicebear avatar using their name or seed
-    const seed = draft.fullName || user?.email || 'user';
-    const defaultUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed)}`;
-    draft.updateDraft({ avatarUrl: defaultUrl });
-    draft.nextStep();
-  };
-
-  // Step limits and flows
-  const isExpert = draft.role === 'expert';
-  const totalSteps = isExpert ? 6 : 5;
+  // Streamlined 3-step seeker flow
+  const totalSteps = 3;
 
   const handleNext = () => {
-    if (draft.currentStep === 2) {
-      // Username validation
-      if (!draft.fullName.trim() || draft.fullName.length < 3) {
-        Alert.alert('Validation Error', 'Please enter a valid full name (minimum 3 characters).');
+    if (draft.currentStep === 1) {
+      if (!draft.fullName.trim() || draft.fullName.trim().length < 2) {
+        Alert.alert('Validation Error', 'Please enter your full name (minimum 2 characters).');
         return;
       }
-      if (!draft.username.trim() || draft.username.length < 3) {
-        Alert.alert('Validation Error', 'Please enter a unique username handle.');
+      if (!draft.username.trim() || draft.username.trim().length < 3) {
+        Alert.alert('Validation Error', 'Please enter a unique username handle (minimum 3 characters).');
+        return;
+      }
+    }
+    if (draft.currentStep === 2) {
+      if (!draft.location.trim()) {
+        Alert.alert('Location Required', 'Please select your country and city to proceed.');
         return;
       }
     }
@@ -204,21 +201,19 @@ export default function OnboardingWizard() {
     draft.prevStep();
   };
 
-  const toggleCategorySelection = (catId: string) => {
-    if (isExpert) {
-      // Exactly 1 category allowed
-      const selected = draft.categories.includes(catId) ? [] : [catId];
-      draft.updateDraft({ categories: selected });
-    } else {
-      // Exactly 1 primary interest allowed
-      const selected = draft.interests.includes(catId) ? [] : [catId];
-      draft.updateDraft({ interests: selected });
-    }
+  const toggleCategorySelection = (catName: string) => {
+    const isSelected = draft.interests.includes(catName);
+    const updated = isSelected
+      ? draft.interests.filter((i) => i !== catName)
+      : [...draft.interests, catName];
+    draft.updateDraft({ interests: updated });
   };
 
   const handleAddCustomInterest = () => {
     if (customInterest.trim()) {
-      draft.updateDraft({ interests: [customInterest.trim()] });
+      if (!draft.interests.includes(customInterest.trim())) {
+        draft.updateDraft({ interests: [...draft.interests, customInterest.trim()] });
+      }
       setCustomInterest('');
     }
   };
@@ -226,15 +221,15 @@ export default function OnboardingWizard() {
   const handleFinishOnboarding = async () => {
     setIsUploading(true);
     try {
-      let finalAvatarUrl = draft.avatarUrl;
-      // If draft.avatarUrl is a local device URI, upload it to the server first
-      if (draft.avatarUrl && !draft.avatarUrl.startsWith('http') && !draft.avatarUrl.startsWith('data:')) {
+      let finalAvatarUrl = draft.avatarUrl || profile?.avatarUrl || '';
+      // If finalAvatarUrl is a local device URI, upload it to the server first
+      if (finalAvatarUrl && !finalAvatarUrl.startsWith('http') && !finalAvatarUrl.startsWith('data:')) {
         try {
           const { uploadAvatar } = require('@/lib/api');
-          const fileName = draft.avatarUrl.split('/').pop() || 'avatar.jpg';
+          const fileName = finalAvatarUrl.split('/').pop() || 'avatar.jpg';
           const ext = fileName.split('.').pop()?.toLowerCase();
           const fileType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-          const uploadRes = await uploadAvatar(draft.avatarUrl, fileName, fileType);
+          const uploadRes = await uploadAvatar(finalAvatarUrl, fileName, fileType);
           finalAvatarUrl = uploadRes.url;
         } catch (uploadError: any) {
           Alert.alert('Upload Error', 'Failed to upload profile photo: ' + uploadError.message);
@@ -245,37 +240,18 @@ export default function OnboardingWizard() {
 
       // Build backend payload
       const payload: any = {
-        fullName: draft.fullName,
+        fullName: draft.fullName.trim(),
+        username: draft.username.trim().replace('@', ''),
+        location: draft.location.trim(),
         avatarUrl: finalAvatarUrl,
-        bio: draft.bio,
-        username: draft.username,
-        location: draft.location,
-        role: draft.role
-      };
-
-      if (isExpert) {
-        payload.headline = draft.headline;
-        payload.experience = draft.experience;
-        payload.categories = draft.categories;
-        payload.hourlyRate = Number(draft.callPrice) || 0;
-        payload.textQuestionPrice = Number(draft.textPrice) || 0;
-        payload.videoResponsePrice = Number(draft.videoPrice) || 0;
-        payload.negotiableTiers = {
-          hourlyRate: draft.callNegotiable,
-          textQuestionPrice: draft.textNegotiable,
-          videoResponsePrice: draft.videoNegotiable
-        };
-        payload.availabilityImmediate = draft.availabilityImmediate;
-        payload.availabilityNote = draft.availabilityNote;
-        payload.visibility = draft.visibility;
-      } else {
-        // Seekers
-        payload.goals = draft.goals;
-        payload.communicationStyle = draft.communicationStyle;
-        payload.categories = draft.interests.map(
+        bio: draft.bio || '',
+        goals: draft.goals || '',
+        communicationStyle: draft.communicationStyle || 'Any',
+        role: 'seeker',
+        categories: draft.interests.map(
           (interestName) => dbCategories.find((c) => c.name === interestName)?._id || interestName
-        ).filter(id => id.length === 24); // MongoDB ObjectIDs
-      }
+        ).filter((id) => id.length === 24),
+      };
 
       await updateOnboarding(payload);
       
@@ -289,7 +265,7 @@ export default function OnboardingWizard() {
       setTimeout(() => {
         draft.resetOnboarding();
         router.replace('/(tabs)');
-      }, 2500);
+      }, 2000);
 
     } catch (error: any) {
       Alert.alert('Setup Failed', error.message || 'Could not complete profile setup.');
@@ -298,80 +274,102 @@ export default function OnboardingWizard() {
     }
   };
 
+  const nextButtonDisabled = 
+    (draft.currentStep === 1 && (!draft.fullName.trim() || draft.fullName.trim().length < 2 || !draft.username.trim() || draft.username.trim().length < 3 || checkingUsername)) ||
+    (draft.currentStep === 2 && !draft.location.trim()) ||
+    (draft.currentStep === 3 && draft.interests.length < 1);
+
   // Helper to render steps
   const renderStepContent = () => {
     switch (draft.currentStep) {
-      case 1:
-        return (
-          <View className="items-center py-6">
-            <Text className="text-xl font-bold text-slate-900 dark:text-white text-center mb-2">Upload Profile Photo</Text>
-            <Text className="text-slate-500 dark:text-slate-400 text-sm text-center mb-8 px-4">
-              Add a professional picture so other users recognize you.
-            </Text>
+      case 1: {
+        const rawAvatar = draft.avatarUrl || profile?.avatarUrl;
+        const isFromGoogle = !!(rawAvatar && (rawAvatar.includes('googleusercontent.com') || rawAvatar.includes('google')));
+        const displayAvatar = rawAvatar ? getAvatarUrl(rawAvatar, draft.fullName || profile?.fullName) : null;
 
-            {/* Circle Preview */}
-            <View className="relative mb-10">
-              <View 
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 2 }}
-                className="w-40 h-40 rounded-full items-center justify-center overflow-hidden"
-              >
-                {draft.avatarUrl ? (
-                  <Image source={{ uri: draft.avatarUrl }} className="w-full h-full" />
-                ) : (
-                  <User size={64} color={isDark ? '#475569' : '#94a3b8'} />
-                )}
-              </View>
-              {draft.avatarUrl ? (
-                <TouchableOpacity
-                  onPress={() => draft.updateDraft({ avatarUrl: '' })}
-                  className="absolute bottom-0 right-0 bg-red-500 p-2.5 rounded-full border border-white dark:border-slate-950 active:bg-red-650"
-                >
-                  <Text className="text-white text-xs font-bold px-1">Remove</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            {/* Photo Selection Triggers */}
-            <View className="w-full space-y-4">
-              <TouchableOpacity
-                onPress={() => handlePickImage(true)}
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                className="w-full flex-row items-center justify-center py-4 px-6 rounded-2xl active:bg-slate-100 dark:active:bg-slate-850 mb-3 shadow-sm dark:shadow-none"
-              >
-                <Camera size={20} color="#059669" style={{ marginRight: 8 }} />
-                <Text className="text-slate-900 dark:text-white font-bold text-base">Take Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handlePickImage(false)}
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                className="w-full flex-row items-center justify-center py-4 px-6 rounded-2xl active:bg-slate-100 dark:active:bg-slate-850 mb-3 shadow-sm dark:shadow-none"
-              >
-                <ImageIcon size={20} color="#059669" style={{ marginRight: 8 }} />
-                <Text className="text-slate-900 dark:text-white font-bold text-base">Choose from Gallery</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                onPress={skipAvatar}
-                className="w-full items-center py-3"
-              >
-                <Text className="text-primary-550 dark:text-primary-400 font-semibold text-sm">Skip for now</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
-
-      case 2:
         return (
           <View className="space-y-6">
-            <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Basic Profile Details</Text>
-            <Text className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-              Enter your naming handles and location info below.
-            </Text>
+            <View className="items-center mb-6">
+              <Text className="text-2xl font-black text-slate-900 dark:text-white text-center mb-2">
+                Set Up Your Profile
+              </Text>
+              <Text className="text-slate-500 dark:text-slate-400 text-sm text-center px-4">
+                Confirm your photo and naming handles so advisors recognize you.
+              </Text>
 
-            {/* Full Name */}
+              {/* Avatar Centerpiece */}
+              <View className="relative mt-6 mb-3 items-center">
+                <View 
+                  style={{ 
+                    backgroundColor: isDark ? '#0f172a' : '#ffffff', 
+                    borderColor: isDark ? '#1e293b' : '#e2e8f0', 
+                    borderWidth: 3 
+                  }}
+                  className="w-28 h-28 rounded-full items-center justify-center overflow-hidden shadow-md"
+                >
+                  {displayAvatar ? (
+                    <Image source={{ uri: displayAvatar }} className="w-full h-full" />
+                  ) : (
+                    <User size={48} color={isDark ? '#475569' : '#94a3b8'} />
+                  )}
+                </View>
+
+                {/* Edit avatar button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert('Profile Photo', 'Choose how you want to add your photo:', [
+                      { text: 'Take Photo', onPress: () => handlePickImage(true) },
+                      { text: 'Choose from Gallery', onPress: () => handlePickImage(false) },
+                      ...(rawAvatar ? [{ 
+                        text: 'Remove Photo', 
+                        style: 'destructive' as const, 
+                        onPress: () => draft.updateDraft({ avatarUrl: '' }) 
+                      }] : []),
+                      { text: 'Cancel', style: 'cancel' },
+                    ]);
+                  }}
+                  className="absolute bottom-0 right-0 bg-primary-500 p-2.5 rounded-full border-2 border-white dark:border-slate-900 shadow-md"
+                  accessibilityLabel="Change profile picture"
+                >
+                  <Camera size={14} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Google/OAuth Source Indicator */}
+              {isFromGoogle && (
+                <View className="bg-primary-500/10 border border-primary-500/20 px-3 py-1 rounded-full flex-row items-center mb-2">
+                  <Check size={12} color="#059669" style={{ marginRight: 4 }} />
+                  <Text className="text-primary-700 dark:text-primary-400 text-xs font-semibold">
+                    Photo imported from Google
+                  </Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert('Profile Photo', 'Choose how you want to add your photo:', [
+                    { text: 'Take Photo', onPress: () => handlePickImage(true) },
+                    { text: 'Choose from Gallery', onPress: () => handlePickImage(false) },
+                    ...(rawAvatar ? [{ 
+                      text: 'Remove Photo', 
+                      style: 'destructive' as const, 
+                      onPress: () => draft.updateDraft({ avatarUrl: '' }) 
+                    }] : []),
+                    { text: 'Cancel', style: 'cancel' },
+                  ]);
+                }}
+              >
+                <Text className="text-primary-600 dark:text-primary-400 text-xs font-bold">
+                  {rawAvatar ? 'Change Photo' : 'Add Photo'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Full Name Input */}
             <View className="mb-4">
-              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Full Name *</Text>
+              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                Full Name *
+              </Text>
               <View 
                 style={{
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
@@ -386,7 +384,7 @@ export default function OnboardingWizard() {
                   onChangeText={(text) => draft.updateDraft({ fullName: text })}
                   onFocus={() => setFullNameFocused(true)}
                   onBlur={() => setFullNameFocused(false)}
-                  placeholder="Jane Doe"
+                  placeholder="e.g. David Chimbueze"
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
                 />
@@ -395,16 +393,18 @@ export default function OnboardingWizard() {
 
             {/* Handle Username */}
             <View className="mb-4">
-              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Username Handle *</Text>
+              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                Username Handle *
+              </Text>
               <View 
                 style={{
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                  borderColor: usernameFocused ? '#059669' : (isDark ? '#1e293b' : '#e2e8f0'),
+                  borderColor: usernameFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
                   borderWidth: 1.5,
                 }}
                 className="flex-row items-center rounded-2xl px-4 py-3"
               >
-                <Text style={{ color: usernameFocused ? '#059669' : '#059669' }} className="font-bold text-base">@</Text>
+                <Text style={{ color: '#059669' }} className="font-bold text-base">@</Text>
                 <TextInput
                   value={draft.username.replace('@', '')}
                   onChangeText={(text) => {
@@ -414,7 +414,7 @@ export default function OnboardingWizard() {
                   }}
                   onFocus={() => setUsernameFocused(true)}
                   onBlur={() => setUsernameFocused(false)}
-                  placeholder="janedoe"
+                  placeholder="davidchimb"
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   autoCapitalize="none"
                   className="flex-1 text-slate-900 dark:text-white ml-1 text-base"
@@ -424,192 +424,114 @@ export default function OnboardingWizard() {
               {usernameError ? (
                 <Text className="text-red-500 dark:text-red-400 text-xs mt-1 ml-1">{usernameError}</Text>
               ) : (
-                <Text className="text-slate-500 dark:text-slate-500 text-xs mt-1 ml-1">Your unique handle for mentions & shares.</Text>
+                <Text className="text-slate-500 text-xs mt-1 ml-1">Your unique handle for mentions and shares.</Text>
               )}
             </View>
+          </View>
+        );
+      }
 
-            {/* Location (Country -> City) */}
-            <View className="mb-4">
-              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Location (Country & City) *</Text>
-              <TouchableOpacity 
-                onPress={() => setPickerVisible(true)}
-                activeOpacity={0.85}
-                style={{
-                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                  borderColor: draft.location ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
-                  borderWidth: 1.5,
-                }}
-                className="flex-row items-center justify-between rounded-2xl px-4 py-3"
-              >
-                <View className="flex-row items-center flex-1 mr-2">
-                  <MapPin size={18} color="#059669" />
-                  <Text className={`ml-3 text-base ${draft.location ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-400 dark:text-slate-500'}`}>
-                    {draft.location || 'Select Country & City...'}
-                  </Text>
+      case 2:
+        return (
+          <View className="space-y-6">
+            <View className="mb-6">
+              <Text className="text-2xl font-black text-slate-900 dark:text-white mb-2">
+                Where Are You Located?
+              </Text>
+              <Text className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+                We use your location to calculate consultation fees in Naira (₦) and connect you with advisors in your timezone.
+              </Text>
+            </View>
+
+            {/* Location Selector Card */}
+            <TouchableOpacity 
+              onPress={() => setPickerVisible(true)}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                borderColor: draft.location ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
+                borderWidth: 2,
+              }}
+              className="p-5 rounded-3xl shadow-sm mb-4"
+            >
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="w-12 h-12 rounded-2xl bg-primary-500/10 items-center justify-center">
+                  <MapPin size={24} color="#059669" />
                 </View>
                 <View className="bg-primary-500/10 px-3 py-1 rounded-full">
                   <Text className="text-primary-600 dark:text-primary-400 text-xs font-bold uppercase">
-                    {draft.location ? 'Change' : 'Select'}
+                    {draft.location ? 'Change City' : 'Tap to Select'}
                   </Text>
                 </View>
-              </TouchableOpacity>
-              <Text className="text-slate-500 text-xs mt-1 ml-1">Select your country first, then choose your city.</Text>
-            </View>
+              </View>
 
-            {/* Bio */}
-            <View className="mb-4">
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">Bio / Description</Text>
-                <Text className="text-slate-500 dark:text-slate-500 text-xs">{draft.bio.length}/250</Text>
-              </View>
-              <View 
-                style={{
-                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                  borderColor: bioFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
-                  borderWidth: 1.5,
-                  height: 112,
-                }}
-                className="flex-row items-start rounded-2xl px-4 py-3"
-              >
-                <FileText size={18} color={bioFocused ? '#059669' : (isDark ? '#475569' : '#94a3b8')} style={{ marginTop: 4 }} />
-                <TextInput
-                  value={draft.bio}
-                  onChangeText={(text) => {
-                    if (text.length <= 250) {
-                      draft.updateDraft({ bio: text });
-                    }
-                  }}
-                  onFocus={() => setBioFocused(true)}
-                  onBlur={() => setBioFocused(false)}
-                  placeholder="Tell us about yourself..."
-                  placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                  multiline
-                  numberOfLines={4}
-                  className="flex-1 text-slate-900 dark:text-white ml-3 text-base h-full"
-                  style={{ textAlignVertical: 'top' }}
-                />
-              </View>
-            </View>
+              <Text className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                Selected Location
+              </Text>
+              <Text className={`text-lg font-bold ${draft.location ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
+                {draft.location || 'Country & City not chosen'}
+              </Text>
+              {draft.location ? (
+                <View className="flex-row items-center mt-2">
+                  <Check size={14} color="#059669" style={{ marginRight: 4 }} />
+                  <Text className="text-xs text-primary-600 dark:text-primary-400 font-medium">
+                    Currency set to Naira (₦) & Local Timezone
+                  </Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+
+            <Text className="text-xs text-slate-500 dark:text-slate-400 text-center px-4">
+              Tap the card above to select your country and city from the curated list.
+            </Text>
           </View>
         );
 
       case 3:
-        if (isExpert) {
-          // Expert Step 3: Professional Details (Streamlined - No cognitive overload)
-          return (
-            <View className="space-y-6">
-              <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Professional Focus</Text>
-              <Text className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                Tell us your role title and pick your primary expertise category.
+        return (
+          <View className="space-y-6">
+            <View className="mb-6">
+              <Text className="text-2xl font-black text-slate-900 dark:text-white mb-2">
+                What do you want to learn?
               </Text>
-
-              {/* Headline */}
-              <View className="mb-4">
-                <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Professional Headline *</Text>
-                <View 
-                  style={{
-                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                    borderColor: headlineFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
-                    borderWidth: 1.5,
-                  }}
-                  className="flex-row items-center rounded-2xl px-4 py-3"
-                >
-                  <Sparkles size={18} color={headlineFocused ? '#059669' : (isDark ? '#94a3b8' : '#64748b')} />
-                  <TextInput
-                    value={draft.headline}
-                    onChangeText={(text) => draft.updateDraft({ headline: text })}
-                    onFocus={() => setHeadlineFocused(true)}
-                    onBlur={() => setHeadlineFocused(false)}
-                    placeholder="Senior Software Engineer | AI Consultant"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
-                  />
-                </View>
-              </View>
-
-              {/* Category selections (Single category) */}
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">Primary Category (Select 1) *</Text>
-                {draft.categories.length > 0 && (
-                  <Text className="text-primary-600 dark:text-primary-400 text-xs font-bold">1 Selected</Text>
-                )}
-              </View>
-              {loadingCats ? (
-                <ActivityIndicator color="#059669" style={{ paddingVertical: 16 }} />
-              ) : (
-                <View className="flex-row flex-wrap gap-2 mb-4">
-                  {dbCategories.map((cat) => {
-                    const isSelected = draft.categories.includes(cat._id);
-                    return (
-                      <TouchableOpacity
-                        key={cat._id}
-                        onPress={() => toggleCategorySelection(cat._id)}
-                        style={{
-                          backgroundColor: isSelected ? '#059669' : (isDark ? '#0f172a' : '#ffffff'),
-                          borderColor: isSelected ? '#059669' : (isDark ? '#1e293b' : '#e2e8f0'),
-                          borderWidth: 1.5,
-                        }}
-                        className="flex-row items-center px-4 py-2.5 rounded-full"
-                      >
-                        {isSelected && <Check size={14} color="#fff" style={{ marginRight: 6 }} />}
-                        <Text className={`text-sm ${isSelected ? 'text-white font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
-                          {cat.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* In-App Verification Reminder */}
-              <View className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-4 mt-2">
-                <Text className="text-emerald-800 dark:text-emerald-300 font-bold text-xs uppercase tracking-wider">
-                  Accreditation & Document Uploads
-                </Text>
-                <Text className="text-slate-600 dark:text-slate-300 text-xs mt-1 leading-relaxed">
-                  To protect you from cognitive overload, degrees, licenses, and verified certifications can be uploaded directly inside your Consultancy Suite after setup.
-                </Text>
-              </View>
+              <Text className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+                Select one or more topics that interest you to personalize your advisor feed.
+              </Text>
             </View>
-          );
-        } else {
-          // Seeker Step 3: Interests (Single primary interest)
-          return (
-            <View className="space-y-6">
-              <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Select Your Primary Interest</Text>
-              <Text className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                Choose the main category you want to seek advice and mentorship in.
+
+            {loadingCats ? (
+              <ActivityIndicator color="#059669" style={{ paddingVertical: 24 }} />
+            ) : (
+              <View className="flex-row flex-wrap gap-2 mb-6">
+                {dbCategories.map((cat) => {
+                  const isSelected = draft.interests.includes(cat.name);
+                  return (
+                    <TouchableOpacity
+                      key={cat._id}
+                      onPress={() => toggleCategorySelection(cat.name)}
+                      activeOpacity={0.7}
+                      style={{
+                        backgroundColor: isSelected ? '#059669' : (isDark ? '#0f172a' : '#ffffff'),
+                        borderColor: isSelected ? '#059669' : (isDark ? '#1e293b' : '#e2e8f0'),
+                        borderWidth: 1.5,
+                      }}
+                      className="flex-row items-center px-4 py-2.5 rounded-full shadow-sm"
+                    >
+                      {isSelected && <Check size={14} color="#fff" style={{ marginRight: 6 }} />}
+                      <Text className={`text-sm ${isSelected ? 'text-white font-bold' : 'text-slate-700 dark:text-slate-300 font-medium'}`}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Custom Topic Addition */}
+            <View className="mb-2">
+              <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">
+                Or add a specific topic:
               </Text>
-
-              {loadingCats ? (
-                <ActivityIndicator color="#059669" style={{ paddingVertical: 16 }} />
-              ) : (
-                <View className="flex-row flex-wrap gap-2 mb-6">
-                  {dbCategories.map((cat) => {
-                    const isSelected = draft.interests.includes(cat.name);
-                    return (
-                      <TouchableOpacity
-                        key={cat._id}
-                        onPress={() => toggleCategorySelection(cat.name)}
-                        style={{
-                          backgroundColor: isSelected ? '#059669' : (isDark ? '#0f172a' : '#ffffff'),
-                          borderColor: isSelected ? '#059669' : (isDark ? '#1e293b' : '#e2e8f0'),
-                          borderWidth: 1,
-                        }}
-                        className="flex-row items-center px-4 py-2.5 rounded-full"
-                      >
-                        {isSelected && <Check size={14} color="#fff" style={{ marginRight: 6 }} />}
-                        <Text className={`text-sm ${isSelected ? 'text-white font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
-                          {cat.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Add Custom Category Chip */}
-              <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Can&apos;t find a category? Add custom:</Text>
               <View 
                 style={{
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
@@ -623,510 +545,48 @@ export default function OnboardingWizard() {
                   onChangeText={setCustomInterest}
                   onFocus={() => setCustomInterestFocused(true)}
                   onBlur={() => setCustomInterestFocused(false)}
-                  placeholder="e.g. Artificial Intelligence"
+                  placeholder="e.g. Growth Hacking, Legal, Real Estate..."
                   placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
                   className="flex-1 text-slate-900 dark:text-white text-base py-2"
                 />
-                <TouchableOpacity
-                  onPress={handleAddCustomInterest}
-                  className="bg-primary-500 px-4 py-2 rounded-xl"
-                >
-                  <Text className="text-white font-bold text-xs">Add</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Custom selection summary */}
-              {draft.interests.length > 0 && (
-                <View className="flex-row flex-wrap gap-2 mt-4">
-                  {draft.interests.map((interest) => (
-                    <TouchableOpacity
-                      key={interest}
-                      onPress={() => toggleCategorySelection(interest)}
-                      style={{
-                        backgroundColor: isDark ? '#1e1b4b' : '#f5f3ff',
-                        borderColor: isDark ? '#312e81' : '#c084fc',
-                        borderWidth: 1,
-                      }}
-                      className="px-3.5 py-1.5 rounded-full flex-row items-center"
-                    >
-                      <Text className="text-primary-700 dark:text-primary-300 text-xs font-semibold mr-1.5">{interest}</Text>
-                      <Text className="text-primary-800 dark:text-primary-400 text-xs font-bold">×</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          );
-        }
-      case 4:
-        if (isExpert) {
-          // Expert Step 4: Pricing Setup
-          return (
-            <View className="space-y-6">
-              <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Set Your Rates (₦)</Text>
-              <Text className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                Configure your pricing packages in Nigerian Naira. You can mark tiers as negotiable.
-              </Text>
-
-              {/* Tier 1: Quick Text Question */}
-              <View 
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                className="rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none"
-              >
-                <View className="flex-row justify-between items-center mb-4">
-                  <View className="flex-row items-center">
-                    <View className="bg-primary-500/10 p-2 rounded-xl mr-3 border border-primary-500/20">
-                      <FileText size={18} color="#059669" />
-                    </View>
-                    <View>
-                      <Text className="text-slate-900 dark:text-white font-bold text-base">Quick Text Question</Text>
-                      <Text className="text-slate-500 dark:text-slate-400 text-xs">Suggested: ₦1,000 - ₦10,000</Text>
-                    </View>
-                  </View>
-                  <View className="flex-row items-center">
-                    <Text className="text-slate-500 dark:text-slate-400 text-xs mr-2">Negotiable</Text>
-                    <Switch
-                      value={draft.textNegotiable}
-                      onValueChange={(val) => draft.updateDraft({ textNegotiable: val })}
-                      trackColor={{ false: isDark ? '#1e293b' : '#cbd5e1', true: '#059669' }}
-                      thumbColor={draft.textNegotiable ? '#fff' : (isDark ? '#475569' : '#94a3b8')}
-                    />
-                  </View>
-                </View>
-                <View 
-                  style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
-                  className="flex-row items-center rounded-2xl px-4 py-3"
-                >
-                  <Text className="text-slate-900 dark:text-white font-bold text-base mr-2">₦</Text>
-                  <TextInput
-                    value={draft.textPrice}
-                    onChangeText={(val) => draft.updateDraft({ textPrice: val })}
-                    keyboardType="numeric"
-                    placeholder="2500"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    className="flex-1 text-slate-900 dark:text-white text-base font-bold"
-                  />
-                </View>
-              </View>
-
-              {/* Tier 2: Voice/Video Response */}
-              <View 
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                className="rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none"
-              >
-                <View className="flex-row justify-between items-center mb-4">
-                  <View className="flex-row items-center">
-                    <View className="bg-primary-500/10 p-2 rounded-xl mr-3 border border-primary-500/20">
-                      <Video size={18} color="#059669" />
-                    </View>
-                    <View>
-                      <Text className="text-slate-900 dark:text-white font-bold text-base">Voice/Video Response</Text>
-                      <Text className="text-slate-500 dark:text-slate-400 text-xs">Suggested: ₦5,000 - ₦30,000</Text>
-                    </View>
-                  </View>
-                  <View className="flex-row items-center">
-                    <Text className="text-slate-500 dark:text-slate-400 text-xs mr-2">Negotiable</Text>
-                    <Switch
-                      value={draft.videoNegotiable}
-                      onValueChange={(val) => draft.updateDraft({ videoNegotiable: val })}
-                      trackColor={{ false: isDark ? '#1e293b' : '#cbd5e1', true: '#059669' }}
-                      thumbColor={draft.videoNegotiable ? '#fff' : (isDark ? '#475569' : '#94a3b8')}
-                    />
-                  </View>
-                </View>
-                <View 
-                  style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
-                  className="flex-row items-center rounded-2xl px-4 py-3"
-                >
-                  <Text className="text-slate-900 dark:text-white font-bold text-base mr-2">₦</Text>
-                  <TextInput
-                    value={draft.videoPrice}
-                    onChangeText={(val) => draft.updateDraft({ videoPrice: val })}
-                    keyboardType="numeric"
-                    placeholder="7500"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    className="flex-1 text-slate-900 dark:text-white text-base font-bold"
-                  />
-                </View>
-              </View>
-
-              {/* Tier 3: Live Video Call */}
-              <View 
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                className="rounded-3xl p-5 mb-4 shadow-sm dark:shadow-none"
-              >
-                <View className="flex-row justify-between items-center mb-4">
-                  <View className="flex-row items-center">
-                    <View className="bg-primary-500/10 p-2 rounded-xl mr-3 border border-primary-500/20">
-                      <Phone size={18} color="#059669" style={{ transform: [{ rotate: '90deg' }] }} />
-                    </View>
-                    <View>
-                      <Text className="text-slate-900 dark:text-white font-bold text-base">Live Video Call (30 mins)</Text>
-                      <Text className="text-slate-500 dark:text-slate-400 text-xs">Suggested: ₦10,000 - ₦100,000</Text>
-                    </View>
-                  </View>
-                  <View className="flex-row items-center">
-                    <Text className="text-slate-500 dark:text-slate-400 text-xs mr-2">Negotiable</Text>
-                    <Switch
-                      value={draft.callNegotiable}
-                      onValueChange={(val) => draft.updateDraft({ callNegotiable: val })}
-                      trackColor={{ false: isDark ? '#1e293b' : '#cbd5e1', true: '#059669' }}
-                      thumbColor={draft.callNegotiable ? '#fff' : (isDark ? '#475569' : '#94a3b8')}
-                    />
-                  </View>
-                </View>
-                <View 
-                  style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
-                  className="flex-row items-center rounded-2xl px-4 py-3"
-                >
-                  <Text className="text-slate-900 dark:text-white font-bold text-base mr-2">₦</Text>
-                  <TextInput
-                    value={draft.callPrice}
-                    onChangeText={(val) => draft.updateDraft({ callPrice: val })}
-                    keyboardType="numeric"
-                    placeholder="25000"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    className="flex-1 text-slate-900 dark:text-white text-base font-bold"
-                  />
-                </View>
-              </View>
-            </View>
-          );
-        } else {
-          // Seeker Step 4: Goals / Introduction
-          return (
-            <View className="space-y-6">
-              <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Goals & Preferences</Text>
-              <Text className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                Tell us what you hope to achieve and how you prefer to communicate.
-              </Text>
-
-              {/* Goals Description */}
-              <View className="mb-6">
-                <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">What are you hoping to achieve? *</Text>
-                <View 
-                  style={{
-                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                    borderColor: goalsFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
-                    borderWidth: 1.5,
-                    height: 128,
-                  }}
-                  className="flex-row items-start rounded-2xl px-4 py-3"
-                >
-                  <FileText size={18} color={goalsFocused ? '#059669' : (isDark ? '#94a3b8' : '#64748b')} style={{ marginTop: 4 }} />
-                  <TextInput
-                    value={draft.goals}
-                    onChangeText={(text) => draft.updateDraft({ goals: text })}
-                    onFocus={() => setGoalsFocused(true)}
-                    onBlur={() => setGoalsFocused(false)}
-                    placeholder="Describe your goals (e.g. Learn how to launch a startup, debug architecture issues, transition careers...)"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    multiline
-                    numberOfLines={5}
-                    className="flex-1 text-slate-900 dark:text-white ml-3 text-base h-full"
-                    style={{ textAlignVertical: 'top' }}
-                  />
-                </View>
-              </View>
-
-              {/* Preferred Communication Style */}
-              <View className="mb-2">
-                <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-1">Preferred Consultation Format (Optional)</Text>
-                <Text className="text-slate-400 text-xs mb-3">You can choose between text advice, video responses, or live calls for every consultation.</Text>
-              </View>
-              <View 
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
-                className="flex-row p-1.5 rounded-2xl"
-              >
-                {(['Any', 'Text', 'Voice', 'Video'] as const).map((style) => (
+                {customInterest.trim().length > 0 && (
                   <TouchableOpacity
-                    key={style}
-                    onPress={() => draft.updateDraft({ communicationStyle: style })}
-                    style={{
-                      backgroundColor: (draft.communicationStyle || 'Any') === style ? '#059669' : 'transparent',
-                    }}
-                    className="flex-1 items-center justify-center py-3 rounded-xl"
+                    onPress={handleAddCustomInterest}
+                    className="bg-primary-500 px-4 py-2 rounded-xl"
                   >
-                    <Text
-                      className={`font-semibold text-xs ${
-                        (draft.communicationStyle || 'Any') === style ? 'text-white' : 'text-slate-500 dark:text-slate-400'
-                      }`}
-                    >
-                      {style}
-                    </Text>
+                    <Text className="text-white font-bold text-xs">Add</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Custom Selected Chips */}
+            {draft.interests.filter((i) => !dbCategories.some((c) => c.name === i)).length > 0 && (
+              <View className="flex-row flex-wrap gap-2 mt-2">
+                {draft.interests.filter((i) => !dbCategories.some((c) => c.name === i)).map((interest) => (
+                  <TouchableOpacity
+                    key={interest}
+                    onPress={() => toggleCategorySelection(interest)}
+                    style={{
+                      backgroundColor: isDark ? '#1e1b4b' : '#f5f3ff',
+                      borderColor: isDark ? '#312e81' : '#c084fc',
+                      borderWidth: 1,
+                    }}
+                    className="px-3.5 py-1.5 rounded-full flex-row items-center"
+                  >
+                    <Text className="text-primary-700 dark:text-primary-300 text-xs font-bold mr-1.5">{interest}</Text>
+                    <Text className="text-slate-400 text-xs font-bold">×</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
-          );
-        }
-
-      case 5:
-        if (isExpert) {
-          // Expert Step 5: Availability Setup
-          return (
-            <View className="space-y-6">
-              <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Availability & Visibility</Text>
-              <Text className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                Configure your active visibility settings for Seekers.
-              </Text>
-
-              {/* Immediate Availability Toggle */}
-              <View 
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                className="rounded-3xl p-5 flex-row justify-between items-center mb-4 shadow-sm dark:shadow-none"
-              >
-                <View className="flex-1 mr-4">
-                  <Text className="text-slate-900 dark:text-white font-bold text-base mb-1">Available Immediately</Text>
-                  <Text className="text-slate-650 dark:text-slate-400 text-xs leading-relaxed">
-                    Toggle on to let seekers know you are online and responsive for quick Q&A.
-                  </Text>
-                </View>
-                <Switch
-                  value={draft.availabilityImmediate}
-                  onValueChange={(val) => draft.updateDraft({ availabilityImmediate: val })}
-                  trackColor={{ false: isDark ? '#1e293b' : '#cbd5e1', true: '#059669' }}
-                  thumbColor={draft.availabilityImmediate ? '#fff' : (isDark ? '#475569' : '#94a3b8')}
-                />
-              </View>
-
-              {/* Availability Note */}
-              <View className="mb-4">
-                <Text className="text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Availability Notes</Text>
-                <View 
-                  style={{
-                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                    borderColor: availabilityNoteFocused ? '#059669' : (isDark ? '#1e293b' : '#cbd5e1'),
-                    borderWidth: 1.5,
-                  }}
-                  className="flex-row items-center rounded-2xl px-4 py-3"
-                >
-                  <Bookmark size={18} color={availabilityNoteFocused ? '#059669' : (isDark ? '#94a3b8' : '#64748b')} />
-                  <TextInput
-                    value={draft.availabilityNote}
-                    onChangeText={(text) => draft.updateDraft({ availabilityNote: text })}
-                    onFocus={() => setAvailabilityNoteFocused(true)}
-                    onBlur={() => setAvailabilityNoteFocused(false)}
-                    placeholder="e.g. Weekdays 6PM-9PM, Saturday mornings"
-                    placeholderTextColor={isDark ? '#475569' : '#94a3b8'}
-                    className="flex-1 text-slate-900 dark:text-white ml-3 text-base"
-                  />
-                </View>
-              </View>
-
-              {/* Profile Visibility */}
-              <Text className="text-slate-655 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">Profile Visibility</Text>
-              <View 
-                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                className="flex-row p-1.5 rounded-2xl"
-              >
-                {(['Public', 'Private'] as const).map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    onPress={() => draft.updateDraft({ visibility: opt })}
-                    style={{
-                      backgroundColor: draft.visibility === opt ? '#059669' : 'transparent',
-                    }}
-                    className="flex-1 items-center justify-center py-3 rounded-xl"
-                  >
-                    <Text
-                      className={`font-semibold text-xs ${
-                        draft.visibility === opt ? 'text-white' : 'text-slate-500 dark:text-slate-400'
-                      }`}
-                    >
-                      {opt === 'Public' ? 'Visible to everyone' : 'Only direct link'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          );
-        } else {
-          // Seeker Step 5: Review & Complete
-          return renderReviewStep();
-        }
-
-      case 6:
-        if (isExpert) {
-          // Expert Step 6: Review & Complete
-          return renderReviewStep();
-        }
-        return null;
+            )}
+          </View>
+        );
 
       default:
         return null;
     }
   };
-
-  const renderReviewStep = () => {
-    return (
-      <View className="space-y-6">
-        <Text className="text-xl font-bold text-slate-900 dark:text-white mb-1">Review & Complete</Text>
-        <Text className="text-slate-550 dark:text-slate-400 text-sm mb-6">
-          Double check your details before finalizing your profile.
-        </Text>
-
-        {/* Review Card */}
-        <View 
-          style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-          className="rounded-3xl p-6 space-y-4 shadow-sm dark:shadow-xl"
-        >
-          {/* Header Summary */}
-          <View className="flex-row items-center border-b border-slate-200 dark:border-slate-800 pb-4">
-            <Image
-              source={{ uri: draft.avatarUrl || 'https://via.placeholder.com/150' }}
-              style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#cbd5e1', borderWidth: 1 }}
-              className="w-16 h-16 rounded-full"
-            />
-            <View className="ml-4">
-              <Text className="text-lg font-bold text-slate-900 dark:text-white">{draft.fullName || 'Unspecified Name'}</Text>
-              <Text className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold">@{draft.username || 'username'}</Text>
-              <Text className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{draft.location || 'No Location'}</Text>
-            </View>
-            <TouchableOpacity 
-              onPress={() => draft.updateDraft({ currentStep: 2 })}
-              style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-              className="ml-auto px-3 py-1.5 rounded-full"
-            >
-              <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">Edit</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Account Role details */}
-          <View className="flex-row justify-between items-center py-1">
-            <Text className="text-slate-500 dark:text-slate-400 text-sm">Account Type</Text>
-            <View 
-              style={{ 
-                backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : 'rgba(5, 150, 105, 0.1)', 
-                borderColor: 'rgba(5, 150, 105, 0.3)', 
-                borderWidth: 1,
-                borderRadius: 9999,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-              }}
-            >
-              <Text className="text-emerald-600 dark:text-emerald-400 font-bold uppercase text-xs">
-                {draft.role}
-              </Text>
-            </View>
-          </View>
-
-          {/* Bio details */}
-          <View className="py-1">
-            <Text className="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider mb-1">Bio</Text>
-            <Text className="text-slate-800 dark:text-slate-350 text-sm leading-relaxed">{draft.bio || 'No bio provided.'}</Text>
-          </View>
-
-          {/* Role specific summary */}
-          {isExpert ? (
-            <>
-              {/* Expert Offerings */}
-              <View className="border-t border-slate-200 dark:border-slate-800/60 pt-4 space-y-3">
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-slate-900 dark:text-white font-bold text-sm">Expert details</Text>
-                  <TouchableOpacity 
-                    onPress={() => draft.updateDraft({ currentStep: 3 })}
-                    style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                    className="px-3 py-1.5 rounded-full"
-                  >
-                    <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">Edit</Text>
-                  </TouchableOpacity>
-                </View>
-                <View>
-                  <Text className="text-slate-550 dark:text-slate-400 text-xs uppercase tracking-wider">Headline</Text>
-                  <Text className="text-slate-800 dark:text-white text-sm mt-0.5">{draft.headline || 'No professional headline.'}</Text>
-                </View>
-                <View>
-                  <Text className="text-slate-555 dark:text-slate-400 text-xs uppercase tracking-wider">Experience</Text>
-                  <Text className="text-slate-800 dark:text-white text-sm mt-0.5">{draft.experience || 'No experience configured.'}</Text>
-                </View>
-                <View>
-                  <Text className="text-slate-555 dark:text-slate-400 text-xs uppercase tracking-wider">Categories ({draft.categories.length})</Text>
-                  <Text className="text-slate-800 dark:text-white text-sm mt-0.5">
-                    {draft.categories
-                      .map((id) => dbCategories.find((c) => c._id === id)?.name || '')
-                      .filter(Boolean)
-                      .join(', ') || 'No categories selected.'}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Expert Pricing details */}
-              <View className="border-t border-slate-200 dark:border-slate-800/60 pt-4 space-y-2">
-                <View className="flex-row justify-between items-center mb-1">
-                  <Text className="text-slate-900 dark:text-white font-bold text-sm">Rates & Packages</Text>
-                  <TouchableOpacity 
-                    onPress={() => draft.updateDraft({ currentStep: 4 })}
-                    style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                    className="px-3 py-1.5 rounded-full"
-                  >
-                    <Text className="text-slate-655 dark:text-slate-400 text-xs font-bold">Edit</Text>
-                  </TouchableOpacity>
-                </View>
-                <View className="flex-row justify-between py-0.5">
-                  <Text className="text-slate-500 dark:text-slate-400 text-xs">Text Question</Text>
-                  <Text className="text-slate-900 dark:text-white font-extrabold text-sm">₦{draft.textPrice} {draft.textNegotiable ? '(Negotiable)' : ''}</Text>
-                </View>
-                <View className="flex-row justify-between py-0.5">
-                  <Text className="text-slate-500 dark:text-slate-400 text-xs">Voice/Video Response</Text>
-                  <Text className="text-slate-900 dark:text-white font-extrabold text-sm">₦{draft.videoPrice} {draft.videoNegotiable ? '(Negotiable)' : ''}</Text>
-                </View>
-                <View className="flex-row justify-between py-0.5">
-                  <Text className="text-slate-500 dark:text-slate-400 text-xs">Live Call (30 min)</Text>
-                  <Text className="text-slate-900 dark:text-white font-extrabold text-sm">₦{draft.callPrice} {draft.callNegotiable ? '(Negotiable)' : ''}</Text>
-                </View>
-              </View>
-            </>
-          ) : (
-            <>
-              {/* Seeker Interests */}
-              <View className="border-t border-slate-200 dark:border-slate-800/60 pt-4 space-y-3">
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-slate-900 dark:text-white font-bold text-sm">Interests ({draft.interests.length})</Text>
-                  <TouchableOpacity 
-                    onPress={() => draft.updateDraft({ currentStep: 3 })}
-                    style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                    className="px-3 py-1.5 rounded-full"
-                  >
-                    <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">Edit</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text className="text-slate-800 dark:text-white text-sm">{draft.interests.join(', ') || 'None selected.'}</Text>
-              </View>
-
-              {/* Seeker Goals */}
-              <View className="border-t border-slate-200 dark:border-slate-800/60 pt-4 space-y-2">
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-slate-900 dark:text-white font-bold text-sm">Goals & Preferences</Text>
-                  <TouchableOpacity 
-                    onPress={() => draft.updateDraft({ currentStep: 4 })}
-                    style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderWidth: 1 }}
-                    className="px-3 py-1.5 rounded-full"
-                  >
-                    <Text className="text-slate-600 dark:text-slate-400 text-xs font-bold">Edit</Text>
-                  </TouchableOpacity>
-                </View>
-                <View className="mt-1">
-                  <Text className="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Hoping to achieve</Text>
-                  <Text className="text-slate-800 dark:text-white text-sm mt-0.5 leading-relaxed">{draft.goals || 'No goals specified.'}</Text>
-                </View>
-                <View className="flex-row justify-between pt-2">
-                  <Text className="text-slate-500 dark:text-slate-400 text-xs">Preferred Comm Style</Text>
-                  <Text className="text-slate-800 dark:text-white font-bold text-sm">{draft.communicationStyle}</Text>
-                </View>
-              </View>
-            </>
-          )}
-        </View>
-      </View>
-    );
-  };
-
-  const nextButtonDisabled = 
-    (draft.currentStep === 2 && (!draft.fullName.trim() || !draft.username.trim() || !draft.location.trim() || checkingUsername)) ||
-    (draft.currentStep === 3 && isExpert && draft.categories.length < 1) ||
-    (draft.currentStep === 3 && !isExpert && draft.interests.length < 1) ||
-    (draft.currentStep === 4 && !isExpert && !draft.goals.trim());
 
   return (
     <KeyboardAvoidingView
@@ -1212,9 +672,11 @@ export default function OnboardingWizard() {
             {/* Final Submit Button */}
             <TouchableOpacity
               onPress={handleFinishOnboarding}
-              disabled={apiSaving || isUploading}
-              style={{ backgroundColor: '#10b981' }}
-              className="w-full py-4 rounded-2xl flex-row justify-center items-center active:bg-emerald-600"
+              disabled={apiSaving || isUploading || nextButtonDisabled}
+              style={{
+                backgroundColor: nextButtonDisabled ? (isDark ? 'rgba(16, 185, 129, 0.3)' : '#10b98160') : '#10b981',
+              }}
+              className="w-full py-4 rounded-2xl flex-row justify-center items-center active:bg-emerald-600 shadow-md"
             >
               {apiSaving || isUploading ? (
                 <ActivityIndicator color="#fff" />
@@ -1224,6 +686,12 @@ export default function OnboardingWizard() {
                   <Check size={20} color="#fff" />
                 </>
               )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handlePrev}
+              className="w-full py-3.5 items-center mt-2"
+            >
+              <Text className="text-slate-500 dark:text-slate-400 font-semibold text-sm">Back to Location</Text>
             </TouchableOpacity>
           </View>
         )}
